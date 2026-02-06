@@ -19,6 +19,48 @@ export type InventoryItem = {
   }[];
 };
 
+export type Filter = "all" | "drafts" | "published";
+
+export type Counts = {
+  all: number;
+  drafts: number;
+  published: number;
+};
+
+export type InventoryContextValue = {
+  items: InventoryItem[];
+  loading: boolean;
+  error: string | null;
+
+  // paging
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  counts: Counts;
+
+  // controls
+  setPage: (n: number) => void;
+  setPageSize: (n: number) => void;
+  setFilter: (f: Filter) => void;
+
+  filter: Filter;
+  sorted: InventoryItem[];
+
+  getThumbnailUrl: (InventoryId: number) => string | null;
+  ensureThumbnail: (InventoryId: number, ttlMinutes?: number) => void,
+
+  // Images dictionary methods
+  getImages: (InventoryId: number) => InventoryImage[] | null;
+  ensureImages: (InventoryId: number, ttlMinutes?: number) => void;
+  refreshImages: (InventoryId: number, ttlMinutes?: number) => Promise<InventoryImage[]>;
+
+  // Cache management
+  invalidateCache: () => void;
+  invalidateFilterCache: (filter?: Filter) => void;
+  reloadItems: () => void;
+};
+
 export type InventoryImage = {
   ImageId: number;
   InventoryId?: number;
@@ -37,10 +79,22 @@ export type DraftUpload = {
   ContentType: string;
 };
 
+export type GetItemsResponse = {
+  items: InventoryItem[];
+  page: number;
+  limit: number;
+  totalCount: number;
+  totalPages: number;
+  status: string;
+};
+
 export type CreateDraftRequest = {
-  titleHint?: string;
-  notes?: string;
-  files: { fileName: string; contentType: string }[];
+  TitleHint?: string;
+  Notes?: string;
+  Files: {
+    FileName: string;
+    ContentType: string;
+  }[];
 };
 
 export type CreateDraftResponse = {
@@ -49,12 +103,49 @@ export type CreateDraftResponse = {
   Sku: string;
   Container: string;
   ExpiresOnUtc: string;
-  Uploads: Array<{
-    Index: number;
-    BlobName: string;
-    UploadUrl: string;
-    Method: "PUT";
-    RequiredHeaders: Record<string, string>;
-    ContentType: string;
-  }>;
+  Uploads: DraftUpload[];
 };
+
+export type AiPrefillRequest = {
+  InventoryId: number;
+  Overwrite?: boolean;
+  MaxImages?: number;
+  ImageIds?: number[];
+  TitleHint?: string;
+  Notes?: string;
+};
+
+export type EmbeddingsRequest = {
+  InventoryId: number;
+  Opts?: {
+    Purpose?: string;
+    Force?: number;
+  };
+};
+
+
+export type DraftPipelineOptions = {
+  Keys?: {
+    TitleHint?: string; // default "TitleHint"
+    Notes?: string;     // default "Notes"
+    Files?: string;     // default "Files"
+  };
+
+  RunAiVision?: boolean;
+  RunAiEmbeddings?: boolean;
+
+  AiVision?: {
+    Overwrite?: boolean;
+    MaxImages?: number;
+  };
+};
+
+export type DraftPipelineResult = {
+  Draft: CreateDraftResponse;
+  BlobUploadResult: unknown;
+  AiVisionResult?: unknown;
+  AiEmbeddingsResult?: unknown;
+};
+
+
+

@@ -1,15 +1,9 @@
-// src/app/admin/api/items/route.ts
 import { NextResponse } from "next/server";
 
 const BASE = process.env.LINENLADY_API_BASE_URL || "http://localhost:7071";
 
-export async function GET(req: Request) {
-  const url = new URL(req.url);
-  const qs = url.searchParams.toString(); // forward ?page= &limit= &status= ...
-
-  const upstreamUrl = qs ? `${BASE}/api/items?${qs}` : `${BASE}/api/items`;
-
-  const upstream = await fetch(upstreamUrl, { cache: "no-store" });
+export async function GET() {
+  const upstream = await fetch(`${BASE}/api/items/counts`, { cache: "no-store" });
 
   if (!upstream.ok) {
     const text = await upstream.text();

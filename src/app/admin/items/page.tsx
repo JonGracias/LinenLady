@@ -2,13 +2,19 @@
 "use client";
 
 import Link from "next/link";
-import { AdminFilters } from "@/components/admin/AdminFilters";
-import { AdminPagination } from "@/components/admin/AdminPagination";
-import { AdminItemsTable } from "@/components/admin/AdminItemsTable";
+import { AdminFilters } from "@/components/admin/Filters";
+import { AdminPagination } from "@/components/admin/Pagination";
+import { AdminItemsTable } from "@/components/admin/ItemsTable";
 
 export default function AdminPage() {
   return (
-    <main className="max-h-[96dvh] my-4 bg-gray-50 p-8">
+    <main className="
+          flex flex-col items-center justify-center text-center
+          mt-[4dvh]
+          h-full
+          w-full
+          overflow-hidden">
+
       <div className="mx-auto max-w-7xl">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -18,7 +24,10 @@ export default function AdminPage() {
 
           <Link
             href="/admin/intake"
-            className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 transition-colors"
+            className="rounded-lg bg-blue-600 px-5 py-2.5 
+                       text-sm font-semibold text-white
+                       shadow-sm hover:bg-blue-700
+                       transition-colors"
           >
             + New Intake
           </Link>

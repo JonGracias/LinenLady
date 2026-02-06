@@ -1,4 +1,3 @@
-// src/app/admin/api/items/[id]/images/route.ts
 import { NextResponse } from "next/server";
 
 const BASE = process.env.LINENLADY_API_BASE_URL || "http://localhost:7071";
@@ -11,12 +10,17 @@ type InventoryImage = {
   ReadUrl?: string | null;
 };
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(
+  req: Request,
+  context: { params: Promise<{ id: string }> }
+) {
   const url = new URL(req.url);
   const ttlMinutes = url.searchParams.get("ttlMinutes") ?? "60";
 
+  const { id } = await context.params;
+
   const upstream = await fetch(
-    `${BASE}/api/items/${encodeURIComponent(params.id)}/images?ttlMinutes=${encodeURIComponent(ttlMinutes)}`,
+    `${BASE}/api/items/${encodeURIComponent(id)}/images?ttlMinutes=${encodeURIComponent(ttlMinutes)}`,
     { cache: "no-store" }
   );
 

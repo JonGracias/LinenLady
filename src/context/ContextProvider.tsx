@@ -1,5 +1,7 @@
 "use client";
+import { DraftJobsProvider } from "./DraftJobsContext";
 import { InventoryProvider } from "./InventoryContext";
+import { ToastProvider } from "./ToastHost";
 
 import { useEffect } from "react";
 
@@ -33,8 +35,12 @@ export default function ContextProviderTree({ children }: ContextProviderTreePro
     ]);
   }, []);
   return (
-    <InventoryProvider>
-        {children}
-    </InventoryProvider>
+    <ToastProvider>
+      <DraftJobsProvider>
+        <InventoryProvider>
+          {children}
+        </InventoryProvider>
+      </DraftJobsProvider>
+    </ToastProvider>
   );
 }
