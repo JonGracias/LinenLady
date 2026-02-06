@@ -1,4 +1,4 @@
-// src/components/admin/AdminItemsTable.tsx
+// src/components/admin/ItemsTable.tsx
 "use client";
 
 import Link from "next/link";

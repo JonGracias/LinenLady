@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useInventoryContext } from "@/context/InventoryContext";
 
 function clamp(n: number, min: number, max: number) {
@@ -11,10 +11,8 @@ export function AdminPagination() {
   const { page, setPage, totalPages, pageSize, setPageSize, totalCount } =
     useInventoryContext();
 
-  // Hooks must run on every render (no early returns before these)
   const [pageSizeDraft, setPageSizeDraft] = useState(String(pageSize));
 
-  // Keep draft in sync if pageSize changes elsewhere
   useEffect(() => {
     setPageSizeDraft(String(pageSize));
   }, [pageSize]);
@@ -25,29 +23,40 @@ export function AdminPagination() {
   const startItem = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
   const endItem = Math.min(page * pageSize, totalCount);
 
-  const pageNumbers = useMemo(() => {
-    const delta = 2; // show +/- 1 around current
-    const range: (number | string)[] = [];
-    const out: (number | string)[] = [];
-
-    range.push(1);
-
-    for (let i = page - delta; i <= page + delta; i++) {
-      if (i > 1 && i < totalPages) range.push(i);
-    }
-
-    if (totalPages > 1) range.push(totalPages);
-
-    let prev = 0;
-    for (const x of range) {
-      if (typeof x === "number") {
-        if (prev && x - prev > 1) out.push("...");
-        out.push(x);
-        prev = x;
+  // Fixed number of page buttons to show (always 5)
+  const MAX_VISIBLE_PAGES = 5;
+  
+  function getVisiblePages() {
+    const pages: number[] = [];
+    
+    if (totalPages <= MAX_VISIBLE_PAGES) {
+      // Show all pages if total is less than max
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+      // Fill remaining slots with null to maintain fixed width
+      while (pages.length < MAX_VISIBLE_PAGES) {
+        pages.push(0); // 0 represents empty slot
+      }
+    } else {
+      // Show window around current page
+      let start = Math.max(1, page - Math.floor(MAX_VISIBLE_PAGES / 2));
+      let end = start + MAX_VISIBLE_PAGES - 1;
+      
+      if (end > totalPages) {
+        end = totalPages;
+        start = end - MAX_VISIBLE_PAGES + 1;
+      }
+      
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
       }
     }
-    return out;
-  }, [page, totalPages]);
+    
+    return pages;
+  }
+
+  const visiblePages = getVisiblePages();
 
   function goToPage(p: number) {
     if (p >= 1 && p <= totalPages) setPage(p);
@@ -56,16 +65,16 @@ export function AdminPagination() {
   function commitPageSize() {
     const n = Number(pageSizeDraft);
     if (!Number.isFinite(n)) {
-      setPageSizeDraft(String(pageSize)); // revert
+      setPageSizeDraft(String(pageSize));
       return;
     }
     const next = clamp(Math.trunc(n), 1, 200);
 
     if (next !== pageSize) {
       setPageSize(next);
-      setPage(1); // safe: avoids landing on an out-of-range page after size change
+      setPage(1);
     } else {
-      setPageSizeDraft(String(pageSize)); // normalize formatting
+      setPageSizeDraft(String(pageSize));
     }
   }
 
@@ -76,122 +85,109 @@ export function AdminPagination() {
     }
   }
 
-  // Early returns AFTER hooks
   if (totalCount === 0) return null;
   if (totalPages <= 1) return null;
 
   return (
-    <div className="mt-6 flex flex-col gap-3 border-t border-gray-200 bg-white px-6 py-4 rounded-lg">
-      <div className="flex items-center justify-between gap-4">
-        <p className="text-sm text-gray-700">
+    <div className="mt-6 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-6 py-4 rounded-lg">
+      {/* Info row */}
+      <div className="flex items-center justify-between gap-4 mb-4">
+        <p className="text-sm text-gray-700 dark:text-gray-300">
           <span className="font-medium">{startItem}</span> - {" "}
           <span className="font-medium">{endItem}</span> of{" "}
           <span className="font-medium">{totalCount}</span>
         </p>
 
-        {/* Page size: requires Enter to apply */}
+        {/* Page size input */}
         <div className="flex items-center gap-2">
-          <label className="text-sm text-gray-700">Per page</label>
+          <label className="text-sm text-gray-700 dark:text-gray-300">Per page</label>
           <input
             value={pageSizeDraft}
             onChange={(e) => setPageSizeDraft(e.target.value)}
             onKeyDown={onPageSizeKeyDown}
+            onBlur={commitPageSize}
             inputMode="numeric"
-            className="w-20 rounded-md border border-gray-300 px-2 py-1 text-sm"
+            className="w-16 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-2 py-1 text-sm text-gray-900 dark:text-gray-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
-
       </div>
 
-      <div className="flex items-center justify-left">
-        <nav
-          className="isolate inline-flex -space-x-px rounded-md shadow-sm"
-          aria-label="Pagination">
+      {/* Fixed-width pagination bar */}
+      <div className="flex items-center justify-center gap-2">
+        {/* Previous button - fixed position */}
+        <button
+          type="button"
+          onClick={() => canPrev && setPage(page - 1)}
+          disabled={!canPrev}
+          className={`flex items-center justify-center w-10 h-10 rounded-lg border transition-colors ${
+            canPrev
+              ? "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600"
+              : "border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed"
+          }`}
+          aria-label="Previous page"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
 
-
-          <div>
-            <button
-              type="button"
-              onClick={() => canPrev && setPage(page - 1)}
-              disabled={!canPrev}
-              className={`relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
-                !canPrev ? "cursor-not-allowed bg-gray-100" : "bg-white"
-              }`}>
-              <span className="sr-only">Previous</span>
-              <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path
-                  fillRule="evenodd"
-                  d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => canNext && setPage(page + 1)}
-              disabled={!canNext}
-              className={`relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
-                !canNext ? "cursor-not-allowed bg-gray-100" : "bg-white"
-              }`}>
-              <span className="sr-only">Next</span>
-              <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path
-                  fillRule="evenodd"
-                  d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </button>
-          </div>
-
-
-
-
-
-
-
-
-
-
-
-          {pageNumbers.map((p, idx) => {
-            if (p === "...") {
+        {/* Fixed number of page buttons */}
+        <div className="flex items-center gap-1">
+          {visiblePages.map((pageNum, idx) => {
+            // Empty slot to maintain fixed width
+            if (pageNum === 0) {
               return (
-                <span
-                  key={`ellipsis-${idx}`}
-                  className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300 bg-white"
-                >
-                  ...
-                </span>
+                <div
+                  key={`empty-${idx}`}
+                  className="w-10 h-10"
+                  aria-hidden="true"
+                />
               );
             }
 
-            const pageNum = p as number;
             const isCurrent = pageNum === page;
 
             return (
-             < button
+              <button
                 key={pageNum}
                 type="button"
                 onClick={() => goToPage(pageNum)}
                 aria-current={isCurrent ? "page" : undefined}
-                className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ring-1 ring-inset ring-gray-300 focus:z-20 focus:outline-offset-0 ${
+                className={`flex items-center justify-center w-10 h-10 rounded-lg border font-medium text-sm transition-colors ${
                   isCurrent
-                    ? "z-10 bg-blue-600 text-white ring-blue-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
-                    : "bg-white text-gray-900 hover:bg-gray-50"
-                }`}>
+                    ? "border-blue-600 dark:border-blue-500 bg-blue-600 dark:bg-blue-500 text-white"
+                    : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600"
+                }`}
+              >
                 {pageNum}
               </button>
             );
           })}
+        </div>
 
+        {/* Next button - fixed position */}
+        <button
+          type="button"
+          onClick={() => canNext && setPage(page + 1)}
+          disabled={!canNext}
+          className={`flex items-center justify-center w-10 h-10 rounded-lg border transition-colors ${
+            canNext
+              ? "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600"
+              : "border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed"
+          }`}
+          aria-label="Next page"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
 
-        </nav>
-
-
-
-
+      {/* Optional: Page indicator for small screens */}
+      <div className="mt-3 text-center md:hidden">
+        <span className="text-xs text-gray-500 dark:text-gray-400">
+          Page {page} of {totalPages}
+        </span>
       </div>
     </div>
   );

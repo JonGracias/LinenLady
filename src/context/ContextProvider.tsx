@@ -1,6 +1,7 @@
 "use client";
 import { DraftJobsProvider } from "./DraftJobsContext";
 import { InventoryProvider } from "./InventoryContext";
+import { ThemeProvider } from "next-themes";
 import { ToastProvider } from "./ToastHost";
 
 import { useEffect } from "react";

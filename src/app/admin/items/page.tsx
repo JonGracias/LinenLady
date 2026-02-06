@@ -10,16 +10,15 @@ export default function AdminPage() {
   return (
     <main className="
           flex flex-col items-center justify-center text-center
-          mt-[4dvh]
-          h-full
+          h-auto
           w-full
           overflow-hidden">
 
-      <div className="mx-auto max-w-7xl">
+      <div className="mx-auto mt-[4dvh] max-w-7xl">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-            <p className="mt-2 text-base text-gray-600">Manage your inventory items</p>
+            <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+            <p className="mt-2 text-base">Manage your inventory items</p>
           </div>
 
           <Link
