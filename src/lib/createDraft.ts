@@ -3,9 +3,9 @@
 import type { CreateDraftRequest, CreateDraftResponse, DraftPipelineOptions, DraftPipelineResult } from "@/types/inventory";
 
 const ROUTES = {
-  create: "/admin/api/draft/create",
-  blobUpload: "/admin/api/draft/blob-upload",
-  aiVision: "/admin/api/draft/ai-vision",
+  create:       "/admin/api/draft/create",
+  blobUpload:   "/admin/api/draft/blob-upload",
+  aiVision:     "/admin/api/draft/ai-vision",
   aiEmbeddings: "/admin/api/draft/ai-embeddings",
 } as const;
 
@@ -63,19 +63,19 @@ async function postForm<T>(url: string, form: FormData): Promise<T> {
  *  - files: File[] (from <input type="file" name="files" multiple />)
  */
 
-export async function createDraftFromForm(
+export async function createDraftFrom(
   form: FormData,
   options: DraftPipelineOptions = {}
 ): Promise<DraftPipelineResult> {
   const keys = {
     TitleHint: options.Keys?.TitleHint ?? "titleHint",
-    Notes: options.Keys?.Notes ?? "Notes",
-    Files: options.Keys?.Files ?? "files",
+    Notes:     options.Keys?.Notes     ?? "Notes",
+    Files:     options.Keys?.Files     ?? "files",
   };
 
   const TitleHint = getString(form, keys.TitleHint);
-  const Notes = getString(form, keys.Notes);
-  const Files = getFiles(form, keys.Files);
+  const Notes     = getString(form, keys.Notes);
+  const Files     = getFiles(form, keys.Files);
 
   if (Files.length === 0) {
     throw new Error(`No files found in FormData under key "${keys.Files}".`);
@@ -88,7 +88,7 @@ export async function createDraftFromForm(
     TitleHint,
     Notes,
     Files: Files.map((f) => ({
-      FileName: f.name,
+      FileName:    f.name,
       ContentType: f.type || "application/octet-stream",
     })),
   };
@@ -106,7 +106,7 @@ export async function createDraftFromForm(
 
   // ---------------------------------------------------------------------------
   // 2) /api/draft/blob-upload
-  //     - This route should: PUT the blobs to Azure (SAS) + write DB image rows
+  //     - PUT the blobs to Azure (SAS) + write DB image rows
   //     - We send FormData: "draft" JSON + "files" (same count/order as Uploads)
   // ---------------------------------------------------------------------------
   const uploadForm = new FormData();
@@ -116,22 +116,25 @@ export async function createDraftFromForm(
   const BlobUploadResult = await postForm<unknown>(ROUTES.blobUpload, uploadForm);
 
   // ---------------------------------------------------------------------------
-  // 4) /api/draft/ai-vision
+  // 3) /api/draft/ai-vision
+  //     - Scans images, writes name + description back to the item
+  //     - Must complete before keywords step so the text is in the DB
   // ---------------------------------------------------------------------------
   let AiVisionResult: unknown | undefined;
   const runAiVision = options.RunAiVision ?? true;
   if (runAiVision) {
     AiVisionResult = await postJson(ROUTES.aiVision, {
       InventoryId: Draft.InventoryId,
-      overwrite: options.AiVision?.Overwrite ?? false,
-      maxImages: options.AiVision?.MaxImages ?? Math.min(4, Files.length),
+      overwrite:   options.AiVision?.Overwrite ?? false,
+      maxImages:   options.AiVision?.MaxImages ?? Math.min(4, Files.length),
       TitleHint,
       Notes,
     });
   }
 
   // ---------------------------------------------------------------------------
-  // 5) /api/draft/ai-embeddings
+  // 4) /api/draft/ai-embeddings
+  //     - Generates and stores the vector for this item
   // ---------------------------------------------------------------------------
   let AiEmbeddingsResult: unknown | undefined;
   const runAiEmbeddings = options.RunAiEmbeddings ?? true;
@@ -141,5 +144,25 @@ export async function createDraftFromForm(
     });
   }
 
-  return { Draft, BlobUploadResult, AiVisionResult, AiEmbeddingsResult };
+  // ---------------------------------------------------------------------------
+  // 5) /api/items/[id]/keywords/generate
+  //     - Generates structured keywords + SEO from name, description, notes
+  //     - Also refreshes the vector so keywords are baked in
+  //     - Non-fatal: a failure here does not fail the whole draft creation
+  // ---------------------------------------------------------------------------
+  let AiKeywordsResult: unknown | undefined;
+  const runAiKeywords = options.RunAiKeywords ?? true;
+  if (runAiKeywords) {
+    try {
+      AiKeywordsResult = await postJson(
+        `/admin/api/items/${Draft.InventoryId}/keywords/generate`,
+        {}
+      );
+    } catch (err) {
+      // Keywords are non-critical — draft is usable without them
+      console.warn("Keywords generation failed (non-fatal):", err);
+    }
+  }
+
+  return { Draft, BlobUploadResult, AiVisionResult, AiEmbeddingsResult, AiKeywordsResult };
 }

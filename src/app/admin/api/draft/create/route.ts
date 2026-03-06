@@ -1,22 +1,12 @@
-import { NextResponse } from "next/server";
-
-const BASE = process.env.LINENLADY_API_BASE_URL || "http://localhost:7071";
+// /admin/api/draft/create/route.ts
+import { proxyFetch, forwardJson, serverError } from "../../_lib/proxy";
 
 export async function POST(req: Request) {
-  const body = await req.json();
-
-  const upstream = await fetch(`${BASE}/api/items/drafts`, {
-    method: "POST",
-    cache: "no-store",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-
-  if (!upstream.ok) {
-    const text = await upstream.text().catch(() => "");
-    return new NextResponse(text || upstream.statusText, { status: upstream.status });
+  try {
+    const body = await req.text();
+    const upstream = await proxyFetch("/api/items/drafts", { method: "POST", body });
+    return forwardJson(upstream);
+  } catch (err) {
+    return serverError(err);
   }
-
-  const data = await upstream.json();
-  return NextResponse.json(data);
 }

@@ -1,7 +1,7 @@
 "use client";
 import { DraftJobsProvider } from "./DraftJobsContext";
 import { InventoryProvider } from "./InventoryContext";
-import { ThemeProvider } from "next-themes";
+import { ItemAiProvider } from "./ItemAiContext";
 import { ToastProvider } from "./ToastHost";
 
 import { useEffect } from "react";
@@ -39,7 +39,9 @@ export default function ContextProviderTree({ children }: ContextProviderTreePro
     <ToastProvider>
       <DraftJobsProvider>
         <InventoryProvider>
-          {children}
+          <ItemAiProvider>
+            {children}
+          </ItemAiProvider>
         </InventoryProvider>
       </DraftJobsProvider>
     </ToastProvider>

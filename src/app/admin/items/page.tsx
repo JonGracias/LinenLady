@@ -1,47 +1,35 @@
-// src/app/admin/page.tsx
-"use client";
-
 import Link from "next/link";
 import { AdminFilters } from "@/components/admin/Filters";
-import { AdminPagination } from "@/components/admin/Pagination";
 import { AdminItemsTable } from "@/components/admin/ItemsTable";
 
 export default function AdminPage() {
   return (
-    <main className="
-          flex flex-col items-center justify-center text-center
-          h-auto
-          w-full
-          overflow-hidden">
+    <main className="w-full h-[92dvh] px-4 md:px-8 flex flex-col overflow-hidden">
 
-      <div className="mx-auto mt-[4dvh] max-w-7xl">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-            <p className="mt-2 text-base">Manage your inventory items</p>
-          </div>
 
-          <Link
-            href="/admin/intake"
-            className="rounded-lg bg-blue-600 px-5 py-2.5 
-                       text-sm font-semibold text-white
-                       shadow-sm hover:bg-blue-700
-                       transition-colors"
-          >
-            + New Intake
-          </Link>
-        </div>
-
-        <div className="mt-8">
-          <AdminFilters />
-        </div>
-
-        <div className="mt-6">
-          <AdminItemsTable />
-        </div>
-
-        <AdminPagination />
+      {/* Filters */}
+      <div className="flex items-center justify-between w-full mt-4 flex-shrink-0">
+        <AdminFilters />
       </div>
+
+      {/*  AdminPage.tsx */}
+      <div className="mt-5 flex-1 min-h-0">
+        <AdminItemsTable />
+      </div>
+
+      {/* Mobile only - New Intake button below pagination */}
+      <div className="md:hidden flex-shrink-0 mt-4 mb-4  overflow-hidden rounded-b-xl">
+        <Link
+          href="/admin/intake"
+          className="flex items-center justify-center w-full rounded-xl
+                     bg-blue-600 px-4 py-4 text-base font-bold text-white
+                     shadow-lg hover:bg-blue-700 active:bg-blue-800
+                     transition-colors"
+        >
+          + New Intake
+        </Link>
+      </div>
+
     </main>
   );
 }

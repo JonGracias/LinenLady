@@ -1,14 +1,8 @@
+// /admin/items/[id]/images/routes.ts
+import { InventoryImage } from "@/types/inventory";
 import { NextResponse } from "next/server";
 
 const BASE = process.env.LINENLADY_API_BASE_URL || "http://localhost:7071";
-
-type InventoryImage = {
-  ImageId: number;
-  ImagePath: string;
-  IsPrimary: boolean;
-  SortOrder: number;
-  ReadUrl?: string | null;
-};
 
 export async function GET(
   req: Request,

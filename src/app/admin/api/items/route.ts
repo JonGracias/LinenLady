@@ -1,21 +1,12 @@
-// src/app/admin/api/items/route.ts
-import { NextResponse } from "next/server";
-
-const BASE = process.env.LINENLADY_API_BASE_URL || "http://localhost:7071";
+// /admin/api/items/route.ts
+import { proxyFetch, forwardJson, serverError } from "../_lib/proxy";
 
 export async function GET(req: Request) {
-  const url = new URL(req.url);
-  const qs = url.searchParams.toString(); // forward ?page= &limit= &status= ...
-
-  const upstreamUrl = qs ? `${BASE}/api/items?${qs}` : `${BASE}/api/items`;
-
-  const upstream = await fetch(upstreamUrl, { cache: "no-store" });
-
-  if (!upstream.ok) {
-    const text = await upstream.text();
-    return new NextResponse(text, { status: upstream.status });
+  try {
+    const qs = new URL(req.url).searchParams.toString();
+    const upstream = await proxyFetch(qs ? `/api/items?${qs}` : "/api/items");
+    return forwardJson(upstream);
+  } catch (err) {
+    return serverError(err);
   }
-
-  const data = await upstream.json();
-  return NextResponse.json(data, { status: 200 });
 }

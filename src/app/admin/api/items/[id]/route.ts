@@ -1,33 +1,35 @@
-import { NextResponse } from "next/server";
+// /admin/api/items/[id]/route.ts
+import { proxyFetch, forwardJson, forwardNoContent, serverError } from "../../_lib/proxy";
 
-export async function GET(
-  req: Request,
-  ctx: { params: Promise<{ id: string }> }
-) {
-  const { id: idRaw } = await ctx.params;
-  const id = Number(idRaw);
+type Context = { params: Promise<{ id: string }> };
 
-  if (!id || Number.isNaN(id) || id <= 0) {
-    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-  }
-
-  const backend =
-    process.env.LINENLADY_API_BASE_URL ?? "http://localhost:7071";
-
+export async function GET(_req: Request, { params }: Context) {
   try {
-    const resp = await fetch(`${backend}/api/items/${id}`, { cache: "no-store" });
+    const { id } = await params;
+    const upstream = await proxyFetch(`/api/items/${id}`);
+    return forwardJson(upstream);
+  } catch (err) {
+    return serverError(err);
+  }
+}
 
-    if (!resp.ok) {
-      const text = await resp.text();
-      return NextResponse.json(
-        { error: text || "Backend error" },
-        { status: resp.status }
-      );
-    }
+export async function PATCH(req: Request, { params }: Context) {
+  try {
+    const { id } = await params;
+    const body = await req.text();
+    const upstream = await proxyFetch(`/api/items/${id}`, { method: "PATCH", body });
+    return forwardJson(upstream);
+  } catch (err) {
+    return serverError(err);
+  }
+}
 
-    const data = await resp.json();
-    return NextResponse.json(data);
-  } catch {
-    return NextResponse.json({ error: "Failed to reach backend" }, { status: 500 });
+export async function DELETE(_req: Request, { params }: Context) {
+  try {
+    const { id } = await params;
+    const upstream = await proxyFetch(`/api/items/${id}`, { method: "DELETE" });
+    return forwardNoContent(upstream);
+  } catch (err) {
+    return serverError(err);
   }
 }
