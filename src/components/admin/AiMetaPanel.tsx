@@ -148,7 +148,9 @@ export default function AiMetaPanel({
       if (activeFields.has("keywords")) {
         const kwRes = await fetch(`/admin/api/items/${inventoryId}/keywords/generate`, {
           method: "POST",
-          cache:  "no-store",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ hint: aiHint.trim() || undefined }),
+          cache: "no-store",
         });
         if (kwRes.ok) {
           const metaRes = await fetch(`/admin/api/items/${inventoryId}/ai-meta`, { cache: "no-store" });

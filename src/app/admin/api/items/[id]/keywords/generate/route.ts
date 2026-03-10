@@ -3,12 +3,13 @@ import { proxyFetch, forwardJson, serverError } from "../../../../_lib/proxy";
 
 type Context = { params: Promise<{ id: string }> };
 
-export async function POST(_req: Request, { params }: Context) {
+export async function POST(req: Request, { params }: Context) {
   try {
     const { id } = await params;
+    const body = await req.text(); // pass body through
     const upstream = await proxyFetch(
       `/api/items/${encodeURIComponent(id)}/keywords/generate`,
-      { method: "POST" }
+      { method: "POST", body }
     );
     return forwardJson(upstream);
   } catch (err) {

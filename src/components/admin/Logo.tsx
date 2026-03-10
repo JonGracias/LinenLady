@@ -6,6 +6,8 @@ type LinenLadyLogoProps = {
   width?: number | string;
 };
 
+const adminName = process.env.NEXT_PUBLIC_ADMIN_NAME ?? "My Store";
+
 export function LinenLadyLogo({
   className,
   color = "currentColor",
@@ -30,7 +32,7 @@ export function LinenLadyLogo({
         textAnchor="middle"
         fill={color}
       >
-        Linen Lady Admin
+        {adminName}
       </text>
     </svg>
   );

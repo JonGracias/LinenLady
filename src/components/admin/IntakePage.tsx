@@ -9,6 +9,7 @@ import { useDraftJobs } from "@/context/DraftJobsContext";
 import { useToast } from "@/context/ToastHost";
 import { useInventoryContext } from "@/context/InventoryContext";
 import { CameraModal } from "@/components/admin/modals/CameraModal";
+import { normalizeFile } from "@/lib/normalizeFile";
 
 // ─── Shared types & helpers ───────────────────────────────────────────────────
 
@@ -28,9 +29,11 @@ function uid() {
 }
 
 function isImage(file: File) {
-  return typeof file.type === "string" && file.type.startsWith("image/");
+  const heic = file.type === "image/heic" || file.type === "image/heif"
+    || file.name.toLowerCase().endsWith(".heic")
+    || file.name.toLowerCase().endsWith(".heif");
+  return heic || (typeof file.type === "string" && file.type.startsWith("image/"));
 }
-
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function IntakePage() {
@@ -67,11 +70,11 @@ export default function IntakePage() {
 
   // ─── File upload logic ────────────────────────────────────────────────────
 
-  function addFiles(rawFiles: FileList | File[]) {
+  async function addFiles(rawFiles: FileList | File[]) {
     if (finishing) return;
     setError(null);
 
-    const incoming   = Array.from(rawFiles);
+    const incoming = Array.from(rawFiles);
     const imageFiles = incoming.filter(isImage);
 
     if (imageFiles.length === 0) {
@@ -79,11 +82,14 @@ export default function IntakePage() {
       return;
     }
 
+    // Convert any HEIC files before touching state
+    const normalized = await Promise.all(imageFiles.map(normalizeFile));
+
     setPhotos((prev) => {
       const prevSigs = new Set(prev.map((x) => x.sig));
       const next: PhotoItem[] = [...prev];
 
-      for (const f of imageFiles) {
+      for (const f of normalized) {
         if (next.length >= 4) break;
         const sig = makeSig(f);
         if (prevSigs.has(sig)) continue;
@@ -266,7 +272,7 @@ export default function IntakePage() {
               <p className="mt-1 text-sm text-gray-600">
                 or use the buttons below • {count}/4 selected
               </p>
-              <p className="mt-2 text-xs text-gray-500">PNG, JPG, GIF, WEBP accepted</p>
+              <p className="mt-2 text-xs text-gray-500">PNG, JPG, HEIC, WEBP accepted</p>
             </div>
 
             {/* Action buttons */}
@@ -274,7 +280,7 @@ export default function IntakePage() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/*,.heic,.heif"
                 multiple
                 name="files"
                 className="hidden"

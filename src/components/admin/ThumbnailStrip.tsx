@@ -4,6 +4,14 @@
 import { useRef, useState } from "react";
 import type { InventoryImage } from "@/types/inventory";
 import { CameraModal } from "@/components/admin/modals/CameraModal";
+import { normalizeFile } from "@/lib/normalizeFile";
+
+async function convertAndAdd(files: FileList, onAddPhotos: (f: FileList) => void) {
+  const normalized = await Promise.all(Array.from(files).map(normalizeFile));
+  const dt = new DataTransfer();
+  normalized.forEach((f) => dt.items.add(f));
+  onAddPhotos(dt.files);
+}
 
 type Props = {
   images:          InventoryImage[];
@@ -217,8 +225,8 @@ export function ThumbnailStrip({
               {addingPhotos ? addSpinner : addIcon("sm")}
             </button>
             {addMenuDropdown}
-            <input ref={addInputRef} type="file" accept="image/*" multiple className="hidden"
-              disabled={addingPhotos} onChange={(e) => { if (e.target.files) onAddPhotos(e.target.files); }} />
+            <input ref={addInputRef} type="file" accept="image/*,.heic,.heif" multiple className="hidden"
+              disabled={addingPhotos} onChange={(e) => { if (e.target.files) convertAndAdd(e.target.files, onAddPhotos); }} />
           </div>
         </div>
       )}
@@ -257,8 +265,8 @@ export function ThumbnailStrip({
               </button>
             </div>
           )}
-          <input ref={addInputRef} type="file" accept="image/*" multiple className="hidden"
-            disabled={addingPhotos} onChange={(e) => { if (e.target.files) onAddPhotos(e.target.files); }} />
+          <input ref={addInputRef} type="file" accept="image/*,.heic,.heif" multiple className="hidden"
+            disabled={addingPhotos} onChange={(e) => { if (e.target.files) convertAndAdd(e.target.files, onAddPhotos); }} />
         </div>
       )}
 
