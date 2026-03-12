@@ -4,6 +4,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ContextProvider from "@/context/ContextProvider";
 import { ThemeProvider } from "next-themes";
+import CookieBanner from "@/components/CookieBanner";
+import { ClerkProvider } from '@clerk/nextjs'
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,14 +29,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen transition-colors duration-200`}>
-          <ThemeProvider>
-            <ContextProvider>
-              <div className="layout">
-                {children}
-              </div>
-            </ContextProvider>
-          </ThemeProvider>
+      <body>
+          <ClerkProvider>
+            <ThemeProvider>
+              <ContextProvider>
+                  {children}
+              </ContextProvider>
+              <CookieBanner />
+            </ThemeProvider>
+          </ClerkProvider>
       </body>
     </html>
   );

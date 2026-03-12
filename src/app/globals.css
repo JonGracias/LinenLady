@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400;1,500&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Jost:wght@300;400;500&display=swap');
 @import "tailwindcss";
 
 @media (prefers-reduced-motion: reduce) {
@@ -7,9 +8,26 @@
   }
 }
 
+:root {
+  --rose:        #d4a0a0;
+  --rose-light:  #ecdcdc;
+  --rose-deep:   #b07878;
+  --sage:        #8fad94;
+  --sage-light:  #c8daca;
+  --sage-deep:   #5a7a60;
+  --cream:       #faf6f0;
+  --cream-dark:  #f0e8dd;
+  --foam:  #fdfaf6;
+  --linen:       #e8ddd0;
+  --brown:       #6b4e3d;
+  --brown-light: #9a7060;
+  --ink:         #2c1f1a;
+  --ink-soft:    #5c4a42;
+}
+
 
 body {
-  background: var(--background);
+  background: var(--foam);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
@@ -85,4 +103,34 @@ body {
 
 html {
   scrollbar-gutter: stable both-edges;
+}
+
+.ll-display { font-family: 'Playfair Display', serif; }
+.ll-body    { font-family: 'Cormorant Garamond', serif; }
+.ll-label   { font-family: 'Jost', sans-serif; }
+
+@keyframes ll-fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.ll-hero-item { opacity: 0; }
+.ll-hero-visible .ll-hero-item-1 { animation: ll-fadeUp 0.7s ease 0.10s forwards; }
+.ll-hero-visible .ll-hero-item-2 { animation: ll-fadeUp 0.7s ease 0.25s forwards; }
+.ll-hero-visible .ll-hero-item-3 { animation: ll-fadeUp 0.7s ease 0.40s forwards; }
+.ll-hero-visible .ll-hero-item-4 { animation: ll-fadeUp 0.7s ease 0.55s forwards; }
+.ll-hero-visible .ll-hero-item-5 { animation: ll-fadeUp 0.7s ease 0.65s forwards; }
+.ll-hero-visible .ll-hero-item-6 { animation: ll-fadeUp 0.7s ease 0.80s forwards; }
+
+.ll-texture-overlay {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='4' height='4' fill='none'/%3E%3Ccircle cx='1' cy='1' r='0.5' fill='%23b07878' opacity='0.07'/%3E%3Ccircle cx='3' cy='3' r='0.5' fill='%238fad94' opacity='0.07'/%3E%3C/svg%3E");
+}
+
+.ll-embroidery-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Ccircle cx='30' cy='30' r='28' fill='none' stroke='%238fad94' stroke-width='0.5' stroke-dasharray='4 3' opacity='0.4'/%3E%3Ccircle cx='30' cy='30' r='18' fill='none' stroke='%23d4a0a0' stroke-width='0.5' opacity='0.35'/%3E%3Ccircle cx='30' cy='30' r='3' fill='%23d4a0a0' opacity='0.25'/%3E%3C/svg%3E");
+  background-size: 60px 60px;
+  pointer-events: none;
 }

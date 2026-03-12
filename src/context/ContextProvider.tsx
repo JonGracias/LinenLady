@@ -36,14 +36,14 @@ export default function ContextProviderTree({ children }: ContextProviderTreePro
     ]);
   }, []);
   return (
-    <ToastProvider>
-      <DraftJobsProvider>
-        <InventoryProvider>
-          <ItemAiProvider>
-            {children}
-          </ItemAiProvider>
-        </InventoryProvider>
-      </DraftJobsProvider>
-    </ToastProvider>
+      <ToastProvider>
+        <DraftJobsProvider>
+          <InventoryProvider>
+            <ItemAiProvider>
+              {children}
+            </ItemAiProvider>
+          </InventoryProvider>
+        </DraftJobsProvider>
+      </ToastProvider>
   );
 }

@@ -7,7 +7,7 @@ const AdminHeader = () => {
   return (
     <div className="flex items-center justify-between">
       <Link href={`${base}/admin/items`} className="flex items-center gap-2">
-        <span className="text-xl font-semibold tracking-tight text-gra text-gray-800 dark:text-white">
+        <span className="text-xl font-semibold tracking-tight text-gra text-gray-800">
           <LinenLadyLogo/>
         </span>
       </Link>
