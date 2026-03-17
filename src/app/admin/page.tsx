@@ -1,151 +1,181 @@
+// src/app/admin/page.tsx
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import React, { useState } from "react";
+import Link from "next/link";
+import { useUser } from "@clerk/nextjs";
 
-export default function AdminHomePage() {
-  const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+const NAV_ITEMS = [
+  {
+    href:    "/admin/items",
+    label:   "Inventory",
+    sub:     "Review, edit and publish pieces",
+    icon:    "🪡",
+    accent:  "var(--rose-deep, #b07878)",
+    accentBg:"rgba(176,120,120,0.08)",
+  },
+  {
+    href:    "/admin/media",
+    label:   "Media",
+    sub:     "Upload and manage site photos",
+    icon:    "🖼",
+    accent:  "rgba(143,173,148,0.9)",
+    accentBg:"rgba(143,173,148,0.07)",
+  },
+  {
+    href:    "/admin/hero",
+    label:   "Hero Banner",
+    sub:     "Configure homepage slides",
+    icon:    "✦",
+    accent:  "rgba(210,190,150,0.9)",
+    accentBg:"rgba(210,190,150,0.06)",
+  },
+];
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
+export default function AdminLandingPage() {
+  const { user } = useUser();
+  const [hovered, setHovered] = useState<string | null>(null);
 
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include", // send/receive session cookie
-        body: JSON.stringify({ email: email.trim(), password }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.message ?? "Login failed. Please try again.");
-        return;
-      }
-
-      // Optional: store display name for the admin shell
-      if (rememberMe) {
-        localStorage.setItem("adminDisplayName", data.displayName ?? "");
-      } else {
-        sessionStorage.setItem("adminDisplayName", data.displayName ?? "");
-      }
-
-      router.push("/admin/items");
-    } catch {
-      setError("Unable to reach the server. Please check your connection.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const firstName = user?.firstName ?? "Admin";
 
   return (
-    <main className="flex  items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6">
-      <div className="w-full max-w-md">
-        <div className="rounded-2xl bg-white p-8 shadow-xl border border-gray-100">
+    <div
+      className="relative flex flex-col items-center justify-center overflow-hidden px-8 py-16"
+      style={{ background: "#0f0f0f" }}
+    >
+      {/* Subtle grain texture */}
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E")`,
+          opacity: 0.4,
+        }}
+      />
 
-          {/* Header */}
-          <div className="text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-600">
-              <svg className="h-8 w-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900">Admin Portal</h1>
-            <p className="mt-2 text-sm text-gray-600">Sign in to manage your inventory</p>
-          </div>
+      {/* Faint radial glow */}
+      <div
+        className="pointer-events-none absolute"
+        style={{
+          top:       "30%",
+          left:      "50%",
+          transform: "translate(-50%, -50%)",
+          width:     700,
+          height:    700,
+          borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(176,120,120,0.07) 0%, transparent 70%)",
+        }}
+      />
 
-          {/* Error banner */}
-          {error && (
-            <div className="mt-6 rounded-lg bg-red-50 border border-red-200 px-4 py-3 flex items-start gap-2">
-              <svg className="h-4 w-4 text-red-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <p className="text-sm text-red-700">{error}</p>
-            </div>
-          )}
-
-          {/* Form */}
-          <form onSubmit={handleLogin} className="mt-6 space-y-5">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email Address
-              </label>
-              <input
-                id="email"
-                type="email"
-                required
-                autoComplete="username"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@example.com"
-                disabled={loading}
-                className="mt-1.5 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 placeholder-gray-400 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                required
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                disabled={loading}
-                className="mt-1.5 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 placeholder-gray-400 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50"
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500/20"
-                />
-                <span className="text-sm text-gray-600">Remember me</span>
-              </label>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                  </svg>
-                  Signing in…
-                </>
-              ) : (
-                "Sign In"
-              )}
-            </button>
-          </form>
+      {/* Wordmark */}
+      <div className="relative z-10 mb-16 text-center">
+        <div
+          className="ll-label mb-3 text-[0.6rem] uppercase tracking-[0.35em]"
+          style={{ color: "rgba(255,255,255,0.2)" }}
+        >
+          Linen Lady · Admin
         </div>
-
-        <p className="mt-6 text-center text-xs text-gray-500">
-          Protected by enterprise security • Your data is encrypted
+        <h1
+          className="ll-display font-normal"
+          style={{
+            fontSize:      "clamp(2rem, 4vw, 3rem)",
+            color:         "rgba(255,255,255,0.85)",
+            letterSpacing: "0.02em",
+          }}
+        >
+          Good{" "}
+          <em className="italic" style={{ color: "var(--rose-deep, #b07878)" }}>
+            {getTimeOfDay()}
+          </em>
+          {", "}
+          {firstName}.
+        </h1>
+        <p
+          className="ll-body mt-3 text-sm font-light"
+          style={{ color: "rgba(255,255,255,0.25)" }}
+        >
+          What would you like to work on?
         </p>
       </div>
-    </main>
+
+      {/* Nav cards */}
+      <div
+        className="relative z-10 grid w-full gap-4"
+        style={{ maxWidth: 680, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}
+      >
+        {NAV_ITEMS.map(({ href, label, sub, icon, accent, accentBg }) => (
+          <Link
+            key={href}
+            href={href}
+            onMouseEnter={() => setHovered(href)}
+            onMouseLeave={() => setHovered(null)}
+            style={{ textDecoration: "none" }}
+          >
+            <div
+              className="flex flex-col gap-4 p-6 transition-all duration-300"
+              style={{
+                background:   hovered === href ? accentBg : "rgba(255,255,255,0.02)",
+                border:       `1px solid ${hovered === href ? accent : "rgba(255,255,255,0.06)"}`,
+                transform:    hovered === href ? "translateY(-4px)" : "translateY(0)",
+                boxShadow:    hovered === href ? `0 16px 40px rgba(0,0,0,0.4)` : "none",
+              }}
+            >
+              {/* Icon */}
+              <div
+                className="flex h-12 w-12 items-center justify-center text-2xl transition-transform duration-300"
+                style={{
+                  background:   `rgba(255,255,255,0.04)`,
+                  border:       `1px solid rgba(255,255,255,0.06)`,
+                  transform:    hovered === href ? "scale(1.1)" : "scale(1)",
+                }}
+              >
+                {icon}
+              </div>
+
+              {/* Label */}
+              <div>
+                <div
+                  className="ll-display font-normal text-lg transition-colors duration-200"
+                  style={{ color: hovered === href ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.7)" }}
+                >
+                  {label}
+                </div>
+                <div
+                  className="ll-body mt-1 text-xs font-light leading-relaxed"
+                  style={{ color: "rgba(255,255,255,0.3)" }}
+                >
+                  {sub}
+                </div>
+              </div>
+
+              {/* Arrow */}
+              <div
+                className="ll-label mt-auto text-[0.65rem] uppercase tracking-[0.15em] transition-all duration-200"
+                style={{
+                  color:     hovered === href ? accent : "rgba(255,255,255,0.15)",
+                  transform: hovered === href ? "translateX(4px)" : "translateX(0)",
+                }}
+              >
+                Enter →
+              </div>
+            </div>
+          </Link>
+        ))}
+      </div>
+
+      {/* Footer */}
+      <div
+        className="relative z-10 mt-16 ll-label text-[0.55rem] uppercase tracking-[0.2em]"
+        style={{ color: "rgba(255,255,255,0.1)" }}
+      >
+        Noemi · The Linen Lady · Georgetown Flea Market
+      </div>
+    </div>
   );
+}
+
+function getTimeOfDay() {
+  const h = new Date().getHours();
+  if (h < 12) return "morning";
+  if (h < 17) return "afternoon";
+  return "evening";
 }

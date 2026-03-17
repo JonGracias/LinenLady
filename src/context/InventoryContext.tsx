@@ -1,4 +1,3 @@
-// src/context/InventoryContext.tsx
 "use client";
 
 import React, {
@@ -31,11 +30,25 @@ export function useInventoryContext() {
 }
 
 type CountsResponse = { all: number; drafts: number; published: number };
-
 type CacheEntry = { items: InventoryItem[]; totalCount: number; timestamp: number };
-type CacheKey   = string; // "filter:category:page:pageSize"
+type CacheKey   = string;
 
-const CACHE_TTL = 5 * 60 * 1000;
+const CACHE_TTL          = 5 * 60 * 1000;
+const STORAGE_FILTER_KEY = "ll_admin_filter";
+const STORAGE_CAT_KEY    = "ll_admin_category";
+
+function readStored<T>(key: string, fallback: T): T {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const v = localStorage.getItem(key);
+    return v !== null ? (JSON.parse(v) as T) : fallback;
+  } catch { return fallback; }
+}
+
+function writeStored(key: string, value: unknown) {
+  if (typeof window === "undefined") return;
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* ignore */ }
+}
 
 export function InventoryProvider({ children }: { children: React.ReactNode }) {
   const inFlight       = useRef<Set<number>>(new Set());
@@ -49,13 +62,25 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState<string | null>(null);
 
-  const [filter,   setFilter]   = useState<Filter>("all");
-  const [category, setCategory] = useState<Category | null>(null);
-  const [page,     setPage]     = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  // ── Sticky filter / category — read from localStorage on init ──
+  const [filter,   setFilterRaw]   = useState<Filter>(() => readStored<Filter>(STORAGE_FILTER_KEY, "all"));
+  const [category, setCategoryRaw] = useState<Category | null>(() => readStored<Category | null>(STORAGE_CAT_KEY, null));
+  const [page,     setPage]        = useState(1);
+  const [pageSize, setPageSize]    = useState(10);
   const [totalCount, setTotalCount] = useState(0);
 
   const [counts, setCounts] = useState<CountsResponse>({ all: 0, drafts: 0, published: 0 });
+
+  // Wrap setters to also persist to localStorage
+  const setFilter = useCallback((f: Filter) => {
+    writeStored(STORAGE_FILTER_KEY, f);
+    setFilterRaw(f);
+  }, []);
+
+  const setCategory = useCallback((c: Category | null) => {
+    writeStored(STORAGE_CAT_KEY, c);
+    setCategoryRaw(c);
+  }, []);
 
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(totalCount / pageSize)),
@@ -64,7 +89,6 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
 
   const sorted = useMemo(() => items, [items]);
 
-  // "featured" filter maps to status=featured on the API
   const statusParam = useMemo(() => {
     if (filter === "drafts")    return "draft";
     if (filter === "published") return "active";
@@ -129,7 +153,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
       params.set("status", statusParam);
       if (category) params.set("category", category);
 
-      const data = await apiGetJson<GetItemsResponse>(`/admin/api/items?${params.toString()}`);
+      const data = await apiGetJson<GetItemsResponse>(`/api/items?${params.toString()}`);
 
       const fetchedItems      = Array.isArray(data.items) ? data.items : [];
       const fetchedTotalCount = Number(data.totalCount ?? 0);
@@ -157,14 +181,11 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
 
   const reloadItems = useCallback(() => loadItems(true), [loadItems]);
 
-  // Reset to page 1 on filter / category / pageSize changes
   useEffect(() => { setPage(1); }, [filter, category, pageSize]);
-
   useEffect(() => { void loadItems(); }, [loadItems]);
-
   useEffect(() => { void loadCounts(); }, [loadCounts, filter]);
 
-  // ── Thumbnails ─────────────────────────────────────────────────────────────
+  // ── Thumbnails ──────────────────────────────────────────────────────────────
 
   const getThumbnailUrl = useCallback(
     (id: number) => Object.prototype.hasOwnProperty.call(thumbs, id) ? thumbs[id] : null,
@@ -180,7 +201,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
       void (async () => {
         try {
           const imgs = await apiGetJson<InventoryImage[]>(
-            `/admin/api/items/${id}/images?ttlMinutes=${ttlMinutes}`
+            `/api/items/${id}/images?ttlMinutes=${ttlMinutes}`
           );
           const list    = Array.isArray(imgs) ? imgs : [];
           const primary = list.find((i) => i?.IsPrimary) ?? list[0] ?? null;
@@ -195,7 +216,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
     [thumbs]
   );
 
-  // ── Images dictionary ──────────────────────────────────────────────────────
+  // ── Images dictionary ───────────────────────────────────────────────────────
 
   const getImages = useCallback(
     (id: number): InventoryImage[] | null =>
@@ -212,7 +233,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
       void (async () => {
         try {
           const imgs = await apiGetJson<InventoryImage[]>(
-            `/admin/api/items/${id}/images?ttlMinutes=${ttlMinutes}`
+            `/api/items/${id}/images?ttlMinutes=${ttlMinutes}`
           );
           setImages((prev) => ({ ...prev, [id]: Array.isArray(imgs) ? imgs : [] }));
         } catch {
@@ -231,7 +252,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const imgs = await apiGetJson<InventoryImage[]>(
-        `/admin/api/items/${id}/images?ttlMinutes=${ttlMinutes}`
+        `/api/items/${id}/images?ttlMinutes=${ttlMinutes}`
       );
       const list = Array.isArray(imgs) ? imgs : [];
       setImages((prev) => ({ ...prev, [id]: list }));

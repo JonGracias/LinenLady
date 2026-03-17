@@ -5,10 +5,8 @@ import Footer from "@/components/storefront/Footer";
 
 export default function StorefrontLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      className="flex flex-col h-screen overflow-hidden mx-auto w-full"
-      style={{ maxWidth: "1800px" }}
-    >
+    <div className="flex flex-col h-screen overflow-hidden">
+
       {/* ── Sticky top ── */}
       <div className="shrink-0">
         <BorderMotif />
@@ -24,6 +22,7 @@ export default function StorefrontLayout({ children }: { children: React.ReactNo
 
       {/* ── Fixed bottom ── */}
       <CookieBanner />
+
     </div>
   );
 }

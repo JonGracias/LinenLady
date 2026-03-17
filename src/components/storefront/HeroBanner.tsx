@@ -79,7 +79,7 @@ export default function HeroBanner({ slides, interval = 5000 }: Props) {
   return (
     <div
       className="relative overflow-hidden"
-      style={{ height: "35vh", minHeight: 210, background: "var(--linen)" }}
+      style={{ aspectRatio: "21/9", maxHeight: "60vh", background: "var(--linen)" }}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >

@@ -2,6 +2,7 @@
 import { DraftJobsProvider } from "./DraftJobsContext";
 import { InventoryProvider } from "./InventoryContext";
 import { ItemAiProvider } from "./ItemAiContext";
+import { StorefrontProvider } from "./StorefrontContext";
 import { ToastProvider } from "./ToastHost";
 
 import { useEffect } from "react";
@@ -40,7 +41,9 @@ export default function ContextProviderTree({ children }: ContextProviderTreePro
         <DraftJobsProvider>
           <InventoryProvider>
             <ItemAiProvider>
-              {children}
+              <StorefrontProvider>
+                {children}
+              </StorefrontProvider>
             </ItemAiProvider>
           </InventoryProvider>
         </DraftJobsProvider>
