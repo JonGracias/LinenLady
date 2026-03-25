@@ -30,6 +30,7 @@ body {
   background: var(--foam);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  
 }
 
 /* SlideShow swiper fix */
@@ -133,4 +134,46 @@ html {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Ccircle cx='30' cy='30' r='28' fill='none' stroke='%238fad94' stroke-width='0.5' stroke-dasharray='4 3' opacity='0.4'/%3E%3Ccircle cx='30' cy='30' r='18' fill='none' stroke='%23d4a0a0' stroke-width='0.5' opacity='0.35'/%3E%3Ccircle cx='30' cy='30' r='3' fill='%23d4a0a0' opacity='0.25'/%3E%3C/svg%3E");
   background-size: 60px 60px;
   pointer-events: none;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fadeIn {
+  animation: fadeIn 1.2s ease forwards;
+}
+
+@keyframes trustFade {
+  0%   { opacity: 0; }
+  10%  { opacity: 1; }
+  80%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.trust-text {
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.trust-text.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.trust-text.is-hidden {
+  opacity: 0;
+  transform: translateY(2px);
+}
+
+.hero-banner {
+  height: calc(100svh - var(--chrome-height, 69px));
+}
+@media (min-width: 768px) {
+  .hero-banner {
+    height: calc(60vh - var(--chrome-height, 77px));
+  }
+}
+@keyframes ll-progress {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
 }

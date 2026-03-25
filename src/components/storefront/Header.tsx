@@ -5,7 +5,7 @@ import Link from "next/link";
 import { SignInButton, SignOutButton, SignUpButton, useUser, UserButton } from "@clerk/nextjs";
 
 const NAV_LINKS = [
-  { href: "/shop",      label: "Shop"      },
+  { href: "/#shop",      label: "Shop"      },
   { href: "/about",     label: "Our Story"  },
   { href: "/#schedule", label: "Find Us"    },
   { href: "/#contact",  label: "Inquire"    },
@@ -15,7 +15,7 @@ const HELP_LINKS = [
   { href: "/account?tab=reservations", label: "Order History",    desc: "View your past and active reservations" },
   { href: "/account?tab=reservations", label: "Where's My Order", desc: "Check your reservation or payment status" },
   { href: "/terms",                    label: "Shipping & Returns", desc: "Policies on shipping and all sales final" },
-  { href: "mailto:noemi@linenlady.net", label: "Email Us",         desc: "Get in touch with Noemi directly" },
+  { href: `mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL}`, label: "Email Us",         desc: "Get in touch with Noemi directly" },
 ];
 
 export default function StorefrontHeader() {
@@ -24,6 +24,7 @@ export default function StorefrontHeader() {
 
   return (
     <header
+      id="site-header"
       className="relative z-10 flex items-center justify-between border-b px-6 py-4 md:px-12 md:py-5"
       style={{ borderColor: "var(--linen)", backgroundColor: "var(--cream)" }}
     >
@@ -102,30 +103,43 @@ export default function StorefrontHeader() {
                 </div>
 
                 <div className="flex flex-col pb-3">
-                  {HELP_LINKS.map(({ href, label, desc }) => (
-                    <Link
-                      key={label}
-                      href={href}
-                      onClick={() => setHelpOpen(false)}
-                      className="group flex flex-col gap-0.5 px-5 py-3 transition-colors duration-150"
-                      style={{ textDecoration: "none" }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--cream-dark)")}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                    >
-                      <span
-                        className="ll-label text-[0.68rem] font-medium uppercase tracking-[0.1em] transition-colors group-hover:text-[#b07878]"
-                        style={{ color: "var(--ink)" }}
-                      >
-                        {label}
-                      </span>
-                      <span
-                        className="ll-body text-xs font-light"
-                        style={{ color: "var(--ink-soft)" }}
-                      >
-                        {desc}
-                      </span>
-                    </Link>
-                  ))}
+                    {HELP_LINKS.map(({ href, label, desc }) => {
+                      const isExternal = href.startsWith("mailto:") || href.startsWith("http");
+                      const inner = (
+                        <>
+                          <span
+                            className="ll-label text-[0.68rem] font-medium uppercase tracking-[0.1em] transition-colors group-hover:text-[#b07878]"
+                            style={{ color: "var(--ink)" }}
+                          >
+                            {label}
+                          </span>
+                          <span
+                            className="ll-body text-xs font-light"
+                            style={{ color: "var(--ink-soft)" }}
+                          >
+                            {desc}
+                          </span>
+                        </>
+                      );
+
+                      const sharedProps = {
+                        onClick: () => setHelpOpen(false),
+                        className: "group flex flex-col gap-0.5 px-5 py-3 transition-colors duration-150",
+                        style: { textDecoration: "none" } as React.CSSProperties,
+                        onMouseEnter: (e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.background = "var(--cream-dark)"),
+                        onMouseLeave: (e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.background = "transparent"),
+                      };
+
+                      return isExternal ? (
+                        <a key={label} {...sharedProps} href={href}>
+                          {inner}
+                        </a>
+                      ) : (
+                        <Link key={label} {...sharedProps} href={href}>
+                          {inner}
+                        </Link>
+                      );
+                    })}
                 </div>
 
                 <div
@@ -138,10 +152,10 @@ export default function StorefrontHeader() {
                   >
                     For urgent questions, email{" "}
                     <a
-                      href="mailto:noemi@linenlady.net"
+                      href={`mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL}`}
                       style={{ color: "var(--rose-deep)" }}
                     >
-                      noemi@linenlady.net
+                      {process.env.NEXT_PUBLIC_CONTACT_EMAIL}
                     </a>
                   </p>
                 </div>

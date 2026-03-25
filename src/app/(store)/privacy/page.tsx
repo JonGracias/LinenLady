@@ -64,7 +64,7 @@ export default function PrivacyPage() {
           This website is operated by Noemi · The Linen Lady, a sole proprietorship based in
           Washington, D.C. We sell antique and vintage linens, textiles, and related goods through
           this website and at the Georgetown Flea Market. Questions about this policy can be sent to{" "}
-          <a href="mailto:noemi@linenlady.net" style={{ color: "var(--rose-deep)" }}>noemi@linenlady.net</a>.
+          <a href={`mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL}`}  style={{ color: "var(--rose-deep)" }}>{process.env.NEXT_PUBLIC_CONTACT_EMAIL}</a>.
         </p>
       </Section>
 
@@ -119,7 +119,7 @@ export default function PrivacyPage() {
         <p className="mb-3">
           Depending on your location, you may have the right to access, correct, or delete the
           personal information we hold about you. To exercise any of these rights, contact us at{" "}
-          <a href="mailto:noemi@linenlady.net" style={{ color: "var(--rose-deep)" }}>noemi@linenlady.net</a>.
+          <a href={`mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL}`} style={{ color: "var(--rose-deep)" }}>{process.env.NEXT_PUBLIC_CONTACT_EMAIL}</a>.
         </p>
         <p>
           If you are located in the European Economic Area, you have rights under GDPR including

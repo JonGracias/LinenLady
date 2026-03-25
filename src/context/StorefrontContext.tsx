@@ -152,6 +152,10 @@ export function StorefrontProvider({ children }: { children: React.ReactNode }) 
   useEffect(() => { void loadItems(); }, [loadItems]);
 
   // ── Thumbnails ──────────────────────────────────────────────────────────────
+  // Auto-fetch thumbnails whenever items change
+  useEffect(() => {
+    items.forEach((item) => ensureThumbnail(item.InventoryId));
+  }, [items]);
 
   const getThumbnailUrl = useCallback(
     (id: number) =>

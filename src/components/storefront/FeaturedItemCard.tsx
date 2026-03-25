@@ -49,7 +49,7 @@ export default function FeaturedItemCard({ item, thumbnailUrl }: Props) {
       {/* body */}
       <div className="px-5 pb-5 pt-4">
         <div
-          className="mb-1 text-base font-normal leading-snug"
+          className="mb-1 text-base font-normal leading-snug line-clamp-2 min-h-[2.8rem]"
           style={{ fontFamily: "'Playfair Display', serif", color: "#2c1f1a" }}
         >
           {item.Name}

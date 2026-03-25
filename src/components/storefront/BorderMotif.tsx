@@ -1,6 +1,7 @@
 export default function BorderMotif() {
   return (
     <div
+      id="border-motif"
       className="h-3 w-full opacity-60"
       style={{
         background: `repeating-linear-gradient(

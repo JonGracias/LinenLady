@@ -124,7 +124,7 @@ export default function TermsPage() {
       <Section title="Contact">
         <p>
           For questions about an order or reservation, message us through your account or email{" "}
-          <a href="mailto:noemi@linenlady.net" style={{ color: "var(--rose-deep)" }}>noemi@linenlady.net</a>.
+          <a href={`mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL}`} style={{ color: "var(--rose-deep)" }}>{process.env.NEXT_PUBLIC_CONTACT_EMAIL}</a>.
         </p>
       </Section>
     </LegalLayout>

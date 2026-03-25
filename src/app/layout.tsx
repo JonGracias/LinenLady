@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Linen Lady Inventory",
+  title: process.env.NEXT_PUBLIC_STORE_NAME,
   description: "Inventory management system",
 };
 
