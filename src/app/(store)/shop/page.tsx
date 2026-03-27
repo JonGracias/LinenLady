@@ -1,7 +1,7 @@
 // src/app/(store)/shop/page.tsx
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import ShopSection from "@/components/storefront/ShopSection";
 import { useStorefrontContext } from "@/context/StorefrontContext";
@@ -56,8 +56,9 @@ export default function ShopPage() {
           reach out to inquire about availability.
         </p>
       </div>
-
-      <ShopSection />
+      <Suspense fallback={null}>
+        <ShopSection />
+      </Suspense>
     </div>
   );
 }
