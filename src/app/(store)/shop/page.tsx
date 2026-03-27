@@ -1,30 +1,8 @@
 // src/app/(store)/shop/page.tsx
-"use client";
-
-import { Suspense, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
-import ShopSection from "@/components/storefront/ShopSection";
-import { useStorefrontContext } from "@/context/StorefrontContext";
-import type { Category } from "@/types/inventory";
-import { CATEGORY_OPTIONS } from "@/types/inventory";
-
-const VALID_CATEGORIES = new Set(CATEGORY_OPTIONS.map((c) => c.value));
+import ShopPageInner from "@/components/storefront/ShopPageInner";
+import { Suspense } from "react";
 
 export default function ShopPage() {
-  const searchParams = useSearchParams();
-  const { setCategory } = useStorefrontContext();
-
-  /* Sync ?category= URL param → context on mount */
-  useEffect(() => {
-    const cat = searchParams.get("category");
-    if (cat && VALID_CATEGORIES.has(cat as Category)) {
-      setCategory(cat as Category);
-    } else {
-      setCategory(null);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
-
   return (
     <div
       className="ll-texture-overlay min-h-screen"
@@ -56,8 +34,10 @@ export default function ShopPage() {
           reach out to inquire about availability.
         </p>
       </div>
+
+      {/* Suspense wraps the component that calls useSearchParams */}
       <Suspense fallback={null}>
-        <ShopSection />
+        <ShopPageInner />
       </Suspense>
     </div>
   );
