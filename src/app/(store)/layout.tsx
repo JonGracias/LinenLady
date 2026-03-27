@@ -1,6 +1,6 @@
+// src/app/(store)/layout.tsx
 import Header from "@/components/storefront/Header";
 import CookieBanner from "@/components/CookieBanner";
-import BorderMotif from "@/components/storefront/BorderMotif";
 import Footer from "@/components/storefront/Footer";
 
 export default function StorefrontLayout({ children }: { children: React.ReactNode }) {
@@ -11,14 +11,12 @@ export default function StorefrontLayout({ children }: { children: React.ReactNo
     >
       {/* ── Sticky top ── */}
       <div className="shrink-0">
-        <BorderMotif />
         <Header />
       </div>
 
       {/* ── Scrollable content ── */}
       <main className="flex-1 overflow-y-auto custom-scrollbar">
         {children}
-        <BorderMotif />
         <Footer />
       </main>
 

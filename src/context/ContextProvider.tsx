@@ -1,4 +1,5 @@
 "use client";
+import { CartProvider } from "./CartContext";
 import { DraftJobsProvider } from "./DraftJobsContext";
 import { InventoryProvider } from "./InventoryContext";
 import { ItemAiProvider } from "./ItemAiContext";
@@ -42,7 +43,9 @@ export default function ContextProviderTree({ children }: ContextProviderTreePro
           <InventoryProvider>
             <ItemAiProvider>
               <StorefrontProvider>
-                {children}
+                <CartProvider>
+                  {children}
+                </CartProvider>
               </StorefrontProvider>
             </ItemAiProvider>
           </InventoryProvider>

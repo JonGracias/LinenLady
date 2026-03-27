@@ -1,6 +1,13 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400;1,500&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Jost:wght@300;400;500&display=swap');
+/* ─────────────────────────────────────────────────────────────────────────────
+   Fonts — Noto Serif (Heritage display) + Work Sans (Modern body/label)
+   Keeping Cormorant Garamond as a tertiary voice for editorial pull-quotes
+───────────────────────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Work+Sans:wght@300;400;500;600&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&display=swap');
 @import "tailwindcss";
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   Reduced motion
+───────────────────────────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
@@ -8,111 +15,278 @@
   }
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   Design Tokens — Heritage & Tactility palette
+   
+   Surface hierarchy (light → dark, creates tonal depth without borders):
+     surface-bright  →  surface  →  surface-container-low  →  surface-container  →  surface-container-highest
+   
+   Primary:  #804e4f  (rose-clay — signature brand action)
+   On-surface: #1e1b1a  (warm near-black, never pure #000)
+───────────────────────────────────────────────────────────────────────────── */
 :root {
-  --rose:        #d4a0a0;
-  --rose-light:  #ecdcdc;
-  --rose-deep:   #b07878;
-  --sage:        #8fad94;
-  --sage-light:  #c8daca;
-  --sage-deep:   #5a7a60;
-  --cream:       #faf6f0;
-  --cream-dark:  #f0e8dd;
-  --foam:  #fdfaf6;
-  --linen:       #e8ddd0;
-  --brown:       #6b4e3d;
-  --brown-light: #9a7060;
-  --ink:         #2c1f1a;
-  --ink-soft:    #5c4a42;
+  /* ── Primary ── */
+  --primary:            #804e4f;
+  --primary-container:  #f2dada;
+  --on-primary:         #ffffff;
+  --on-primary-container: #3b1415;
+
+  /* ── Surface hierarchy ── */
+  --surface-bright:               #fdfaf6;   /* lightest — hero backgrounds, input fills */
+  --surface:                      #f7f2eb;   /* base page background */
+  --surface-container-low:        #f0e9df;   /* subtle section lift */
+  --surface-container:            #e8ddd0;   /* cards, panels */
+  --surface-container-high:       #ddd0bf;   /* stronger separation */
+  --surface-container-highest:    #d0c0aa;   /* image placeholder backgrounds */
+
+  /* ── On-surface text ── */
+  --on-surface:         #1e1b1a;   /* primary text — warm near-black */
+  --on-surface-variant: #4a3f38;   /* secondary text */
+  --outline:            #8a7a70;   /* borders at 100% — use sparingly */
+  --outline-variant:    #c4b5a8;   /* ghost borders — use at 15% opacity */
+
+  /* ── Accent tones (kept for backward compat with hero/decorative uses) ── */
+  --rose:               #d4a0a0;
+  --rose-light:         #ecdcdc;
+  --rose-deep:          #804e4f;   /* aliased to primary */
+  --sage:               #8fad94;
+  --sage-light:         #c8daca;
+  --sage-deep:          #4a6e50;
+
+  /* ── Legacy aliases — so old components don't break immediately ── */
+  --cream:              var(--surface-bright);
+  --cream-dark:         var(--surface-container-low);
+  --foam:               var(--surface-bright);
+  --linen:              var(--surface-container);
+  --brown:              #5a3e30;
+  --brown-light:        #8a6455;
+  --ink:                var(--on-surface);
+  --ink-soft:           var(--on-surface-variant);
 }
 
-
-body {
-  background: var(--foam);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-  
-}
-
-/* SlideShow swiper fix */
-.swiper-fill {
-  width: 100%;
-  height: 100%;
-}
-
-.swiper-fill .swiper,
-.swiper-fill .swiper-wrapper,
-.swiper-fill .swiper-slide {
-  width: 100%;
-  height: 100%;
-}
-
-.swiper-fill .swiper-slide img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.swiper-fill:fullscreen {
-  width: 100vw;
-  height: 100vh;
-}
-
-.swiper-fill:fullscreen .swiper,
-.swiper-fill:fullscreen .swiper-wrapper,
-.swiper-fill:fullscreen .swiper-slide {
-  width: 100vw;
-  height: 100vh;
-}
-
-.swiper-fill:fullscreen .swiper-slide img {
-  width: 100vw;
-  height: 100vh;
-  object-fit: contain;
-}
-
-/* Always-visible scrollbar with white thumb border */
-.custom-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.4) transparent; /* Firefox */
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background:  rgba(255, 255, 255, 0.25);  
-  border-radius: 9999px;
-  transition: background 0.3s ease;
-}
-
-/* On hover, show a dark scrollbar */
-.custom-scrollbar:hover::-webkit-scrollbar-thumb {
-  background: rgba(107, 114, 128, 0.4); /* Tailwind gray-500 w/ opacity */
-}
-
-.custom-scrollbar:hover::-webkit-scrollbar-thumb:hover {
-  background: rgba(31, 41, 55, 0.7); /* Tailwind gray-800 */
-}
-
-/* For Firefox */
-.custom-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color:  rgba(107, 114, 128, 0.4) transparent;
-}
-
-
+/* ─────────────────────────────────────────────────────────────────────────────
+   Base
+───────────────────────────────────────────────────────────────────────────── */
 html {
   scrollbar-gutter: stable both-edges;
 }
 
-.ll-display { font-family: 'Playfair Display', serif; }
-.ll-body    { font-family: 'Cormorant Garamond', serif; }
-.ll-label   { font-family: 'Jost', sans-serif; }
+body {
+  background: var(--surface);
+  color: var(--on-surface);
+  font-family: 'Work Sans', sans-serif;
+  font-weight: 300;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   Typography utility classes
+   ll-display → Noto Serif (Heritage voice)
+   ll-body    → Cormorant Garamond (Editorial / pull-quote voice)
+   ll-label   → Work Sans (Modern functional voice)
+───────────────────────────────────────────────────────────────────────────── */
+.ll-display { font-family: 'Noto Serif', serif; }
+.ll-body    { font-family: 'Cormorant Garamond', serif; }
+.ll-label   { font-family: 'Work Sans', sans-serif; }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Buttons — design system spec
+───────────────────────────────────────────────────────────────────────────── */
+
+/* Primary button */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 2rem;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-family: 'Work Sans', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  border-radius: 0.375rem;
+  border: none;
+  cursor: pointer;
+  transition: all 400ms ease-in-out;
+}
+.btn-primary:hover {
+  background: radial-gradient(ellipse at center, var(--primary) 0%, var(--primary-container) 180%);
+  transform: translateY(-1px);
+}
+
+/* Secondary button — ghost border */
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 2rem;
+  background: transparent;
+  color: var(--primary);
+  font-family: 'Work Sans', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  border-radius: 0.375rem;
+  border: 1px solid rgba(138, 122, 112, 0.15); /* outline-variant at 15% */
+  cursor: pointer;
+  transition: all 400ms ease-in-out;
+}
+.btn-secondary:hover {
+  border-color: rgba(138, 122, 112, 0.35);
+  background: var(--surface-container-low);
+}
+
+/* Tertiary — text only with underline */
+.btn-tertiary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--primary);
+  font-family: 'Work Sans', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  transition: all 400ms ease-in-out;
+}
+.btn-tertiary:hover { opacity: 0.7; }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Inputs — minimalist bottom-border only
+───────────────────────────────────────────────────────────────────────────── */
+.input-minimal {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(138, 122, 112, 0.4);
+  padding: 0.5rem 0;
+  font-family: 'Work Sans', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 300;
+  color: var(--on-surface);
+  outline: none;
+  transition: border-color 400ms ease-in-out;
+}
+.input-minimal::placeholder { color: var(--on-surface-variant); font-style: italic; }
+.input-minimal:focus { border-bottom: 2px solid var(--primary); }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Curator Tag — "One of a Kind" heritage chip
+───────────────────────────────────────────────────────────────────────────── */
+.curator-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.6rem;
+  background: var(--surface-container-low);
+  font-family: 'Work Sans', sans-serif;
+  font-size: 0.58rem;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--on-surface-variant);
+  border-radius: 0.125rem;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Ghost border utility
+───────────────────────────────────────────────────────────────────────────── */
+.ghost-border {
+  outline: 1px solid rgba(138, 122, 112, 0.15);
+  outline-offset: -1px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Glassmorphism — for floating nav, modals, quick-view
+───────────────────────────────────────────────────────────────────────────── */
+.glass {
+  background: rgba(247, 242, 235, 0.80); /* --surface at 80% */
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Ambient shadow — soft morning light quality
+───────────────────────────────────────────────────────────────────────────── */
+.shadow-ambient {
+  box-shadow: 0 8px 48px 0 rgba(30, 27, 26, 0.04);
+}
+.shadow-ambient-md {
+  box-shadow: 0 16px 64px 0 rgba(30, 27, 26, 0.06);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Texture overlay — subtle linen grain
+───────────────────────────────────────────────────────────────────────────── */
+.ll-texture-overlay {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='4' height='4' fill='none'/%3E%3Ccircle cx='1' cy='1' r='0.5' fill='%23804e4f' opacity='0.05'/%3E%3Ccircle cx='3' cy='3' r='0.5' fill='%238fad94' opacity='0.05'/%3E%3C/svg%3E");
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Embroidery background pattern
+───────────────────────────────────────────────────────────────────────────── */
+.ll-embroidery-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Ccircle cx='30' cy='30' r='28' fill='none' stroke='%238fad94' stroke-width='0.5' stroke-dasharray='4 3' opacity='0.35'/%3E%3Ccircle cx='30' cy='30' r='18' fill='none' stroke='%23804e4f' stroke-width='0.5' opacity='0.25'/%3E%3Ccircle cx='30' cy='30' r='3' fill='%23804e4f' opacity='0.2'/%3E%3C/svg%3E");
+  background-size: 60px 60px;
+  pointer-events: none;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Scrollbar — custom-scrollbar utility
+───────────────────────────────────────────────────────────────────────────── */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(138, 122, 112, 0.3) transparent;
+}
+.custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(138, 122, 112, 0.25);
+  border-radius: 9999px;
+  transition: background 400ms ease;
+}
+.custom-scrollbar:hover::-webkit-scrollbar-thumb { background: rgba(138, 122, 112, 0.45); }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Swiper fill (existing — preserved)
+───────────────────────────────────────────────────────────────────────────── */
+.swiper-fill { width: 100%; height: 100%; }
+.swiper-fill .swiper,
+.swiper-fill .swiper-wrapper,
+.swiper-fill .swiper-slide { width: 100%; height: 100%; }
+.swiper-fill .swiper-slide img { width: 100%; height: 100%; object-fit: contain; }
+.swiper-fill:fullscreen { width: 100vw; height: 100vh; }
+.swiper-fill:fullscreen .swiper,
+.swiper-fill:fullscreen .swiper-wrapper,
+.swiper-fill:fullscreen .swiper-slide { width: 100vw; height: 100vh; }
+.swiper-fill:fullscreen .swiper-slide img { width: 100vw; height: 100vh; object-fit: contain; }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Animations
+───────────────────────────────────────────────────────────────────────────── */
 @keyframes ll-fadeUp {
-  from { opacity: 0; transform: translateY(20px); }
+  from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes ll-progress {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
 }
 
 .ll-hero-item { opacity: 0; }
@@ -123,48 +297,11 @@ html {
 .ll-hero-visible .ll-hero-item-5 { animation: ll-fadeUp 0.7s ease 0.65s forwards; }
 .ll-hero-visible .ll-hero-item-6 { animation: ll-fadeUp 0.7s ease 0.80s forwards; }
 
-.ll-texture-overlay {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='4' height='4' fill='none'/%3E%3Ccircle cx='1' cy='1' r='0.5' fill='%23b07878' opacity='0.07'/%3E%3Ccircle cx='3' cy='3' r='0.5' fill='%238fad94' opacity='0.07'/%3E%3C/svg%3E");
-}
+.animate-fadeIn { animation: fadeIn 1.2s ease forwards; }
 
-.ll-embroidery-bg::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Ccircle cx='30' cy='30' r='28' fill='none' stroke='%238fad94' stroke-width='0.5' stroke-dasharray='4 3' opacity='0.4'/%3E%3Ccircle cx='30' cy='30' r='18' fill='none' stroke='%23d4a0a0' stroke-width='0.5' opacity='0.35'/%3E%3Ccircle cx='30' cy='30' r='3' fill='%23d4a0a0' opacity='0.25'/%3E%3C/svg%3E");
-  background-size: 60px 60px;
-  pointer-events: none;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(2px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.animate-fadeIn {
-  animation: fadeIn 1.2s ease forwards;
-}
-
-@keyframes trustFade {
-  0%   { opacity: 0; }
-  10%  { opacity: 1; }
-  80%  { opacity: 1; }
-  100% { opacity: 0; }
-}
-
-.trust-text {
-  transition: opacity 0.5s ease, transform 0.5s ease;
-}
-
-.trust-text.is-visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.trust-text.is-hidden {
-  opacity: 0;
-  transform: translateY(2px);
-}
-
+/* ─────────────────────────────────────────────────────────────────────────────
+   Hero banner height
+───────────────────────────────────────────────────────────────────────────── */
 .hero-banner {
   height: calc(100svh - var(--chrome-height, 69px));
 }
@@ -172,8 +309,4 @@ html {
   .hero-banner {
     height: calc(60vh - var(--chrome-height, 77px));
   }
-}
-@keyframes ll-progress {
-  from { transform: scaleX(0); }
-  to   { transform: scaleX(1); }
 }

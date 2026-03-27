@@ -1,11 +1,14 @@
-// app/(store)/shop/[sku]/page.tsx
+// src/app/(store)/shop/[sku]/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
-import { useStorefrontContext } from "@/context/StorefrontContext";
+import Link from "next/link";
 import type { InventoryItem, InventoryImage } from "@/types/inventory";
+import { useStorefrontContext } from "@/context/StorefrontContext";
+import { useCart } from "@/context/CartContext";
+
+/* ─── helpers ─────────────────────────────────────────────────────────────── */
 
 function formatPrice(cents: number) {
   return new Intl.NumberFormat("en-US", {
@@ -15,72 +18,122 @@ function formatPrice(cents: number) {
   }).format(cents / 100);
 }
 
-// ── Image gallery ────────────────────────────────────────────────────────────
+/* ─── types ───────────────────────────────────────────────────────────────── */
 
-function ItemGallery({ images }: { images: InventoryImage[] }) {
+type ItemDetail = InventoryItem & {
+  images?: InventoryImage[];
+};
+
+/* ─── Breadcrumb ──────────────────────────────────────────────────────────── */
+
+function Breadcrumb({ name }: { name: string }) {
+  return (
+    <nav className="flex items-center gap-2 px-6 md:px-10 py-4" aria-label="breadcrumb">
+      <Link
+        href="/"
+        className="ll-label text-[0.58rem] uppercase tracking-[0.15em] transition-opacity hover:opacity-60"
+        style={{ color: "var(--on-surface-variant)" }}
+      >
+        Home
+      </Link>
+      <span className="ll-label text-[0.58rem]" style={{ color: "var(--outline-variant)" }}>
+        /
+      </span>
+      <Link
+        href="/shop"
+        className="ll-label text-[0.58rem] uppercase tracking-[0.15em] transition-opacity hover:opacity-60"
+        style={{ color: "var(--on-surface-variant)" }}
+      >
+        Collection
+      </Link>
+      <span className="ll-label text-[0.58rem]" style={{ color: "var(--outline-variant)" }}>
+        /
+      </span>
+      <span
+        className="ll-label text-[0.58rem] uppercase tracking-[0.15em] truncate max-w-[160px]"
+        style={{ color: "var(--on-surface)" }}
+      >
+        {name}
+      </span>
+    </nav>
+  );
+}
+
+/* ─── Image Gallery (desktop) ─────────────────────────────────────────────── */
+
+function DesktopGallery({ images }: { images: InventoryImage[] }) {
   const [active, setActive] = useState(0);
 
   if (!images.length) {
     return (
       <div
-        className="flex aspect-square w-full items-center justify-center text-6xl"
+        className="flex items-center justify-center ll-display text-2xl italic"
         style={{
-          background: "linear-gradient(135deg, var(--rose-light), var(--linen), var(--sage-light))",
-          opacity: 0.5,
+          aspectRatio: "4/5",
+          background: "var(--surface-container-highest)",
+          borderRadius: "0.25rem",
+          color: "var(--outline-variant)",
         }}
       >
-        🪡
+        Linen Lady
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="relative overflow-hidden" style={{ aspectRatio: "4/3", background: "var(--linen)" }}>
+    <div className="flex flex-col gap-3">
+      {/* Main image */}
+      <div
+        className="relative overflow-hidden"
+        style={{ aspectRatio: "4/5", borderRadius: "0.25rem", background: "var(--surface-container-highest)" }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={images[active]?.ReadUrl ?? ""}
-          alt={`Item image ${active + 1}`}
-          className="h-full w-full object-contain transition-opacity duration-300"
-          style={{ background: "var(--cream-dark)" }}
+          alt={`Detail view ${active + 1}`}
+          className="h-full w-full object-cover transition-opacity duration-500"
         />
-        {images.length > 1 && (
-          <div
-            className="absolute bottom-3 right-3 ll-label text-[0.58rem] font-medium uppercase tracking-[0.15em] px-2.5 py-1"
-            style={{ background: "rgba(44,31,26,0.6)", color: "rgba(255,255,255,0.9)" }}
+        {/* One of a Kind badge */}
+        <div className="absolute left-0 top-5">
+          <span
+            className="ll-label px-3 py-1.5 text-[0.52rem] font-medium uppercase tracking-[0.15em]"
+            style={{
+              background: "rgba(30,27,26,0.68)",
+              backdropFilter: "blur(6px)",
+              color: "rgba(253,250,246,0.9)",
+            }}
           >
-            {active + 1} / {images.length}
-          </div>
-        )}
-        {images.length > 1 && (
-          <>
-            <button
-              onClick={() => setActive((a) => (a - 1 + images.length) % images.length)}
-              className="absolute left-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center transition-all hover:scale-110"
-              style={{ background: "rgba(250,246,240,0.85)", border: "1px solid var(--linen)", color: "var(--ink)" }}
-            >←</button>
-            <button
-              onClick={() => setActive((a) => (a + 1) % images.length)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center transition-all hover:scale-110"
-              style={{ background: "rgba(250,246,240,0.85)", border: "1px solid var(--linen)", color: "var(--ink)" }}
-            >→</button>
-          </>
-        )}
+            One of a Kind
+          </span>
+        </div>
       </div>
+
+      {/* Thumbnail strip */}
       {images.length > 1 && (
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 overflow-x-auto">
           {images.map((img, i) => (
             <button
               key={img.ImageId}
               onClick={() => setActive(i)}
-              className="overflow-hidden transition-all duration-200"
+              className="shrink-0 overflow-hidden transition-all duration-300"
               style={{
-                width: 72, height: 72, flexShrink: 0,
-                border: i === active ? "2px solid var(--rose-deep)" : "2px solid transparent",
-                outline: i === active ? "none" : "1px solid var(--linen)",
-                background: "var(--linen)",
+                width: 72,
+                height: 72,
+                borderRadius: "0.2rem",
+                outline: i === active
+                  ? "2px solid var(--primary)"
+                  : "1px solid rgba(196,181,168,0.25)",
+                outlineOffset: i === active ? "2px" : "0",
+                opacity: i === active ? 1 : 0.65,
               }}
+              aria-label={`View image ${i + 1}`}
             >
-              <img src={img.ReadUrl ?? ""} alt={`Thumbnail ${i + 1}`} className="h-full w-full object-cover" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={img.ReadUrl ?? ""}
+                alt=""
+                className="h-full w-full object-cover"
+              />
             </button>
           ))}
         </div>
@@ -89,320 +142,562 @@ function ItemGallery({ images }: { images: InventoryImage[] }) {
   );
 }
 
-// ── Similar items ────────────────────────────────────────────────────────────
+/* ─── Mobile Carousel ─────────────────────────────────────────────────────── */
 
-function SimilarItems({
-  items,
-  getThumbnail,
-}: {
-  items: InventoryItem[];
-  getThumbnail: (id: number) => string | null;
-}) {
-  if (!items.length) return null;
+function MobileCarousel({ images }: { images: InventoryImage[] }) {
+  const [active, setActive] = useState(0);
+
+  if (!images.length) {
+    return (
+      <div
+        className="w-full flex items-center justify-center ll-display text-2xl italic"
+        style={{ aspectRatio: "4/3", background: "var(--surface-container-highest)", color: "var(--outline-variant)" }}
+      >
+        Linen Lady
+      </div>
+    );
+  }
+
   return (
-    <section className="relative z-[1] px-16 py-20" style={{ background: "var(--cream-dark)" }}>
-      <div className="ll-label mb-3 flex items-center gap-3 text-[0.62rem] font-medium uppercase tracking-[0.25em]" style={{ color: "var(--sage-deep)" }}>
-        <span className="inline-block h-px w-8" style={{ background: "var(--sage-deep)" }} />
-        You Might Also Like
-      </div>
-      <h2 className="ll-display mb-10 font-normal" style={{ fontSize: "clamp(1.5rem,2.5vw,2.2rem)", color: "var(--ink)" }}>
-        Similar <em className="italic" style={{ color: "var(--rose-deep)" }}>Pieces</em>
-      </h2>
-      <div className="grid gap-5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
-        {items.map((item) => {
-          const thumb = getThumbnail(item.InventoryId);
-          return (
-            <Link
-              key={item.InventoryId}
-              href={`/shop/${item.Sku}`}
-              className="group block overflow-hidden border transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(44,31,26,0.10)]"
-              style={{ borderColor: "var(--linen)", background: "var(--cream)", textDecoration: "none" }}
-            >
-              <div className="aspect-[4/3] overflow-hidden" style={{ background: "var(--linen)" }}>
-                {thumb
-                  ? <img src={thumb} alt={item.Name} className="h-full w-full object-cover" />
-                  : <div className="flex h-full w-full items-center justify-center text-3xl opacity-20">🪡</div>
-                }
-              </div>
-              <div className="px-4 py-3">
-                <div className="ll-display mb-1 text-sm font-normal leading-snug" style={{ color: "var(--ink)" }}>{item.Name}</div>
-                <div className="ll-label text-sm font-medium" style={{ color: "var(--rose-deep)" }}>{formatPrice(item.UnitPriceCents)}</div>
-              </div>
-            </Link>
-          );
-        })}
-      </div>
-    </section>
+    <div className="relative overflow-hidden w-full" style={{ aspectRatio: "4/3" }}>
+      {images.map((img, i) => (
+        <div
+          key={img.ImageId}
+          className="absolute inset-0 transition-opacity duration-500"
+          style={{ opacity: i === active ? 1 : 0, zIndex: i === active ? 1 : 0 }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={img.ReadUrl ?? ""} alt="" className="h-full w-full object-cover" />
+        </div>
+      ))}
+
+      {/* Dots */}
+      {images.length > 1 && (
+        <div className="absolute bottom-4 left-0 right-0 z-10 flex justify-center gap-1.5">
+          {images.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setActive(i)}
+              aria-label={`Image ${i + 1}`}
+              style={{
+                width: i === active ? 18 : 6,
+                height: 6,
+                borderRadius: 3,
+                background: i === active ? "var(--on-primary)" : "rgba(253,250,246,0.45)",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+                transition: "all 400ms ease",
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
-// ── Main page ────────────────────────────────────────────────────────────────
+/* ─── Reserve modal (email link) ─────────────────────────────────────────── */
 
-export default function ItemDetailPage() {
-  const { sku } = useParams() as { sku: string };
-  const { items, ensureThumbnail, getThumbnailUrl } = useStorefrontContext();
-
-  // Fetch item directly by SKU — don't rely on context list
-  const [item, setItem]               = useState<InventoryItem | null>(null);
-  const [itemLoading, setItemLoading] = useState(true);
-  const [itemError, setItemError]     = useState<string | null>(null);
-
-  // Images
-  const [images, setImages]               = useState<InventoryImage[]>([]);
-  const [imagesLoading, setImagesLoading] = useState(true);
-
-  // Similar items — resolved from context list by id
-  const [similar, setSimilar] = useState<InventoryItem[]>([]);
-
-  // Inquire modal
-  const [inquireOpen, setInquireOpen] = useState(false);
-  const [inquireSent, setInquireSent] = useState(false);
-  const [inquireMsg,  setInquireMsg]  = useState("");
-
-  // 1. Fetch item by SKU
-  useEffect(() => {
-    if (!sku) return;
-    setItemLoading(true);
-    setItemError(null);
-
-    fetch(`/api/items/sku/${encodeURIComponent(sku)}`)
-      .then((r) => {
-        if (r.status === 404) throw new Error("not_found");
-        if (!r.ok) throw new Error("fetch_error");
-        return r.json();
-      })
-      .then((data: InventoryItem) => {
-        setItem(data);
-        setItemLoading(false);
-      })
-      .catch((e) => {
-        setItemError(e.message ?? "error");
-        setItemLoading(false);
-      });
-  }, [sku]);
-
-  // 2. Fetch images once item is loaded
-  useEffect(() => {
-    if (!item) return;
-    setImagesLoading(true);
-    fetch(`/api/items/${item.InventoryId}/images?ttlMinutes=120`)
-      .then((r) => r.ok ? r.json() : [])
-      .then((imgs: InventoryImage[]) => {
-        setImages(Array.isArray(imgs) ? imgs : []);
-        setImagesLoading(false);
-      })
-      .catch(() => setImagesLoading(false));
-  }, [item?.InventoryId]);
-
-  // 3. Fetch similar items
-  useEffect(() => {
-    if (!item) return;
-    fetch(`/api/items/${item.InventoryId}/similar?top=4&minScore=0.75&publishedOnly=true`)
-      .then((r) => r.ok ? r.json() : [])
-      .then((data: any[]) => {
-        const ids = data.map((d) => d.InventoryId ?? d.inventoryId);
-        const found = ids
-          .map((id: number) => items.find((i) => i.InventoryId === id))
-          .filter((i): i is InventoryItem => !!i && i.InventoryId !== item.InventoryId)
-          .slice(0, 4);
-        found.forEach((i) => ensureThumbnail(i.InventoryId));
-        setSimilar(found);
-      })
-      .catch(() => {});
-  }, [item?.InventoryId, items]);
-
-  // ── States ──
-
-  if (itemLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center" style={{ background: "var(--cream)" }}>
-        <div className="ll-label text-[0.72rem] uppercase tracking-[0.2em]" style={{ color: "var(--ink-soft)" }}>
-          Loading…
-        </div>
-      </div>
-    );
-  }
-
-  if (itemError === "not_found" || (!itemLoading && !item)) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-6" style={{ background: "var(--cream)" }}>
-        <div className="text-5xl opacity-25">🪡</div>
-        <p className="ll-display text-2xl italic" style={{ color: "var(--brown-light)" }}>
-          This piece has found its home.
-        </p>
-        <Link
-          href="/shop"
-          className="ll-label border px-8 py-3 text-[0.68rem] uppercase tracking-[0.15em] transition-colors hover:bg-[#ecdcdc]"
-          style={{ color: "var(--sage-deep)", borderColor: "var(--sage)", textDecoration: "none" }}
-        >
-          Browse the Collection
-        </Link>
-      </div>
-    );
-  }
-
-  if (!item) return null;
+function ReserveModal({
+  open,
+  onClose,
+  item,
+}: {
+  open: boolean;
+  onClose: () => void;
+  item: ItemDetail;
+}) {
+  if (!open) return null;
+  const subject = encodeURIComponent(`Reservation Inquiry — ${item.Name} (${item.Sku})`);
+  const body = encodeURIComponent(
+    `Hello,\n\nI am interested in reserving the following piece:\n\nItem: ${item.Name}\nSKU: ${item.Sku}\nPrice: ${formatPrice(item.UnitPriceCents)}\n\nPlease let me know about availability.\n\nThank you.`
+  );
+  const mailto = `mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL}?subject=${subject}&body=${body}`;
 
   return (
-    <div className="ll-texture-overlay relative min-h-screen overflow-x-hidden" style={{ backgroundColor: "var(--cream)", color: "var(--ink)" }}>
-      <div className="ll-texture-overlay pointer-events-none fixed inset-0 z-0" />
+    <div
+      className="fixed inset-0 z-50 flex items-end md:items-center justify-center"
+      onClick={onClose}
+    >
+      {/* Backdrop */}
+      <div className="absolute inset-0" style={{ background: "rgba(30,27,26,0.5)", backdropFilter: "blur(4px)" }} />
 
-      {/* Breadcrumb */}
-      <div className="relative z-[1] flex items-center gap-2 border-b px-16 py-3" style={{ borderColor: "var(--linen)", background: "var(--cream)" }}>
-        <Link href="/shop" className="ll-label text-[0.62rem] uppercase tracking-[0.12em] transition-colors hover:text-[#b07878]" style={{ color: "var(--ink-soft)", textDecoration: "none" }}>
-          Shop
-        </Link>
-        <span className="ll-label text-[0.62rem]" style={{ color: "var(--linen)" }}>/</span>
-        <span className="ll-label text-[0.62rem] uppercase tracking-[0.12em]" style={{ color: "var(--rose-deep)" }}>{item.Name}</span>
-      </div>
-
-      {/* Main content */}
-      <section className="relative z-[1] grid gap-16 px-16 py-16" style={{ gridTemplateColumns: "1.1fr 1fr", alignItems: "start" }}>
-        {/* Gallery */}
-        <div className="sticky top-8">
-          {imagesLoading
-            ? <div className="aspect-[4/3] w-full animate-pulse" style={{ background: "var(--linen)" }} />
-            : <ItemGallery images={images} />
-          }
+      {/* Modal */}
+      <div
+        className="relative w-full md:max-w-md mx-4 md:mx-auto p-8 md:p-10"
+        style={{
+          background: "var(--surface-bright)",
+          borderRadius: "0.5rem 0.5rem 0 0",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="ll-label mb-1 text-[0.58rem] uppercase tracking-[0.2em]" style={{ color: "var(--primary)" }}>
+          Reserve This Piece
+        </p>
+        <h3 className="ll-display text-xl font-normal mb-2" style={{ color: "var(--on-surface)" }}>
+          {item.Name}
+        </h3>
+        <p className="ll-body text-sm font-light mb-6" style={{ color: "var(--on-surface-variant)" }}>
+          Every piece is one of a kind. Sending this inquiry will open your email client with the details pre-filled — Noemi will respond within 24 hours to confirm availability and arrange next steps.
+        </p>
+        <div className="flex flex-col gap-3">
+          <a
+            href={mailto}
+            className="btn-primary text-center text-[0.65rem] py-3.5"
+            style={{ display: "block" }}
+          >
+            Open Email to Reserve →
+          </a>
+          <button
+            onClick={onClose}
+            className="ll-label py-3 text-[0.62rem] uppercase tracking-[0.12em] transition-opacity hover:opacity-60"
+            style={{ color: "var(--on-surface-variant)" }}
+          >
+            Cancel
+          </button>
         </div>
+      </div>
+    </div>
+  );
+}
 
-        {/* Details */}
-        <div className="flex flex-col">
-          <div className="ll-label mb-3 text-[0.6rem] font-medium uppercase tracking-[0.2em]" style={{ color: "var(--ink-soft)" }}>{item.Sku}</div>
-          <h1 className="ll-display mb-3 font-normal leading-snug" style={{ fontSize: "clamp(1.8rem,3vw,2.8rem)", color: "var(--ink)" }}>{item.Name}</h1>
-          <div className="ll-label mb-6 text-2xl font-medium" style={{ color: "var(--rose-deep)" }}>{formatPrice(item.UnitPriceCents)}</div>
+/* ─── Care instructions ───────────────────────────────────────────────────── */
 
-          <div className="mb-6 flex flex-wrap gap-2">
-            {item.IsFeatured && (
-              <span className="ll-label px-3 py-1 text-[0.58rem] font-medium uppercase tracking-[0.15em] text-white" style={{ background: "var(--rose-deep)" }}>Featured</span>
-            )}
-            {item.QuantityOnHand > 0
-              ? <span className="ll-label border px-3 py-1 text-[0.58rem] font-medium uppercase tracking-[0.15em]" style={{ borderColor: "var(--sage)", color: "var(--sage-deep)" }}>Available</span>
-              : <span className="ll-label border px-3 py-1 text-[0.58rem] font-medium uppercase tracking-[0.15em]" style={{ borderColor: "var(--linen)", color: "var(--ink-soft)" }}>Sold</span>
-            }
+const CARE_STEPS = [
+  {
+    n: "01",
+    title: "Laundering",
+    body: "Avoid modern detergents and mechanical washing. Hand wash only in tepid distilled water with a neutral-pH linen soap. Do not wring.",
+  },
+  {
+    n: "02",
+    title: "Drying",
+    body: "Lay flat on a clean white cotton sheet in a shaded area. Direct sunlight may cause uneven bleaching of the natural fibres.",
+  },
+  {
+    n: "03",
+    title: "Storage",
+    body: "Roll — never fold — to avoid structural creases. Store in acid-free tissue paper within a breathable cedar chest or linen bag.",
+  },
+];
+
+/* ─── Main page ───────────────────────────────────────────────────────────── */
+
+export default function ItemDetailPage() {
+  const { sku }  = useParams<{ sku: string }>();
+  const { getThumbnailUrl, ensureThumbnail } = useStorefrontContext();
+  const { add, remove, has } = useCart();
+
+  const [item,    setItem]    = useState<ItemDetail | null>(null);
+  const [images,  setImages]  = useState<InventoryImage[]>([]);
+  const [related, setRelated] = useState<ItemDetail[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState<string | null>(null);
+  const [reserveOpen, setReserveOpen] = useState(false);
+
+  /* ── Fetch item by SKU ── */
+  const fetchItem = useCallback(async () => {
+    if (!sku) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/items/sku/${sku}`);
+      if (res.status === 404) { setError("not_found"); return; }
+      if (!res.ok) throw new Error("fetch failed");
+      const data: ItemDetail = await res.json();
+      setItem(data);
+
+      /* ── Fetch images ── */
+      const imgRes = await fetch(`/api/items/${data.InventoryId}/images`);
+      if (imgRes.ok) {
+        const imgs: InventoryImage[] = await imgRes.json();
+        setImages(imgs.sort((a, b) => (b.IsPrimary ? 1 : 0) - (a.IsPrimary ? 1 : 0) || a.SortOrder - b.SortOrder));
+      }
+
+      /* ── Fetch related (similar) ── */
+      const relRes = await fetch(`/api/items/${data.InventoryId}/similar?top=3`);
+      if (relRes.ok) {
+        const relData = await relRes.json();
+        const rel3 = relData.slice(0, 3) as ItemDetail[];
+        setRelated(rel3);
+        // Pre-fetch thumbnails for related items via the storefront context cache
+        rel3.forEach((r) => ensureThumbnail(r.InventoryId));
+      }
+    } catch {
+      setError("error");
+    } finally {
+      setLoading(false);
+    }
+  }, [sku]);
+
+  useEffect(() => { fetchItem(); }, [fetchItem]);
+
+  /* ── Loading skeleton ── */
+  if (loading) {
+    return (
+      <div className="animate-pulse px-6 md:px-10 py-10 md:grid md:gap-16" style={{ gridTemplateColumns: "1fr 1fr" }}>
+        <div style={{ aspectRatio: "4/5", background: "var(--surface-container)", borderRadius: "0.25rem" }} />
+        <div className="space-y-5 mt-8 md:mt-0">
+          <div className="h-3 w-24 rounded-sm" style={{ background: "var(--surface-container-low)" }} />
+          <div className="h-8 w-3/4 rounded-sm" style={{ background: "var(--surface-container)" }} />
+          <div className="h-5 w-1/4 rounded-sm" style={{ background: "var(--surface-container-low)" }} />
+          <div className="space-y-2 pt-4">
+            {[1,2,3,4].map(i => <div key={i} className="h-3 rounded-sm" style={{ background: "var(--surface-container-low)", width: `${75 + i * 5}%` }} />)}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Not found ── */
+  if (error === "not_found" || (!loading && !item)) {
+    return (
+      <div className="flex flex-col items-center justify-center py-32 px-6 text-center">
+        <p className="ll-display text-3xl italic mb-4" style={{ color: "var(--on-surface-variant)" }}>
+          Piece Not Found
+        </p>
+        <p className="ll-body text-base font-light mb-8" style={{ color: "var(--outline)" }}>
+          This item may have been sold or removed from the collection.
+        </p>
+        <Link href="/shop" className="btn-primary">Browse the Collection →</Link>
+      </div>
+    );
+  }
+
+  if (error || !item) {
+    return (
+      <div className="flex flex-col items-center justify-center py-32 px-6 text-center">
+        <p className="ll-display text-2xl italic mb-4" style={{ color: "var(--on-surface-variant)" }}>
+          Something went wrong.
+        </p>
+        <button onClick={fetchItem} className="btn-secondary">Try Again</button>
+      </div>
+    );
+  }
+
+  /* ── Full page ── */
+  return (
+    <>
+      <div
+        className="ll-texture-overlay min-h-screen pb-28 md:pb-0"
+        style={{ background: "var(--surface)", color: "var(--on-surface)" }}
+      >
+        <Breadcrumb name={item.Name} />
+
+        {/* ────────────────────────────────────────────────────────
+            Desktop: two-column layout — gallery left, info right
+        ──────────────────────────────────────────────────────── */}
+        <div className="px-6 md:px-10 md:grid md:gap-14 lg:gap-20 pb-0" style={{ gridTemplateColumns: "1fr 1fr" }}>
+
+          {/* ── Left: gallery (desktop only) ── */}
+          <div className="hidden md:block">
+            <DesktopGallery images={images} />
           </div>
 
-          <div className="mb-6 h-px" style={{ background: "var(--linen)" }} />
+          {/* ── Mobile: carousel ── */}
+          <div className="md:hidden -mx-6 mb-6">
+            <MobileCarousel images={images} />
+          </div>
 
-          {item.Description && (
-            <p className="ll-body mb-8 text-[1.05rem] font-light leading-[1.85]" style={{ color: "var(--ink-soft)" }}>{item.Description}</p>
-          )}
+          {/* ── Right: information panel ── */}
+          <div className="flex flex-col">
 
-          {item.QuantityOnHand > 0 ? (
-            <button
-              onClick={() => setInquireOpen(true)}
-              className="ll-label mb-3 w-full border-2 py-4 text-[0.75rem] font-medium uppercase tracking-[0.2em] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(176,120,120,0.25)]"
-              style={{ background: "var(--rose-deep)", borderColor: "var(--rose-deep)", color: "#fff" }}
-            >
-              Inquire About This Piece
-            </button>
-          ) : (
-            <div
-              className="ll-label mb-3 w-full border py-4 text-center text-[0.75rem] font-medium uppercase tracking-[0.2em]"
-              style={{ borderColor: "var(--linen)", color: "var(--ink-soft)", background: "var(--cream-dark)" }}
-            >
-              This Piece Has Found Its Home
+            {/* Status + SKU */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                {item.IsFeatured && (
+                  <span
+                    className="ll-label px-2.5 py-1 text-[0.5rem] font-medium uppercase tracking-[0.15em]"
+                    style={{ background: "var(--primary)", color: "var(--on-primary)", borderRadius: "0.2rem" }}
+                  >
+                    Featured
+                  </span>
+                )}
+                <span
+                  className="ll-label text-[0.55rem] font-medium uppercase tracking-[0.15em]"
+                  style={{ color: "var(--on-surface-variant)" }}
+                >
+                  One of a Kind
+                </span>
+              </div>
+              <span
+                className="ll-label text-[0.55rem] uppercase tracking-[0.12em]"
+                style={{ color: "var(--outline)" }}
+              >
+                {item.Sku}
+              </span>
             </div>
-          )}
 
-          <Link
-            href="/shop"
-            className="ll-label block w-full border py-3.5 text-center text-[0.68rem] font-medium uppercase tracking-[0.15em] transition-colors duration-200"
-            style={{ borderColor: "var(--sage)", color: "var(--sage-deep)", textDecoration: "none" }}
-            onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = "var(--sage-light)")}
-            onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = "transparent")}
-          >
-            ← Back to Collection
-          </Link>
+            {/* Name */}
+            <h1
+              className="ll-display font-normal leading-tight mb-2"
+              style={{
+                fontSize: "clamp(1.6rem, 3vw, 2.6rem)",
+                color: "var(--on-surface)",
+                letterSpacing: "-0.015em",
+              }}
+            >
+              {item.Name}
+            </h1>
 
-          {/* Details block */}
-          <div className="mt-10 border-t pt-8" style={{ borderColor: "var(--linen)" }}>
-            <div className="ll-label mb-4 text-[0.62rem] font-medium uppercase tracking-[0.2em]" style={{ color: "var(--sage-deep)" }}>Details</div>
-            <div className="flex flex-col gap-0">
-              {[
-                { label: "Item No.",     value: item.Sku },
-                { label: "Availability", value: item.QuantityOnHand > 0 ? "In stock" : "Sold" },
-                { label: "Added",        value: new Date(item.CreatedAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) },
-              ].map(({ label, value }, i, arr) => (
-                <div key={label} className="flex justify-between py-2.5" style={{ borderBottom: i < arr.length - 1 ? "1px dashed var(--linen)" : "none" }}>
-                  <span className="ll-label text-[0.65rem] font-medium uppercase tracking-[0.1em]" style={{ color: "var(--ink-soft)" }}>{label}</span>
-                  <span className="ll-body text-sm italic" style={{ color: "var(--ink)" }}>{value}</span>
+            {/* Price */}
+            <p
+              className="ll-display text-2xl font-normal mb-6"
+              style={{ color: "var(--primary)", letterSpacing: "-0.01em" }}
+            >
+              {formatPrice(item.UnitPriceCents)}
+            </p>
+
+            {/* Description */}
+            {item.Description && (
+              <p
+                className="ll-body text-[1rem] font-light leading-[1.85] mb-8"
+                style={{ color: "var(--on-surface-variant)" }}
+              >
+                {item.Description}
+              </p>
+            )}
+
+            {/* Spec tiles */}
+            {(() => {
+              // Parse KeywordsJson once — safe fallback to {} if missing/invalid
+              let kw: Record<string, string[]> = {};
+              try { if (item.KeywordsJson) kw = JSON.parse(item.KeywordsJson); } catch { /* ignore */ }
+
+              const condition = kw.condition?.[0] ?? null;
+              const material  = (kw.materials ?? kw.material)?.[0] ?? null;
+
+              const specs = [
+                { label: "Condition", value: condition ?? "Heritage Grade" },
+                { label: "Material",  value: material  ?? "Natural Linen"  },
+                { label: "Quantity",  value: item.QuantityOnHand > 1 ? `${item.QuantityOnHand} available` : "One of a Kind" },
+                { label: "Era",       value: kw.era?.[0] ?? kw.style?.[0] ?? "Antique" },
+              ];
+
+              return (
+                <div
+                  className="grid grid-cols-2 gap-px mb-8"
+                  style={{ background: "rgba(196,181,168,0.15)", borderRadius: "0.25rem", overflow: "hidden" }}
+                >
+                  {specs.map(({ label, value }) => (
+                    <div
+                      key={label}
+                      className="flex flex-col gap-1 px-4 py-3"
+                      style={{ background: "var(--surface-bright)" }}
+                    >
+                      <span className="ll-label text-[0.5rem] font-medium uppercase tracking-[0.15em]" style={{ color: "var(--on-surface-variant)" }}>
+                        {label}
+                      </span>
+                      <span className="ll-body text-sm font-normal capitalize" style={{ color: "var(--on-surface)" }}>
+                        {value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+
+            {/* Desktop CTAs */}
+            <div className="hidden md:flex flex-col gap-3">
+              <button
+                onClick={() => setReserveOpen(true)}
+                className="btn-primary py-4 text-[0.68rem] tracking-[0.15em]"
+              >
+                Reserve This Piece →
+              </button>
+              <button
+                onClick={() => {
+                  if (has(item.InventoryId)) {
+                    remove(item.InventoryId);
+                  } else {
+                    add({
+                      InventoryId:    item.InventoryId,
+                      Sku:            item.Sku,
+                      Name:           item.Name,
+                      UnitPriceCents: item.UnitPriceCents,
+                      thumbnailUrl:   images[0]?.ReadUrl ?? null,
+                    });
+                  }
+                }}
+                className="ll-label py-3.5 text-center text-[0.62rem] uppercase tracking-[0.15em] transition-all duration-300"
+                style={{
+                  background:   has(item.InventoryId) ? "var(--primary)" : "transparent",
+                  color:        has(item.InventoryId) ? "var(--on-primary)" : "var(--on-surface-variant)",
+                  border:       has(item.InventoryId) ? "1px solid var(--primary)" : "1px solid rgba(196,181,168,0.4)",
+                  borderRadius: "0.25rem",
+                  cursor:       "pointer",
+                }}
+              >
+                {has(item.InventoryId) ? "✓ Added to Reservation List" : "+ Add to Reservation List"}
+              </button>
+            </div>
+
+
+          </div>
+        </div>
+
+        {/* ────────────────────────────────────────────────────────
+            Related curations
+        ──────────────────────────────────────────────────────── */}
+        {related.length > 0 && (
+          <section className="px-6 md:px-10 py-14" style={{ borderTop: "1px solid rgba(196,181,168,0.15)" }}>
+            <div className="flex items-baseline justify-between mb-8">
+              <div>
+                <h2
+                  className="ll-display text-2xl font-normal italic"
+                  style={{ color: "var(--on-surface)", letterSpacing: "-0.01em" }}
+                >
+                  Related Curations
+                </h2>
+                <p className="ll-label mt-1 text-[0.55rem] uppercase tracking-[0.15em]" style={{ color: "var(--on-surface-variant)" }}>
+                  Selected to complement your choice
+                </p>
+              </div>
+              <Link
+                href="/shop"
+                className="ll-label hidden md:inline text-[0.58rem] uppercase tracking-[0.12em] transition-opacity hover:opacity-60"
+                style={{ color: "var(--primary)" }}
+              >
+                View Collection →
+              </Link>
+            </div>
+
+            <div className="grid gap-6" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
+              {related.map((rel) => (
+                <Link
+                  key={rel.InventoryId}
+                  href={`/shop/${rel.Sku}`}
+                  className="group block"
+                  style={{ textDecoration: "none" }}
+                >
+                  <div
+                    className="overflow-hidden mb-3"
+                    style={{ aspectRatio: "4/3", background: "var(--surface-container-highest)", borderRadius: "0.2rem" }}
+                  >
+                    {getThumbnailUrl(rel.InventoryId) ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={getThumbnailUrl(rel.InventoryId)!}
+                        alt={rel.Name}
+                        className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center ll-display text-sm italic" style={{ color: "var(--outline-variant)" }}>
+                        Linen Lady
+                      </div>
+                    )}
+                  </div>
+                  <p className="ll-display text-sm font-normal mb-0.5" style={{ color: "var(--on-surface)" }}>{rel.Name}</p>
+                  <p className="ll-label text-[0.6rem] uppercase tracking-[0.1em]" style={{ color: "var(--primary)" }}>
+                    {formatPrice(rel.UnitPriceCents)}
+                  </p>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
+
+        {/* ────────────────────────────────────────────────────────
+            Care instructions
+        ──────────────────────────────────────────────────────── */}
+        <section
+          className="mt-16 px-6 md:px-10 py-14"
+          style={{ background: "var(--surface-container-low)", borderTop: "1px solid rgba(196,181,168,0.15)" }}
+        >
+          <div className="max-w-2xl">
+            <h2
+              className="ll-display text-2xl font-normal italic mb-8"
+              style={{ color: "var(--on-surface)", letterSpacing: "-0.01em" }}
+            >
+              Caring for Your Heritage Piece
+            </h2>
+            <div className="flex flex-col gap-6">
+              {CARE_STEPS.map(({ n, title, body }) => (
+                <div key={n} className="flex gap-5">
+                  <span
+                    className="ll-label shrink-0 text-[0.58rem] font-medium uppercase tracking-[0.12em] pt-0.5"
+                    style={{ color: "var(--primary)", width: 24 }}
+                  >
+                    {n}
+                  </span>
+                  <div>
+                    <p className="ll-label mb-1 text-[0.65rem] font-medium uppercase tracking-[0.1em]" style={{ color: "var(--on-surface)" }}>
+                      {title}
+                    </p>
+                    <p className="ll-body text-sm font-light leading-relaxed" style={{ color: "var(--on-surface-variant)" }}>
+                      {body}
+                    </p>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
+        </section>
 
-          {/* Care note */}
-          <div className="mt-8 border p-5" style={{ borderColor: "var(--linen)", background: "var(--cream-dark)" }}>
-            <div className="ll-label mb-2 text-[0.6rem] font-medium uppercase tracking-[0.15em]" style={{ color: "var(--sage-deep)" }}>A Note on Care</div>
-            <p className="ll-body text-sm font-light leading-relaxed" style={{ color: "var(--ink-soft)" }}>
-              Antique linens are delicate. Hand wash in cool water with a gentle soap, or dry clean. Never wring.
-              Roll in a clean towel to remove excess moisture, then lay flat or hang to dry.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <SimilarItems items={similar} getThumbnail={getThumbnailUrl} />
-
-      {/* Inquire modal */}
-      {inquireOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-6"
-          style={{ background: "rgba(44,31,26,0.6)", backdropFilter: "blur(4px)" }}
-          onClick={(e) => { if (e.target === e.currentTarget) setInquireOpen(false); }}
+      {/* ────────────────────────────────────────────────────────
+          Mobile sticky bottom bar — two equal buttons
+      ──────────────────────────────────────────────────────── */}
+      <div
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 flex items-stretch gap-0 px-0"
+        style={{
+          background:    "var(--surface-bright)",
+          borderTop:     "1px solid rgba(196,181,168,0.2)",
+          paddingBottom: "env(safe-area-inset-bottom, 0px)",
+        }}
+      >
+        {/* Add to List — left half */}
+        <button
+          onClick={() => {
+            if (has(item.InventoryId)) {
+              remove(item.InventoryId);
+            } else {
+              add({
+                InventoryId:    item.InventoryId,
+                Sku:            item.Sku,
+                Name:           item.Name,
+                UnitPriceCents: item.UnitPriceCents,
+                thumbnailUrl:   images[0]?.ReadUrl ?? null,
+              });
+            }
+          }}
+          className="ll-label flex-1 flex flex-col items-center justify-center gap-1.5 py-4 text-[0.58rem] uppercase tracking-[0.12em] transition-all duration-300"
+          style={{
+            background:  has(item.InventoryId) ? "var(--surface-container-low)" : "var(--surface-bright)",
+            color:       has(item.InventoryId) ? "var(--primary)"               : "var(--on-surface-variant)",
+            cursor:      "pointer",
+            border:      "none",
+            borderRight: "1px solid rgba(196,181,168,0.2)",
+          }}
         >
-          <div className="relative w-full max-w-lg border" style={{ background: "var(--cream)", borderColor: "var(--linen)" }}>
-            <div className="absolute left-[-1px] top-[-1px] h-8 w-8 border-l-[3px] border-t-[3px]" style={{ borderColor: "var(--rose)" }} />
-            <div className="absolute bottom-[-1px] right-[-1px] h-8 w-8 border-b-[3px] border-r-[3px]" style={{ borderColor: "var(--sage)" }} />
-            <div className="p-10">
-              {inquireSent ? (
-                <div className="py-6 text-center">
-                  <div className="mb-4 text-4xl">🌿</div>
-                  <h3 className="ll-display mb-3 text-2xl italic font-normal" style={{ color: "var(--ink)" }}>Message sent</h3>
-                  <p className="ll-body text-base font-light" style={{ color: "var(--ink-soft)" }}>Noemi will be in touch soon.</p>
-                  <button
-                    onClick={() => { setInquireOpen(false); setInquireSent(false); setInquireMsg(""); }}
-                    className="ll-label mt-8 border px-8 py-3 text-[0.65rem] uppercase tracking-[0.15em] transition-colors hover:bg-[#ecdcdc]"
-                    style={{ borderColor: "var(--linen)", color: "var(--ink-soft)" }}
-                  >Close</button>
-                </div>
-              ) : (
-                <>
-                  <button
-                    onClick={() => setInquireOpen(false)}
-                    className="absolute right-4 top-4 ll-label text-lg leading-none transition-opacity hover:opacity-60"
-                    style={{ color: "var(--ink-soft)", background: "none", border: "none" }}
-                  >✕</button>
-                  <div className="ll-label mb-1 text-[0.6rem] font-medium uppercase tracking-[0.2em]" style={{ color: "var(--sage-deep)" }}>Inquire</div>
-                  <h3 className="ll-display mb-6 text-xl font-normal italic" style={{ color: "var(--ink)" }}>{item.Name}</h3>
-                  <div className="flex flex-col gap-4">
-                    <p className="ll-body text-sm font-light leading-relaxed" style={{ color: "var(--ink-soft)" }}>
-                      Add a message and we&apos;ll open your email client with everything filled in — or just hit send as-is.
-                    </p>
-                    <textarea
-                      value={inquireMsg}
-                      onChange={(e) => setInquireMsg(e.target.value)}
-                      rows={4}
-                      placeholder="Any questions about this piece? (optional)"
-                      className="ll-body w-full resize-none border p-4 text-sm font-light outline-none placeholder:italic"
-                      style={{ borderColor: "var(--linen)", color: "var(--ink)", background: "var(--cream-dark)", caretColor: "var(--rose-deep)" }}
-                    />
-                    <a
-                      href={`mailto:noemi@linenlady.com?subject=${encodeURIComponent(`Inquiry: ${item.Name} (${item.Sku})`)}&body=${encodeURIComponent(`Hi Noemi,\n\nI'm interested in the following piece:\n\n${item.Name}\nItem No: ${item.Sku}\nPrice: ${formatPrice(item.UnitPriceCents)}\n\n${inquireMsg ? inquireMsg + "\n\n" : ""}Thank you!`)}`}
-                      onClick={() => setInquireSent(true)}
-                      className="ll-label block w-full py-4 text-center text-[0.72rem] font-medium uppercase tracking-[0.2em] text-white transition-all duration-200 hover:-translate-y-px"
-                      style={{ background: "var(--rose-deep)", textDecoration: "none" }}
-                    >
-                      Open Email to Inquire
-                    </a>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+          <svg
+            width="18" height="18" viewBox="0 0 24 24"
+            fill={has(item.InventoryId) ? "currentColor" : "none"}
+            stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+          >
+            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+          </svg>
+          {has(item.InventoryId) ? "✓ In List" : "Add to List"}
+        </button>
+
+        {/* Reserve — right half */}
+        <button
+          onClick={() => setReserveOpen(true)}
+          className="ll-label flex-1 flex items-center justify-center py-4 text-[0.65rem] uppercase tracking-[0.15em] transition-all duration-300"
+          style={{
+            background: "var(--primary)",
+            color:      "var(--on-primary)",
+            cursor:     "pointer",
+            border:     "none",
+          }}
+        >
+          Reserve This Piece
+        </button>
+      </div>
+
+      {/* Reserve modal */}
+      <ReserveModal open={reserveOpen} onClose={() => setReserveOpen(false)} item={item} />
+    </>
   );
 }

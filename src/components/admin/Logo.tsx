@@ -19,7 +19,7 @@ export function LinenLadyLogo({
       viewBox="0 0 350 35"
       width={width}
       className={className}
-      aria-label="Linen Lady"
+      aria-label="{process.env.NEXT_PUBLIC_STORE_NAME}"
       role="img"
     >
       <text

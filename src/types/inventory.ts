@@ -14,6 +14,8 @@ export type InventoryItem = {
   IsFeatured: boolean;
   CreatedAt: string;
   UpdatedAt: string;
+  /** Raw JSON string from inv.InventoryAiMeta. Parse to access condition[], materials[], era[], etc. */
+  KeywordsJson?: string | null;
   Images?: {
     ImageId: number;
     ImagePath: string;

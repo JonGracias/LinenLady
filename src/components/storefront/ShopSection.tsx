@@ -1,12 +1,25 @@
+// src/components/storefront/ShopSection.tsx
 "use client";
 
 import { useState, useMemo } from "react";
 import { useStorefrontContext } from "@/context/StorefrontContext";
 import FilterBar from "./FilterBar";
-import MobileItemSlider from "./MobileItemSlider";
 import DesktopItemGrid from "./DesktopItemGrid";
+import DesktopItemCard from "./DesktopItemCard";
+import Link from "next/link";
 
-export default function ShopSection() {
+type Props = {
+  /**
+   * When set, caps the displayed items to this number and hides pagination.
+   * Used on the home page to show only the newest/featured preview (e.g. 10).
+   * Omit on /shop for the full paginated experience.
+   */
+  maxItems?: number;
+  /** Hide the search + filter bar (useful for the home page preview) */
+  hideFilters?: boolean;
+};
+
+export default function ShopSection({ maxItems, hideFilters }: Props) {
   const {
     items,
     loading,
@@ -21,63 +34,78 @@ export default function ShopSection() {
 
   const [search, setSearch] = useState("");
 
-  // Search filters client-side on top of whatever the server returned
   const filtered = useMemo(() => {
-    if (!search.trim()) return items;
-    const q = search.toLowerCase();
-    return items.filter(
-      (item) =>
-        item.Name.toLowerCase().includes(q) ||
-        (item.Description ?? "").toLowerCase().includes(q)
-    );
-  }, [items, search]);
+    let list = items;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(
+        (item) =>
+          item.Name.toLowerCase().includes(q) ||
+          (item.Description ?? "").toLowerCase().includes(q)
+      );
+    }
+    if (maxItems) list = list.slice(0, maxItems);
+    return list;
+  }, [items, search, maxItems]);
 
   const clearFilters = () => {
     setSearch("");
     setCategory(null);
   };
 
+  const isPreview = !!maxItems;
+
   return (
-    <section id="shop" className="relative z-[1]" style={{ background: "var(--cream-dark)" }}>
+    <section id="shop" className="relative z-[1]" style={{ background: "var(--surface)" }}>
 
-      <FilterBar
-        search={search}
-        onSearch={setSearch}
-        activeCategory={category}
-        onCategory={setCategory}
-        resultCount={search.trim() ? filtered.length : totalCount}
-      />
+      {/* ── Filter bar (hidden in preview mode) ── */}
+      {!hideFilters && (
+        <FilterBar
+          search={search}
+          onSearch={setSearch}
+          activeCategory={category}
+          onCategory={setCategory}
+          resultCount={search.trim() ? filtered.length : totalCount}
+        />
+      )}
 
-      {/* Mobile */}
-      <div className="md:hidden">
+      {/* ── Mobile grid ── */}
+      <div className="md:hidden px-4 py-6">
         {loading ? (
-          <div className="flex items-center justify-center py-32">
-            <span
-              className="ll-label text-[0.7rem] uppercase tracking-[0.2em]"
-              style={{ color: "var(--ink-soft)" }}
-            >
-              Loading…
-            </span>
+          <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 1fr" }}>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="animate-pulse overflow-hidden" style={{ background: "var(--surface-bright)", borderRadius: "0.25rem" }}>
+                <div style={{ aspectRatio: "3/4", background: "var(--surface-container)" }} />
+                <div className="p-3 space-y-2">
+                  <div className="h-3.5 w-3/4 rounded-sm" style={{ background: "var(--surface-container)" }} />
+                  <div className="h-3 w-1/3 rounded-sm" style={{ background: "var(--surface-container-low)" }} />
+                </div>
+              </div>
+            ))}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-32 text-center">
-            <p className="ll-display text-xl italic" style={{ color: "var(--ink-soft)" }}>
+          <div className="py-24 text-center">
+            <p className="ll-display text-xl italic mb-4" style={{ color: "var(--on-surface-variant)" }}>
               No pieces found.
             </p>
-            <button
-              onClick={clearFilters}
-              className="ll-label mt-4 text-[0.7rem] uppercase tracking-[0.15em] underline"
-              style={{ color: "var(--rose-deep)", background: "none", border: "none", cursor: "pointer" }}
-            >
+            <button onClick={clearFilters} className="btn-tertiary mx-auto">
               Clear filters
             </button>
           </div>
         ) : (
-          <MobileItemSlider items={filtered} getThumbnailUrl={getThumbnailUrl} />
+          <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 1fr" }}>
+            {filtered.map((item) => (
+              <DesktopItemCard
+                key={item.InventoryId}
+                item={item}
+                thumbnailUrl={getThumbnailUrl(item.InventoryId)}
+              />
+            ))}
+          </div>
         )}
       </div>
 
-      {/* Desktop */}
+      {/* ── Desktop grid ── */}
       <div className="hidden md:block">
         <DesktopItemGrid
           items={filtered}
@@ -86,14 +114,13 @@ export default function ShopSection() {
           loading={loading}
         />
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-2 px-10 pb-10">
+        {/* Pagination — only shown when not in preview mode */}
+        {!isPreview && totalPages > 1 && (
+          <div className="flex items-center justify-center gap-2 px-10 pb-12">
             <button
               onClick={() => setPage(page - 1)}
               disabled={page <= 1}
-              className="ll-label border px-5 py-2.5 text-[0.65rem] uppercase tracking-[0.15em] transition-colors disabled:opacity-30"
-              style={{ borderColor: "var(--linen)", color: "var(--ink-soft)", background: "transparent", cursor: "pointer" }}
+              className="btn-secondary text-[0.62rem] px-5 py-2 disabled:opacity-30"
             >
               ← Prev
             </button>
@@ -107,17 +134,18 @@ export default function ShopSection() {
               }, [])
               .map((p, i) =>
                 p === "…" ? (
-                  <span key={`e-${i}`} className="ll-label px-2 text-[0.65rem]" style={{ color: "var(--ink-soft)" }}>…</span>
+                  <span key={`e-${i}`} className="ll-label px-2 text-[0.65rem]" style={{ color: "var(--on-surface-variant)" }}>…</span>
                 ) : (
                   <button
                     key={p}
                     onClick={() => setPage(p as number)}
-                    className="ll-label h-9 w-9 border text-[0.65rem] transition-colors"
+                    className="ll-label h-9 w-9 text-[0.65rem] font-medium transition-all duration-400"
                     style={{
-                      borderColor: p === page ? "var(--rose-deep)" : "var(--linen)",
-                      background:  p === page ? "var(--rose-deep)" : "transparent",
-                      color:       p === page ? "#fff" : "var(--ink-soft)",
-                      cursor: "pointer",
+                      background:   p === page ? "var(--primary)" : "transparent",
+                      color:        p === page ? "var(--on-primary)" : "var(--on-surface-variant)",
+                      border:       p === page ? "1px solid var(--primary)" : "1px solid rgba(196,181,168,0.3)",
+                      borderRadius: "0.25rem",
+                      cursor:       "pointer",
                     }}
                   >
                     {p}
@@ -128,14 +156,43 @@ export default function ShopSection() {
             <button
               onClick={() => setPage(page + 1)}
               disabled={page >= totalPages}
-              className="ll-label border px-5 py-2.5 text-[0.65rem] uppercase tracking-[0.15em] transition-colors disabled:opacity-30"
-              style={{ borderColor: "var(--linen)", color: "var(--ink-soft)", background: "transparent", cursor: "pointer" }}
+              className="btn-secondary text-[0.62rem] px-5 py-2 disabled:opacity-30"
             >
               Next →
             </button>
           </div>
         )}
       </div>
+
+      {/* ── "Browse full collection" CTA — shown only in preview mode ── */}
+      {isPreview && !loading && filtered.length > 0 && (
+        <div
+          className="flex items-center justify-center py-8 px-6"
+          style={{ borderTop: "1px solid rgba(196,181,168,0.15)" }}
+        >
+          <Link
+            href="/shop"
+            className="ll-label px-8 py-3 text-[0.65rem] font-medium uppercase tracking-[0.15em] transition-all duration-300"
+            style={{
+              border:       "1px solid rgba(196,181,168,0.4)",
+              color:        "var(--on-surface-variant)",
+              borderRadius: "0.25rem",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLAnchorElement).style.background     = "var(--primary)";
+              (e.currentTarget as HTMLAnchorElement).style.color          = "var(--on-primary)";
+              (e.currentTarget as HTMLAnchorElement).style.borderColor    = "var(--primary)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLAnchorElement).style.background     = "transparent";
+              (e.currentTarget as HTMLAnchorElement).style.color          = "var(--on-surface-variant)";
+              (e.currentTarget as HTMLAnchorElement).style.borderColor    = "rgba(196,181,168,0.4)";
+            }}
+          >
+            Browse the Full Collection →
+          </Link>
+        </div>
+      )}
 
     </section>
   );

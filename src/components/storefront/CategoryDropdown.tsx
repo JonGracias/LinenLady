@@ -13,19 +13,19 @@ export default function CategoryDropdown({ active, onChange }: Props) {
     <select
       value={active ?? ""}
       onChange={(e) => onChange(e.target.value === "" ? null : e.target.value as Category)}
-      className="ll-label border py-2 px-3 text-[0.7rem] uppercase tracking-[0.1em] outline-none"
+      className="ll-label text-[0.68rem] font-medium uppercase tracking-[0.1em] outline-none transition-all duration-400"
       style={{
-        borderColor: "var(--linen)",
-        color: "var(--ink)",
-        background: "var(--cream)",
+        padding: "0.5rem 0.75rem",
+        background: "var(--surface-bright)",
+        color: "var(--on-surface)",
+        border: "1px solid rgba(196,181,168,0.3)",
+        borderRadius: "0.25rem",
         cursor: "pointer",
       }}
     >
-      <option value="">All</option>
+      <option value="">All Pieces</option>
       {CATEGORY_OPTIONS.map(({ value, label }) => (
-        <option key={value} value={value}>
-          {label}
-        </option>
+        <option key={value} value={value}>{label}</option>
       ))}
     </select>
   );

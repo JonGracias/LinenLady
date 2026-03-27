@@ -14,15 +14,16 @@ export default function DesktopItemGrid({ items, getThumbnailUrl, onClearFilters
   if (loading) {
     return (
       <div
-        className="grid gap-5 px-10 py-10"
+        className="grid gap-6 px-10 py-10"
         style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}
       >
         {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="animate-pulse overflow-hidden border" style={{ borderColor: "var(--linen)" }}>
-            <div style={{ aspectRatio: "3/4", background: "var(--linen)" }} />
-            <div className="space-y-2 p-4">
-              <div className="h-4 w-3/4 rounded" style={{ background: "var(--linen)" }} />
-              <div className="h-3 w-1/2 rounded" style={{ background: "var(--linen)" }} />
+          <div key={i} className="animate-pulse overflow-hidden" style={{ borderRadius: "0.25rem", background: "var(--surface-bright)" }}>
+            <div style={{ aspectRatio: "3/4", background: "var(--surface-container)" }} />
+            <div className="p-4 space-y-2">
+              <div className="h-3.5 w-3/4 rounded-sm" style={{ background: "var(--surface-container)" }} />
+              <div className="h-3 w-1/2 rounded-sm" style={{ background: "var(--surface-container-low)" }} />
+              <div className="h-3 w-1/4 rounded-sm" style={{ background: "var(--surface-container-low)" }} />
             </div>
           </div>
         ))}
@@ -32,17 +33,15 @@ export default function DesktopItemGrid({ items, getThumbnailUrl, onClearFilters
 
   if (items.length === 0) {
     return (
-      <div className="py-32 text-center">
-        <div className="mb-4 text-4xl opacity-20">🪡</div>
-        <p className="ll-display text-xl italic" style={{ color: "var(--ink-soft)" }}>
+      <div className="py-36 text-center">
+        <p className="ll-display text-2xl font-normal italic mb-4" style={{ color: "var(--on-surface-variant)" }}>
           No pieces found.
         </p>
+        <p className="ll-body text-base font-light mb-6" style={{ color: "var(--outline)" }}>
+          Try a different category or clear your search.
+        </p>
         {onClearFilters && (
-          <button
-            onClick={onClearFilters}
-            className="ll-label mt-4 text-[0.7rem] uppercase tracking-[0.15em] underline"
-            style={{ color: "var(--rose-deep)", background: "none", border: "none", cursor: "pointer" }}
-          >
+          <button onClick={onClearFilters} className="btn-tertiary mx-auto">
             Clear filters
           </button>
         )}
@@ -52,7 +51,7 @@ export default function DesktopItemGrid({ items, getThumbnailUrl, onClearFilters
 
   return (
     <div
-      className="grid gap-5 px-10 py-10"
+      className="grid gap-6 px-10 py-10"
       style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}
     >
       {items.map((item) => (

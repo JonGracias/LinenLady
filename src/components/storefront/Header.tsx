@@ -1,204 +1,245 @@
+// src/components/storefront/Header.tsx
 "use client";
 
 import { useState } from "react";
 import Link from "next/link";
-import { SignInButton, SignOutButton, SignUpButton, useUser, UserButton } from "@clerk/nextjs";
+import { SignInButton, useUser, UserButton } from "@clerk/nextjs";
+import { useCart } from "@/context/CartContext";
 
 const NAV_LINKS = [
-  { href: "/#shop",      label: "Shop"      },
-  { href: "/about",     label: "Our Story"  },
-  { href: "/#schedule", label: "Find Us"    },
+  { href: "/shop",     label: "Collection" },
+  { href: "/about",     label: "Heritage"   },
+  { href: "/#schedule", label: "Atelier"    },
   { href: "/#contact",  label: "Inquire"    },
 ];
 
 const HELP_LINKS = [
-  { href: "/account?tab=reservations", label: "Order History",    desc: "View your past and active reservations" },
-  { href: "/account?tab=reservations", label: "Where's My Order", desc: "Check your reservation or payment status" },
-  { href: "/terms",                    label: "Shipping & Returns", desc: "Policies on shipping and all sales final" },
-  { href: `mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL}`, label: "Email Us",         desc: "Get in touch with Noemi directly" },
+  { href: "/account?tab=reservations", label: "Order History",     desc: "View your past and active reservations"   },
+  { href: "/account?tab=reservations", label: "Where's My Order",  desc: "Check your reservation or payment status" },
+  { href: "/terms",                    label: "Shipping & Returns", desc: "Policies on shipping and all sales final"  },
+  { href: `mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL}`, label: "Email Us", desc: "Get in touch with Noemi directly" },
 ];
 
 export default function StorefrontHeader() {
-  const [helpOpen, setHelpOpen] = useState(false);
+  const [helpOpen,   setHelpOpen]   = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const { isSignedIn } = useUser();
+  const { count } = useCart();
 
   return (
     <header
       id="site-header"
-      className="relative z-10 flex items-center justify-between border-b px-6 py-4 md:px-12 md:py-5"
-      style={{ borderColor: "var(--linen)", backgroundColor: "var(--cream)" }}
+      className="glass relative z-50 border-b"
+      style={{ borderColor: "rgba(196,181,168,0.2)" }}
     >
-      {/* ── Wordmark ── */}
-      <Link
-        href="/"
-        className="ll-display text-lg italic shrink-0"
-        style={{ color: "var(--brown)", letterSpacing: "0.02em", textDecoration: "none" }}
-      >
-        {/* Full name on md+, just "Noemi" on mobile */}
-        <span className="hidden md:inline">
-          Noemi{" "}
-          <span style={{ fontStyle: "normal", color: "var(--rose-deep)" }}>
-            · The Linen Lady
+      <div className="mx-auto flex h-16 max-w-[1800px] items-center justify-between px-6 md:px-12">
+
+        {/* ── Mobile: hamburger ── */}
+        <button
+          className="md:hidden flex flex-col gap-1.5 p-1"
+          onClick={() => setMobileOpen((o) => !o)}
+          aria-label="Menu"
+        >
+          <span className="block h-px w-5 transition-all duration-300" style={{ background: "var(--on-surface)", transform: mobileOpen ? "rotate(45deg) translate(3px, 7px)" : "none" }} />
+          <span className="block h-px w-5 transition-all duration-300" style={{ background: "var(--on-surface)", opacity: mobileOpen ? 0 : 1 }} />
+          <span className="block h-px w-5 transition-all duration-300" style={{ background: "var(--on-surface)", transform: mobileOpen ? "rotate(-45deg) translate(3px, -7px)" : "none" }} />
+        </button>
+
+        {/* ── Wordmark ── */}
+        <Link
+          href="/"
+          className="absolute left-1/2 -translate-x-1/2 md:static md:translate-x-0 ll-display text-base font-normal italic tracking-wide"
+          style={{ color: "var(--on-surface)", textDecoration: "none", letterSpacing: "0.04em" }}
+        >
+          <span className="hidden md:inline">
+            {process.env.NEXT_PUBLIC_STORE_NAME}{" "}
+            <span className="not-italic ll-label text-[0.6rem] font-medium uppercase tracking-[0.2em]" style={{ color: "var(--primary)" }}>
+              · Since 1994
+            </span>
           </span>
-        </span>
-        <span className="md:hidden">Noemi</span>
-      </Link>
+          <span className="md:hidden">{process.env.NEXT_PUBLIC_STORE_NAME}</span>
+        </Link>
 
-      {/* ── Right side ── */}
-      <div className="flex items-center gap-6 md:gap-10">
-
-        {/* ── Nav links — hidden on mobile ── */}
-        <nav className="hidden md:flex items-center gap-10">
+        {/* ── Desktop nav — centered ── */}
+        <nav className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center gap-10">
           {NAV_LINKS.map(({ href, label }) => (
             <Link
               key={href}
               href={href}
-              className="ll-label text-[0.72rem] font-medium uppercase tracking-[0.15em] transition-colors duration-200 hover:text-[#b07878]"
-              style={{ color: "var(--ink-soft)", textDecoration: "none" }}
+              className="ll-label text-[0.68rem] font-medium uppercase tracking-[0.18em] transition-all duration-400"
+              style={{ color: "var(--on-surface-variant)", textDecoration: "none" }}
+              onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--primary)")}
+              onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--on-surface-variant)")}
             >
               {label}
             </Link>
           ))}
         </nav>
 
-        {/* ── Help dropdown ── */}
-        <div className="relative">
-          <button
-            onClick={() => setHelpOpen((o) => !o)}
-            className="ll-label flex items-center gap-1.5 text-[0.72rem] font-medium uppercase tracking-[0.15em] transition-colors duration-200 hover:text-[#b07878]"
-            style={{ color: "var(--ink-soft)", background: "none", border: "none", cursor: "pointer" }}
+        {/* ── Right side actions ── */}
+        <div className="flex items-center gap-4">
+
+          {/* Cart icon + badge */}
+          <Link
+            href="/cart"
+            className="relative flex items-center justify-center transition-opacity hover:opacity-70"
+            aria-label={`Cart — ${count} ${count === 1 ? "item" : "items"}`}
           >
-            Help
-            <span
-              className="text-[0.55rem] transition-transform duration-200"
-              style={{ display: "inline-block", transform: helpOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+            {/* Bag icon */}
+            <svg
+              width="18" height="18" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+              style={{ color: "var(--on-surface)" }}
             >
-              ▼
-            </span>
-          </button>
+              <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+              <line x1="3" y1="6" x2="21" y2="6"/>
+              <path d="M16 10a4 4 0 0 1-8 0"/>
+            </svg>
 
-          {helpOpen && (
-            <>
-              {/* Backdrop */}
-              <div
-                className="fixed inset-0 z-10"
-                onClick={() => setHelpOpen(false)}
-              />
-              {/* Dropdown */}
-              <div
-                className="absolute right-0 top-full z-20 mt-2 w-72 border"
-                style={{ background: "var(--cream)", borderColor: "var(--linen)", boxShadow: "0 8px 30px rgba(44,31,26,0.12)" }}
+            {/* Badge */}
+            {count > 0 && (
+              <span
+                className="absolute -right-2 -top-2 flex h-4 w-4 items-center justify-center ll-label text-[0.45rem] font-medium"
+                style={{
+                  background:   "var(--primary)",
+                  color:        "var(--on-primary)",
+                  borderRadius: "9999px",
+                  lineHeight:   1,
+                }}
               >
-                {/* Corner accents */}
-                <div className="absolute left-[-1px] top-[-1px] h-6 w-6 border-l-2 border-t-2" style={{ borderColor: "var(--rose)" }} />
-                <div className="absolute bottom-[-1px] right-[-1px] h-6 w-6 border-b-2 border-r-2" style={{ borderColor: "var(--sage)" }} />
+                {count > 9 ? "9+" : count}
+              </span>
+            )}
+          </Link>
 
-                <div className="px-5 pb-2 pt-5">
-                  <div
-                    className="ll-label mb-3 text-[0.58rem] font-medium uppercase tracking-[0.2em]"
-                    style={{ color: "var(--sage-deep)" }}
-                  >
-                    Help &amp; Support
+          {/* Help dropdown */}
+          <div className="relative hidden md:block">
+            <button
+              onClick={() => setHelpOpen((o) => !o)}
+              className="ll-label flex items-center gap-1 text-[0.68rem] font-medium uppercase tracking-[0.18em] transition-all duration-400"
+              style={{ color: "var(--on-surface-variant)", background: "none", border: "none", cursor: "pointer" }}
+              onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--primary)")}
+              onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--on-surface-variant)")}
+            >
+              Help
+              <span
+                className="text-[0.5rem] transition-transform duration-300"
+                style={{ display: "inline-block", transform: helpOpen ? "rotate(180deg)" : "none" }}
+              >▼</span>
+            </button>
+
+            {helpOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setHelpOpen(false)} />
+                <div
+                  className="absolute right-0 top-full z-20 mt-3 w-72 shadow-ambient-md"
+                  style={{ background: "var(--surface-bright)", outline: "1px solid rgba(196,181,168,0.2)" }}
+                >
+                  <div className="px-5 pt-5 pb-2">
+                    <p className="ll-label text-[0.58rem] font-medium uppercase tracking-[0.2em]" style={{ color: "var(--on-surface-variant)" }}>
+                      Help &amp; Support
+                    </p>
                   </div>
-                </div>
-
-                <div className="flex flex-col pb-3">
+                  <div className="flex flex-col pb-3">
                     {HELP_LINKS.map(({ href, label, desc }) => {
                       const isExternal = href.startsWith("mailto:") || href.startsWith("http");
                       const inner = (
                         <>
-                          <span
-                            className="ll-label text-[0.68rem] font-medium uppercase tracking-[0.1em] transition-colors group-hover:text-[#b07878]"
-                            style={{ color: "var(--ink)" }}
-                          >
-                            {label}
-                          </span>
-                          <span
-                            className="ll-body text-xs font-light"
-                            style={{ color: "var(--ink-soft)" }}
-                          >
-                            {desc}
-                          </span>
+                          <span className="ll-label text-[0.65rem] font-medium uppercase tracking-[0.1em]" style={{ color: "var(--on-surface)" }}>{label}</span>
+                          <span className="ll-body text-xs font-light" style={{ color: "var(--on-surface-variant)" }}>{desc}</span>
                         </>
                       );
-
-                      const sharedProps = {
+                      const shared = {
                         onClick: () => setHelpOpen(false),
-                        className: "group flex flex-col gap-0.5 px-5 py-3 transition-colors duration-150",
+                        className: "flex flex-col gap-0.5 px-5 py-3 transition-colors duration-300",
                         style: { textDecoration: "none" } as React.CSSProperties,
-                        onMouseEnter: (e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.background = "var(--cream-dark)"),
+                        onMouseEnter: (e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.background = "var(--surface-container-low)"),
                         onMouseLeave: (e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.background = "transparent"),
                       };
-
-                      return isExternal ? (
-                        <a key={label} {...sharedProps} href={href}>
-                          {inner}
-                        </a>
-                      ) : (
-                        <Link key={label} {...sharedProps} href={href}>
-                          {inner}
-                        </Link>
-                      );
+                      return isExternal
+                        ? <a key={label} {...shared} href={href}>{inner}</a>
+                        : <Link key={label} {...shared} href={href}>{inner}</Link>;
                     })}
+                  </div>
+                  <div className="border-t px-5 py-3" style={{ borderColor: "rgba(196,181,168,0.2)" }}>
+                    <p className="ll-body text-xs font-light italic" style={{ color: "var(--on-surface-variant)" }}>
+                      For urgent questions,{" "}
+                      <a href={`mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL}`} style={{ color: "var(--primary)" }}>
+                        email us directly
+                      </a>
+                    </p>
+                  </div>
                 </div>
+              </>
+            )}
+          </div>
 
-                <div
-                  className="border-t px-5 py-3"
-                  style={{ borderColor: "var(--linen)" }}
-                >
-                  <p
-                    className="ll-body text-xs font-light italic"
-                    style={{ color: "var(--ink-soft)" }}
-                  >
-                    For urgent questions, email{" "}
-                    <a
-                      href={`mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL}`}
-                      style={{ color: "var(--rose-deep)" }}
-                    >
-                      {process.env.NEXT_PUBLIC_CONTACT_EMAIL}
-                    </a>
-                  </p>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* ── Auth ── */}
-        <div className="flex items-center gap-4">
+          {/* Auth */}
           {!isSignedIn ? (
             <SignInButton mode="modal">
-              <button
-                className="ll-label border px-4 py-2 text-[0.68rem] font-medium uppercase tracking-[0.15em] transition-all duration-200 hover:-translate-y-px hover:shadow-sm"
-                style={{
-                  color: "var(--rose-deep)",
-                  borderColor: "var(--rose-deep)",
-                  background: "transparent",
-                  cursor: "pointer",
-                }}
-              >
-                Sign In
-              </button>
+              <button className="btn-secondary text-[0.65rem] px-5 py-2">Sign In</button>
             </SignInButton>
           ) : (
-            <>
+            <div className="flex items-center gap-3">
               <Link
                 href="/account"
-                className="ll-label hidden md:block text-[0.72rem] font-medium uppercase tracking-[0.15em] transition-colors duration-200 hover:text-[#b07878]"
-                style={{ color: "var(--ink-soft)", textDecoration: "none" }}
+                className="ll-label hidden md:block text-[0.68rem] font-medium uppercase tracking-[0.18em] transition-colors duration-400"
+                style={{ color: "var(--on-surface-variant)", textDecoration: "none" }}
+                onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--primary)")}
+                onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--on-surface-variant)")}
               >
-                My Account
+                Account
               </Link>
-              <UserButton
-                appearance={{
-                  elements: { avatarBox: "w-7 h-7" },
-                }}
-              />
-            </>
+              <UserButton appearance={{ elements: { avatarBox: "w-7 h-7" } }} />
+            </div>
           )}
         </div>
-
       </div>
+
+      {/* ── Mobile menu drawer ── */}
+      {mobileOpen && (
+        <div
+          className="md:hidden border-t px-6 pb-6 pt-4"
+          style={{ background: "var(--surface-bright)", borderColor: "rgba(196,181,168,0.2)" }}
+        >
+          <nav className="flex flex-col gap-1">
+            {NAV_LINKS.map(({ href, label }) => (
+              <Link
+                key={href}
+                href={href}
+                onClick={() => setMobileOpen(false)}
+                className="ll-label py-3 text-[0.72rem] font-medium uppercase tracking-[0.18em] border-b"
+                style={{ color: "var(--on-surface)", textDecoration: "none", borderColor: "rgba(196,181,168,0.15)" }}
+              >
+                {label}
+              </Link>
+            ))}
+            {/* Cart link in mobile menu */}
+            <Link
+              href="/cart"
+              onClick={() => setMobileOpen(false)}
+              className="ll-label py-3 text-[0.72rem] font-medium uppercase tracking-[0.18em] border-b flex items-center justify-between"
+              style={{ color: "var(--on-surface)", textDecoration: "none", borderColor: "rgba(196,181,168,0.15)" }}
+            >
+              Reservation List
+              {count > 0 && (
+                <span
+                  className="ll-label text-[0.52rem] px-2 py-0.5 font-medium"
+                  style={{ background: "var(--primary)", color: "var(--on-primary)", borderRadius: "9999px" }}
+                >
+                  {count}
+                </span>
+              )}
+            </Link>
+            {HELP_LINKS.map(({ href, label }) => {
+              const isExternal = href.startsWith("mailto:") || href.startsWith("http");
+              return isExternal
+                ? <a key={label} href={href} className="ll-label py-3 text-[0.72rem] font-medium uppercase tracking-[0.18em] border-b" style={{ color: "var(--on-surface-variant)", textDecoration: "none", borderColor: "rgba(196,181,168,0.15)" }}>{label}</a>
+                : <Link key={label} href={href} onClick={() => setMobileOpen(false)} className="ll-label py-3 text-[0.72rem] font-medium uppercase tracking-[0.18em] border-b" style={{ color: "var(--on-surface-variant)", textDecoration: "none", borderColor: "rgba(196,181,168,0.15)" }}>{label}</Link>;
+            })}
+          </nav>
+        </div>
+      )}
     </header>
   );
 }

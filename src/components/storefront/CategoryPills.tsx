@@ -10,30 +10,20 @@ type Props = {
 
 export default function CategoryPills({ active, onChange }: Props) {
   return (
-    <div className="flex items-center gap-1.5 flex-wrap">
-      <button
-        onClick={() => onChange(null)}
-        className="ll-label px-4 py-1.5 text-[0.65rem] uppercase tracking-[0.15em] border transition-all duration-200"
-        style={{
-          background:  active === null ? "var(--rose-deep)" : "transparent",
-          color:       active === null ? "#fff" : "var(--ink-soft)",
-          borderColor: active === null ? "var(--rose-deep)" : "var(--linen)",
-          cursor: "pointer",
-        }}
-      >
-        All
-      </button>
-      {CATEGORY_OPTIONS.map(({ value, label }) => {
+    <div className="flex items-center gap-2 flex-wrap">
+      {[{ value: null, label: "All Pieces" }, ...CATEGORY_OPTIONS].map(({ value, label }) => {
         const isActive = active === value;
         return (
           <button
-            key={value}
-            onClick={() => onChange(value)}
-            className="ll-label px-4 py-1.5 text-[0.65rem] uppercase tracking-[0.15em] border transition-all duration-200"
+            key={label}
+            onClick={() => onChange(value as Category | null)}
+            className="ll-label text-[0.62rem] font-medium uppercase tracking-[0.15em] transition-all duration-400"
             style={{
-              background:  isActive ? "var(--rose-deep)" : "transparent",
-              color:       isActive ? "#fff" : "var(--ink-soft)",
-              borderColor: isActive ? "var(--rose-deep)" : "var(--linen)",
+              padding: "0.375rem 1rem",
+              background:  isActive ? "var(--primary)" : "transparent",
+              color:       isActive ? "var(--on-primary)" : "var(--on-surface-variant)",
+              border:      isActive ? "1px solid var(--primary)" : "1px solid rgba(196,181,168,0.3)",
+              borderRadius: "0.25rem",
               cursor: "pointer",
             }}
           >
