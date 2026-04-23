@@ -24,5 +24,6 @@ export async function DELETE(_req: Request, { params }: Context) {
     );
   } catch (err) {
     return serverError(err);
+    
   }
 }
