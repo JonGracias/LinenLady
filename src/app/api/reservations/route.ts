@@ -1,5 +1,5 @@
 // src/app/api/reservations/route.ts
-import { proxyFetch, forwardJson, serverError } from "@/app/admin/api/_lib/proxy";
+import { proxyFetch, forwardJson, serverError } from "@/lib/proxy";
 
 export async function POST(req: Request) {
   try {

@@ -1,5 +1,5 @@
 // src/app/api/customers/me/addresses/[addressId]/route.ts
-import { proxyFetch, forwardJson, forwardNoContent, serverError } from "@/app/admin/api/_lib/proxy";
+import { proxyFetch, forwardJson, forwardNoContent, serverError } from "@/lib/proxy";
 
 type Context = { params: Promise<{ addressId: string }> };
 
