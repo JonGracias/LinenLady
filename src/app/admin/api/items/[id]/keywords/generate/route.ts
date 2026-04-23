@@ -1,5 +1,5 @@
 // /admin/api/items/[id]/keywords/generate/route.ts
-import { proxyFetch, forwardJson, serverError } from "../../../../_lib/proxy";
+import { proxyFetch, forwardJson, serverError } from "@/lib/proxy";
 
 type Context = { params: Promise<{ id: string }> };
 

@@ -120,7 +120,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
 
   const loadCounts = useCallback(async () => {
     try {
-      const c = await apiGetJson<CountsResponse>("/admin/api/items/counts");
+      const c = await apiGetJson<CountsResponse>("/api/items/counts");
       setCounts({
         all:       Number(c?.all       ?? 0),
         drafts:    Number(c?.drafts    ?? 0),

@@ -5,11 +5,7 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { clerkClient } from "@clerk/nextjs/server";
 
 const isAdminRoute    = createRouteMatcher(["/admin(.*)"]);
-const isAdminExcluded = createRouteMatcher([
-  "/admin",
-  "/admin/unauthorized",
-  "/admin/api(.*)",
-]);
+
 const isAccountRoute  = createRouteMatcher(["/account(.*)"]);
 
 export default clerkMiddleware(async (auth, req) => {
@@ -17,12 +13,12 @@ export default clerkMiddleware(async (auth, req) => {
     await auth.protect();
   }
 
-  if (isAdminRoute(req) && !isAdminExcluded(req)) {
+  if (isAdminRoute(req) ) {
     await auth.protect();
 
     const { userId } = await auth();
     if (!userId) {
-      return Response.redirect(new URL("/admin/unauthorized", req.url));
+      return Response.redirect(new URL("/unauthorized", req.url));
     }
 
     const adminOrgId = process.env.ADMIN_ORG_ID;
@@ -33,7 +29,7 @@ export default clerkMiddleware(async (auth, req) => {
     const isMember = memberships.data.some((m) => m.organization.id === adminOrgId);
 
     if (!isMember) {
-      return Response.redirect(new URL("/admin/unauthorized", req.url));
+      return Response.redirect(new URL("/unauthorized", req.url));
     }
   }
 });

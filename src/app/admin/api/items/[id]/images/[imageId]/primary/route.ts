@@ -1,5 +1,5 @@
 // /admin/api/items/[id]/images/[imageId]/primary/route.ts
-import { proxyFetch, forwardNoContent, serverError, parseId } from "../../../../../_lib/proxy";
+import { proxyFetch, forwardNoContent, serverError, parseId } from "@/lib/proxy";
 
 export const runtime = "nodejs";
 

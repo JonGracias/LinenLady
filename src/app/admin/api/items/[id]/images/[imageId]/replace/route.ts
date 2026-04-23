@@ -1,6 +1,6 @@
 // /admin/api/items/[id]/images/[imageId]/replace/route.ts
 import type { InventoryImage } from "@/types/inventory";
-import { proxyFetch, serverError, parseId } from "../../../../../_lib/proxy";
+import { proxyFetch, serverError, parseId } from "@/lib/proxy";
 
 export const runtime = "nodejs";
 

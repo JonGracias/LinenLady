@@ -1,6 +1,6 @@
 // /admin/api/draft/ai-vision/route.ts
 import type { AiPrefillRequest } from "@/types/inventory";
-import { proxyFetch, forwardJson, serverError } from "../../_lib/proxy";
+import { proxyFetch, forwardJson, serverError } from "@/lib/proxy";
 
 export async function POST(req: Request) {
   try {

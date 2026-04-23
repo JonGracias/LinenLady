@@ -40,7 +40,6 @@ export default function ContextProviderTree({ children }: ContextProviderTreePro
   return (
       <ToastProvider>
         <DraftJobsProvider>
-          <InventoryProvider>
             <ItemAiProvider>
               <StorefrontProvider>
                 <CartProvider>
@@ -48,7 +47,6 @@ export default function ContextProviderTree({ children }: ContextProviderTreePro
                 </CartProvider>
               </StorefrontProvider>
             </ItemAiProvider>
-          </InventoryProvider>
         </DraftJobsProvider>
       </ToastProvider>
   );

@@ -165,6 +165,11 @@ export function StorefrontProvider({ children }: { children: React.ReactNode }) 
 
   const ensureThumbnail = useCallback(
     (id: number, ttlMinutes = 60) => {
+      if (typeof id !== "number" || !Number.isFinite(id)) {
+        console.warn("ensureThumbnail: bad id", id, new Error().stack);
+        return;
+      }
+      if (Object.prototype.hasOwnProperty.call(thumbs, id)) return;
       if (Object.prototype.hasOwnProperty.call(thumbs, id)) return;
       if (inFlight.current.has(id)) return;
       inFlight.current.add(id);
@@ -195,6 +200,11 @@ export function StorefrontProvider({ children }: { children: React.ReactNode }) 
 
   const ensureImages = useCallback(
     (id: number, ttlMinutes = 60) => {
+      if (typeof id !== "number" || !Number.isFinite(id)) {
+      console.warn("ensureImages: bad id", id, new Error().stack);
+      return;
+      }
+
       if (Object.prototype.hasOwnProperty.call(images, id)) return;
       if (imagesInFlight.current.has(id)) return;
       imagesInFlight.current.add(id);

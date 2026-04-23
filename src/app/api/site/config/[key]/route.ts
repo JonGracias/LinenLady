@@ -1,5 +1,5 @@
 // src/app/api/site/config/[key]/route.ts  ← PUBLIC — SitePhoto reads from here
-import { proxyFetch, forwardJson, serverError } from "@/app/admin/api/_lib/proxy";
+import { proxyFetch, forwardJson, serverError } from "@/lib/proxy";
 
 type Context = { params: Promise<{ key: string }> };
 

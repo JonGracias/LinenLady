@@ -1,5 +1,5 @@
 // src/app/admin/api/site/media/[id]/route.ts
-import { proxyFetch, forwardNoContent, serverError } from "../../../_lib/proxy";
+import { proxyFetch, forwardNoContent, serverError } from "@/lib/proxy";
 
 type Context = { params: Promise<{ id: string }> };
 

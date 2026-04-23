@@ -1,6 +1,6 @@
 // /admin/api/draft/blob-upload/route.ts
 import type { CreateDraftResponse, DraftUpload } from "@/types/inventory";
-import { proxyFetch, serverError } from "../../_lib/proxy";
+import { proxyFetch, serverError } from "@/lib/proxy";
 
 export const runtime = "nodejs";
 

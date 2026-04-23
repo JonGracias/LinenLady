@@ -1,5 +1,5 @@
 // src/app/admin/api/site/config/[key]/route.ts
-import { proxyFetch, forwardJson, serverError } from "../../../_lib/proxy";
+import { proxyFetch, forwardJson, serverError } from "@/lib/proxy";
 
 type Context = { params: Promise<{ key: string }> };
 

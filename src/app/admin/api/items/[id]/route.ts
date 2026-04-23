@@ -1,5 +1,5 @@
 // /admin/api/items/[id]/route.ts
-import { proxyFetch, forwardJson, forwardNoContent, serverError } from "../../_lib/proxy";
+import { proxyFetch, forwardJson, forwardNoContent, serverError } from "@/lib/proxy";
 
 type Context = { params: Promise<{ id: string }> };
 

@@ -1,5 +1,5 @@
 // src/app/admin/api/site/media/route.ts
-import { proxyFetch, forwardJson, forwardNoContent, serverError } from "../../_lib/proxy";
+import { proxyFetch, forwardJson, forwardNoContent, serverError } from "@/lib/proxy";
 
 export async function GET() {
   try {

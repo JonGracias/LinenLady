@@ -1,6 +1,6 @@
 // /admin/api/draft/ai-embeddings/route.ts
 import type { EmbeddingsRequest } from "@/types/inventory";
-import { proxyFetch, forwardJson, serverError } from "../../_lib/proxy";
+import { proxyFetch, forwardJson, serverError } from "@/lib/proxy";
 
 export async function POST(req: Request) {
   try {

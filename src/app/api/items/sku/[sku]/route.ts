@@ -1,5 +1,5 @@
 // src/app/api/items/sku/[sku]/route.ts
-import { proxyFetch, forwardJson, serverError } from "@/app/admin/api/_lib/proxy";
+import { proxyFetch, forwardJson, serverError } from "@/lib/proxy";
 
 type Context = { params: Promise<{ sku: string }> };
 
