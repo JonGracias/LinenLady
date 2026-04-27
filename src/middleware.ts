@@ -28,6 +28,7 @@ export default clerkMiddleware(async (auth, req) => {
     const memberships = await client.users.getOrganizationMembershipList({ userId });
     const isMember = memberships.data.some((m) => m.organization.id === adminOrgId);
 
+    
     if (!isMember) {
       return Response.redirect(new URL("/unauthorized", req.url));
     }

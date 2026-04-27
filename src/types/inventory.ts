@@ -55,9 +55,9 @@ export const CATEGORY_OPTIONS: { value: Category; label: string }[] = [
 ];
 
 export type Counts = {
-  all: number;
-  drafts: number;
-  published: number;
+  All: number;
+  Drafts: number;
+  Published: number;
 };
 
 export type InventoryContextValue = {
@@ -115,12 +115,12 @@ export type DraftUpload = {
 };
 
 export type GetItemsResponse = {
-  items: InventoryItem[];
-  page: number;
-  limit: number;
-  totalCount: number;
-  totalPages: number;
-  status: string;
+  Items: InventoryItem[];
+  Page: number;
+  Limit: number;
+  TotalCount: number;
+  TotalPages: number;
+  Status: string;
 };
 
 export type CreateDraftRequest = {

@@ -124,9 +124,12 @@ export function StorefrontProvider({ children }: { children: React.ReactNode }) 
       if (!res.ok) throw new Error(`Failed to load items: ${res.status}`);
       const data: GetItemsResponse = await res.json();
 
-      const fetchedItems      = Array.isArray(data.items) ? data.items : [];
-      const fetchedTotalCount = Number(data.totalCount ?? 0);
+      const fetchedItems      = Array.isArray(data.Items) ? data.Items : [];
+      const fetchedTotalCount = Number(data.TotalCount ?? 0);
 
+      if (typeof (data as any).Page === "number" && (data as any).Page !== page) {
+        setPage((data as any).Page);
+      }
       setItems(fetchedItems);
       setTotalCount(fetchedTotalCount);
       cacheRef.current.set(cacheKey, {

@@ -1,26 +1,28 @@
-// src/app/admin/api/_lib/proxy.ts
+// src/lib/proxy.ts
 //
 // Server-side proxy utility — used by all Next.js API routes to forward
-// requests to the C# backend (Azure Functions / ASP.NET).
+// requests to the C# backend (LinenLady.API).
 //
-// Auth note: when you're ready to add authentication, inject the token
-// via getAuthHeaders(). Every proxy call will pick it up automatically.
+// Auth model: each proxy call mints a fresh Clerk session token server-side
+// via auth().getToken() and forwards it as Authorization: Bearer. The C# API
+// validates the JWT against Clerk's JWKS (see Program.cs). Minting server-side
+// avoids trusting any client-supplied Authorization header and keeps token
+// handling out of the browser's fetch calls.
+
+import { auth } from "@clerk/nextjs/server";
 
 const BASE =
-  process.env.LINENLADY_API_BASE_URL || "http://localhost:7071";
+  process.env.LINENLADY_API_BASE_URL || "http://localhost:5152";
 
 // ---------------------------------------------------------------------------
-// Auth hook — fill this in when auth is ready.
-// Could be: session token, Azure AD token, function key, etc.
+// Auth hook — mints a fresh Clerk session token for the current request.
+// Returns an empty object for unauthenticated requests so public endpoints
+// (items list, hero, etc.) still function without a token.
 // ---------------------------------------------------------------------------
-function getAuthHeaders(): Record<string, string> {
-  // Example (uncomment when ready):
-  // const token = process.env.BACKEND_API_KEY;
-  // if (token) return { Authorization: `Bearer ${token}` };
-  //
-  // Or for Azure Function key:
-  // return { "x-functions-key": process.env.AZURE_FUNCTION_KEY! };
-  return {};
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const { getToken } = await auth();
+  const token = await getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 // ---------------------------------------------------------------------------
@@ -36,11 +38,12 @@ export async function proxyFetch(
   path: string,
   { method = "GET", body, headers = {} }: ProxyOptions = {}
 ): Promise<Response> {
+  const authHeaders = await getAuthHeaders();
   return fetch(`${BASE}${path}`, {
     method,
     headers: {
       "Content-Type": "application/json",
-      ...getAuthHeaders(),
+      ...authHeaders,
       ...headers,
     },
     body: body ?? undefined,

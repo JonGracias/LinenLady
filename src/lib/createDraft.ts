@@ -6,7 +6,7 @@ const ROUTES = {
   create:       "/admin/api/draft/create",
   blobUpload:   "/admin/api/draft/blob-upload",
   aiVision:     "/admin/api/draft/ai-vision",
-  aiEmbeddings: "/admin/api/draft/ai-embeddings",
+  //aiEmbeddings: "/admin/api/draft/ai-embeddings",
 } as const;
 
 //-----------------------------------------------------------------------------------------//
@@ -136,13 +136,13 @@ export async function createDraftFrom(
   // 4) /api/draft/ai-embeddings
   //     - Generates and stores the vector for this item
   // ---------------------------------------------------------------------------
-  let AiEmbeddingsResult: unknown | undefined;
+/*   let AiEmbeddingsResult: unknown | undefined;
   const runAiEmbeddings = options.RunAiEmbeddings ?? true;
   if (runAiEmbeddings) {
     AiEmbeddingsResult = await postJson(ROUTES.aiEmbeddings, {
       InventoryId: Draft.InventoryId,
     });
-  }
+  } */
 
   // ---------------------------------------------------------------------------
   // 5) /api/items/[id]/keywords/generate
@@ -164,5 +164,5 @@ export async function createDraftFrom(
     }
   }
 
-  return { Draft, BlobUploadResult, AiVisionResult, AiEmbeddingsResult, AiKeywordsResult };
+  return { Draft, BlobUploadResult, AiVisionResult, /* AiEmbeddingsResult */ AiKeywordsResult };
 }
