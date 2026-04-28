@@ -134,12 +134,12 @@ export default function AiMetaPanel({
         });
         if (res.ok) {
           const data = await res.json() as {
-            Name?: string; Description?: string; UnitPriceCents?: number;
+            name?: string; description?: string; unitPriceCents?: number;
           };
           onItemUpdated({
-            name:        data.Name          ?? itemName,
-            description: data.Description   ?? itemDescription,
-            priceCents:  data.UnitPriceCents ?? itemPriceCents,
+            name:        data.name          ?? itemName,
+            description: data.description   ?? itemDescription,
+            priceCents:  data.unitPriceCents ?? itemPriceCents,
           });
           steps.push(rewriteFields.map((f) => FIELD_LABELS[f]).join(", ") + " rewritten");
         }

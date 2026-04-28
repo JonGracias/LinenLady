@@ -512,10 +512,10 @@ export default function ItemDetailPage() {
                     remove(item.inventoryId);
                   } else {
                     add({
-                      InventoryId:    item.inventoryId,
-                      Sku:            item.sku,
-                      Name:           item.name,
-                      UnitPriceCents: item.unitPriceCents,
+                      inventoryId:    item.inventoryId,
+                      sku:            item.sku,
+                      name:           item.name,
+                      unitPriceCents: item.unitPriceCents,
                       thumbnailUrl:   images[0]?.readUrl ?? null,
                     });
                   }
@@ -654,10 +654,10 @@ export default function ItemDetailPage() {
               remove(item.inventoryId);
             } else {
               add({
-                InventoryId:    item.inventoryId,
-                Sku:            item.sku,
-                Name:           item.name,
-                UnitPriceCents: item.unitPriceCents,
+                inventoryId:    item.inventoryId,
+                sku:            item.sku,
+                name:           item.name,
+                unitPriceCents: item.unitPriceCents,
                 thumbnailUrl:   images[0]?.readUrl ?? null,
               });
             }

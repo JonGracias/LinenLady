@@ -15,13 +15,13 @@ function formatPrice(cents: number) {
 export default function CartPage() {
   const { items, remove, clear, count } = useCart();
 
-  const total = items.reduce((sum, i) => sum + i.UnitPriceCents, 0);
+  const total = items.reduce((sum, i) => sum + i.unitPriceCents, 0);
 
   /* Build the reserve-all mailto */
   const buildMailto = () => {
     const subject = encodeURIComponent("Reservation Inquiry — Multiple Pieces");
     const itemLines = items
-      .map((i, idx) => `${idx + 1}. ${i.Name} (SKU: ${i.Sku}) — ${formatPrice(i.UnitPriceCents)}`)
+      .map((i, idx) => `${idx + 1}. ${i.name} (SKU: ${i.sku}) — ${formatPrice(i.unitPriceCents)}`)
       .join("\n");
     const body = encodeURIComponent(
       `Hello Noemi,\n\nI am interested in reserving the following pieces:\n\n${itemLines}\n\nTotal: ${formatPrice(total)}\n\nPlease let me know about availability and next steps.\n\nThank you.`
@@ -86,7 +86,7 @@ export default function CartPage() {
         <div className="flex flex-col gap-0" style={{ borderTop: "1px solid rgba(196,181,168,0.15)" }}>
           {items.map((item) => (
             <div
-              key={item.InventoryId}
+              key={item.inventoryId}
               className="flex items-center gap-5 py-5"
               style={{ borderBottom: "1px solid rgba(196,181,168,0.15)" }}
             >
@@ -104,7 +104,7 @@ export default function CartPage() {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={item.thumbnailUrl}
-                    alt={item.Name}
+                    alt={item.name}
                     className="h-full w-full object-cover"
                   />
                 ) : (
@@ -120,17 +120,17 @@ export default function CartPage() {
               {/* Info */}
               <div className="flex-1 min-w-0">
                 <Link
-                  href={`/shop/${item.Sku}`}
+                  href={`/shop/${item.sku}`}
                   className="ll-display text-sm font-normal leading-snug line-clamp-2 transition-opacity hover:opacity-60"
                   style={{ color: "var(--on-surface)", textDecoration: "none" }}
                 >
-                  {item.Name}
+                  {item.name}
                 </Link>
                 <p
                   className="ll-label mt-1 text-[0.55rem] uppercase tracking-[0.12em]"
                   style={{ color: "var(--outline)" }}
                 >
-                  {item.Sku}
+                  {item.sku}
                 </p>
               </div>
 
@@ -140,13 +140,13 @@ export default function CartPage() {
                   className="ll-display text-sm font-normal"
                   style={{ color: "var(--primary)" }}
                 >
-                  {formatPrice(item.UnitPriceCents)}
+                  {formatPrice(item.unitPriceCents)}
                 </span>
                 <button
-                  onClick={() => remove(item.InventoryId)}
+                  onClick={() => remove(item.inventoryId)}
                   className="ll-label text-[0.55rem] uppercase tracking-[0.1em] transition-opacity hover:opacity-60"
                   style={{ color: "var(--on-surface-variant)", background: "none", border: "none", cursor: "pointer" }}
-                  aria-label={`Remove ${item.Name}`}
+                  aria-label={`Remove ${item.name}`}
                 >
                   Remove
                 </button>
@@ -187,18 +187,18 @@ export default function CartPage() {
           {/* Item lines */}
           <div className="flex flex-col gap-2 mb-5">
             {items.map((item) => (
-              <div key={item.InventoryId} className="flex items-baseline justify-between gap-4">
+              <div key={item.inventoryId} className="flex items-baseline justify-between gap-4">
                 <span
                   className="ll-body text-xs font-light truncate"
                   style={{ color: "var(--on-surface-variant)" }}
                 >
-                  {item.Name}
+                  {item.name}
                 </span>
                 <span
                   className="ll-label text-[0.62rem] shrink-0"
                   style={{ color: "var(--on-surface)" }}
                 >
-                  {formatPrice(item.UnitPriceCents)}
+                  {formatPrice(item.unitPriceCents)}
                 </span>
               </div>
             ))}
