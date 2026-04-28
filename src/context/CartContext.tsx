@@ -7,10 +7,10 @@ import type { InventoryItem } from "@/types/inventory";
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 
 export type CartItem = {
-  InventoryId: number;
-  Sku:         string;
-  Name:        string;
-  UnitPriceCents: number;
+  inventoryId: number;
+  sku:         string;
+  name:        string;
+  unitPriceCents: number;
   thumbnailUrl: string | null;
 };
 
@@ -56,16 +56,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const add = useCallback((item: CartItem) => {
     setItems((prev) =>
-      prev.some((i) => i.InventoryId === item.InventoryId) ? prev : [...prev, item]
+      prev.some((i) => i.inventoryId === item.inventoryId) ? prev : [...prev, item]
     );
   }, []);
 
   const remove = useCallback((inventoryId: number) => {
-    setItems((prev) => prev.filter((i) => i.InventoryId !== inventoryId));
+    setItems((prev) => prev.filter((i) => i.inventoryId !== inventoryId));
   }, []);
 
   const has = useCallback(
-    (inventoryId: number) => items.some((i) => i.InventoryId === inventoryId),
+    (inventoryId: number) => items.some((i) => i.inventoryId === inventoryId),
     [items]
   );
 

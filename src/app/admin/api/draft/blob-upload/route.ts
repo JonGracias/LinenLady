@@ -5,10 +5,10 @@ import { proxyFetch, serverError } from "@/lib/proxy";
 export const runtime = "nodejs";
 
 async function putBlob(upload: DraftUpload, file: File): Promise<void> {
-  const headers = new Headers(Object.entries(upload.RequiredHeaders || {}));
-  headers.set("Content-Type", upload.ContentType);
+  const headers = new Headers(Object.entries(upload.requiredHeaders || {}));
+  headers.set("Content-Type", upload.contentType);
 
-  const res = await fetch(upload.UploadUrl, {
+  const res = await fetch(upload.uploadUrl, {
     method: "PUT",
     headers,
     body: await file.arrayBuffer(),
@@ -33,21 +33,21 @@ export async function POST(req: Request) {
     const draft: CreateDraftResponse = JSON.parse(draftJson);
     const files = form.getAll("files").filter((f): f is File => f instanceof File);
 
-    if (files.length !== draft.Uploads.length) {
+    if (files.length !== draft.uploads.length) {
       return new Response("File count mismatch", { status: 400 });
     }
 
-    for (let i = 0; i < draft.Uploads.length; i++) {
-      await putBlob(draft.Uploads[i], files[i]);
+    for (let i = 0; i < draft.uploads.length; i++) {
+      await putBlob(draft.uploads[i], files[i]);
     }
 
-    const images = draft.Uploads.map((u, i) => ({
-      imagePath: u.BlobName,
+    const images = draft.uploads.map((u, i) => ({
+      imagePath: u.blobName,
       isPrimary:  i === 0,
       sortOrder:  i + 1,
     }));
 
-    const upstream = await proxyFetch(`/api/items/${draft.InventoryId}/images`, {
+    const upstream = await proxyFetch(`/api/items/${draft.inventoryId}/images`, {
       method: "POST",
       body: JSON.stringify({ images }),
     });

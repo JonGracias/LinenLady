@@ -4,11 +4,11 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
 export type SiteMediaItem = {
-  MediaId:   number;
-  Name:      string;
-  BlobPath:  string;
-  ReadUrl:   string | null;
-  UploadedAt: string;
+  mediaId:   number;
+  name:      string;
+  blobPath:  string;
+  readUrl:   string | null;
+  uploadedAt: string;
 };
 
 type Props = {
@@ -42,7 +42,7 @@ export function MediaPickerModal({ open, onClose, onSelect, title = "Pick a phot
   }, [open, load]);
 
   const filtered = items.filter((m) =>
-    m.Name.toLowerCase().includes(search.toLowerCase())
+    m.name.toLowerCase().includes(search.toLowerCase())
   );
 
   if (!open) return null;
@@ -121,25 +121,25 @@ export function MediaPickerModal({ open, onClose, onSelect, title = "Pick a phot
             >
               {filtered.map((item) => (
                 <button
-                  key={item.MediaId}
+                  key={item.mediaId}
                   onClick={() => onSelect(item)}
-                  onMouseEnter={() => setHovered(item.MediaId)}
+                  onMouseEnter={() => setHovered(item.mediaId)}
                   onMouseLeave={() => setHovered(null)}
                   className="group relative overflow-hidden transition-all duration-200"
                   style={{
                     background: "#242424",
-                    border: hovered === item.MediaId
+                    border: hovered === item.mediaId
                       ? "1px solid rgba(176,120,120,0.6)"
                       : "1px solid rgba(255,255,255,0.06)",
-                    transform: hovered === item.MediaId ? "translateY(-2px)" : "none",
+                    transform: hovered === item.mediaId ? "translateY(-2px)" : "none",
                   }}
                 >
                   {/* Thumbnail */}
                   <div className="aspect-square overflow-hidden" style={{ background: "#2e2e2e" }}>
-                    {item.ReadUrl ? (
+                    {item.readUrl ? (
                       <img
-                        src={item.ReadUrl}
-                        alt={item.Name}
+                        src={item.readUrl}
+                        alt={item.name}
                         className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                       />
                     ) : (
@@ -155,7 +155,7 @@ export function MediaPickerModal({ open, onClose, onSelect, title = "Pick a phot
                       className="ll-label text-[0.6rem] uppercase tracking-[0.1em] truncate"
                       style={{ color: "rgba(255,255,255,0.6)" }}
                     >
-                      {item.Name}
+                      {item.name}
                     </div>
                   </div>
                 </button>

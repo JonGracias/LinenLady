@@ -6,7 +6,6 @@ const ROUTES = {
   create:       "/admin/api/draft/create",
   blobUpload:   "/admin/api/draft/blob-upload",
   aiVision:     "/admin/api/draft/ai-vision",
-  //aiEmbeddings: "/admin/api/draft/ai-embeddings",
 } as const;
 
 //-----------------------------------------------------------------------------------------//
@@ -93,14 +92,14 @@ export async function createDraftFrom(
     })),
   };
 
-  const Draft = await postJson<CreateDraftResponse>(ROUTES.create, createReq);
+  const draft = await postJson<CreateDraftResponse>(ROUTES.create, createReq);
 
-  if (!Draft?.InventoryId) {
+  if (!draft?.inventoryId) {
     throw new Error("Draft create response missing InventoryId.");
   }
-  if (!Array.isArray(Draft.Uploads) || Draft.Uploads.length !== Files.length) {
+  if (!Array.isArray(draft.uploads) || draft.uploads.length !== Files.length) {
     throw new Error(
-      `Draft create returned Uploads (${Draft?.Uploads?.length ?? 0}) that do not match file count (${Files.length}).`
+      `Draft create returned Uploads (${draft?.uploads?.length ?? 0}) that do not match file count (${Files.length}).`
     );
   }
 
@@ -110,21 +109,21 @@ export async function createDraftFrom(
   //     - We send FormData: "draft" JSON + "files" (same count/order as Uploads)
   // ---------------------------------------------------------------------------
   const uploadForm = new FormData();
-  uploadForm.append("draft", JSON.stringify(Draft));
+  uploadForm.append("draft", JSON.stringify(draft));
   for (const f of Files) uploadForm.append("files", f);
 
-  const BlobUploadResult = await postForm<unknown>(ROUTES.blobUpload, uploadForm);
+  const blobUploadResult = await postForm<unknown>(ROUTES.blobUpload, uploadForm);
 
   // ---------------------------------------------------------------------------
   // 3) /api/draft/ai-vision
   //     - Scans images, writes name + description back to the item
   //     - Must complete before keywords step so the text is in the DB
   // ---------------------------------------------------------------------------
-  let AiVisionResult: unknown | undefined;
+  let aiVisionResult: unknown | undefined;
   const runAiVision = options.RunAiVision ?? true;
   if (runAiVision) {
-    AiVisionResult = await postJson(ROUTES.aiVision, {
-      InventoryId: Draft.InventoryId,
+    aiVisionResult = await postJson(ROUTES.aiVision, {
+      InventoryId: draft.inventoryId,
       overwrite:   options.AiVision?.Overwrite ?? false,
       maxImages:   options.AiVision?.MaxImages ?? Math.min(4, Files.length),
       TitleHint,
@@ -150,12 +149,12 @@ export async function createDraftFrom(
   //     - Also refreshes the vector so keywords are baked in
   //     - Non-fatal: a failure here does not fail the whole draft creation
   // ---------------------------------------------------------------------------
-  let AiKeywordsResult: unknown | undefined;
+  let aiKeywordsResult: unknown | undefined;
   const runAiKeywords = options.RunAiKeywords ?? true;
   if (runAiKeywords) {
     try {
-      AiKeywordsResult = await postJson(
-        `/admin/api/items/${Draft.InventoryId}/keywords/generate`,
+      aiKeywordsResult = await postJson(
+        `/admin/api/items/${draft.inventoryId}/keywords/generate`,
         {}
       );
     } catch (err) {
@@ -164,5 +163,5 @@ export async function createDraftFrom(
     }
   }
 
-  return { Draft, BlobUploadResult, AiVisionResult, /* AiEmbeddingsResult */ AiKeywordsResult };
+  return { draft, blobUploadResult, aiVisionResult, /* AiEmbeddingsResult */ aiKeywordsResult };
 }

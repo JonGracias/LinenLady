@@ -1,25 +1,30 @@
 // src/types/inventory.ts
+//
+// Casing convention:
+//   - PascalCase = request body shapes sent TO the C# backend (must match C# DTO property names)
+//   - camelCase  = everything else (responses from C#, internal TS types)
+
 
 export type InventoryItem = {
-  InventoryId: number;
-  Sku: string;
-  Name: string;
-  Description?: string | null;
-  QuantityOnHand: number;
-  UnitPriceCents: number;
-  PublicId: string;
-  IsActive: boolean;
-  IsDraft: boolean;
-  IsDeleted: boolean;
-  IsFeatured: boolean;
-  CreatedAt: string;
-  UpdatedAt: string;
-  KeywordsJson?: string | null;
-  Images?: {
-    ImageId: number;
-    ImagePath: string;
-    IsPrimary: boolean;
-    SortOrder: number;
+  inventoryId: number;
+  sku: string;
+  name: string;
+  description?: string | null;
+  quantityOnHand: number;
+  unitPriceCents: number;
+  publicId: string;
+  isActive: boolean;
+  isDraft: boolean;
+  isDeleted: boolean;
+  isFeatured: boolean;
+  createdAt: string;
+  updatedAt: string;
+  keywordsJson?: string | null;
+  images?: {
+    imageId: number;
+    imagePath: string;
+    isPrimary: boolean;
+    sortOrder: number;
   }[];
 };
 
@@ -55,9 +60,9 @@ export const CATEGORY_OPTIONS: { value: Category; label: string }[] = [
 ];
 
 export type Counts = {
-  All: number;
-  Drafts: number;
-  Published: number;
+  all: number;
+  drafts: number;
+  published: number;
 };
 
 export type InventoryContextValue = {
@@ -84,12 +89,12 @@ export type InventoryContextValue = {
 
   sorted: InventoryItem[];
 
-  getThumbnailUrl: (InventoryId: number) => string | null;
-  ensureThumbnail: (InventoryId: number, ttlMinutes?: number) => void;
+  getThumbnailUrl: (inventoryId: number) => string | null;
+  ensureThumbnail: (inventoryId: number, ttlMinutes?: number) => void;
 
-  getImages: (InventoryId: number) => InventoryImage[] | null;
-  ensureImages: (InventoryId: number, ttlMinutes?: number) => void;
-  refreshImages: (InventoryId: number, ttlMinutes?: number) => Promise<InventoryImage[]>;
+  getImages: (inventoryId: number) => InventoryImage[] | null;
+  ensureImages: (inventoryId: number, ttlMinutes?: number) => void;
+  refreshImages: (inventoryId: number, ttlMinutes?: number) => Promise<InventoryImage[]>;
 
   invalidateCache: () => void;
   invalidateFilterCache: (filter?: Filter) => void;
@@ -97,47 +102,52 @@ export type InventoryContextValue = {
 };
 
 export type InventoryImage = {
-  ImageId: number;
-  InventoryId?: number;
-  ImagePath: string;
-  IsPrimary: boolean;
-  SortOrder: number;
-  ReadUrl?: string | null;
+  imageId: number;
+  inventoryId?: number;
+  imagePath: string;
+  isPrimary: boolean;
+  sortOrder: number;
+  readUrl?: string | null;
 };
 
+// Response from C# — camelCase
 export type DraftUpload = {
-  Index: number;
-  BlobName: string;
-  UploadUrl: string;
-  Method: "PUT";
-  RequiredHeaders: Record<string, string>;
-  ContentType: string;
+  index: number;
+  blobName: string;
+  uploadUrl: string;
+  method: "PUT";
+  requiredHeaders: Record<string, string>;
+  contentType: string;
 };
 
+// Response from C# — camelCase
 export type GetItemsResponse = {
-  Items: InventoryItem[];
-  Page: number;
-  Limit: number;
-  TotalCount: number;
-  TotalPages: number;
-  Status: string;
+  items: InventoryItem[];
+  page: number;
+  limit: number;
+  totalCount: number;
+  totalPages: number;
+  status: string;
 };
 
+// REQUEST to C# — PascalCase to match C# DTO property names
 export type CreateDraftRequest = {
   TitleHint?: string;
   Notes?: string;
   Files: { FileName: string; ContentType: string }[];
 };
 
+// Response from C# — camelCase
 export type CreateDraftResponse = {
-  InventoryId: number;
-  PublicId: string;
-  Sku: string;
-  Container: string;
-  ExpiresOnUtc: string;
-  Uploads: DraftUpload[];
+  inventoryId: number;
+  publicId: string;
+  sku: string;
+  container: string;
+  expiresOnUtc: string;
+  uploads: DraftUpload[];
 };
 
+// REQUEST to C# — PascalCase to match C# DTO property names
 export type AiPrefillRequest = {
   InventoryId: number;
   Overwrite?: boolean;
@@ -147,11 +157,13 @@ export type AiPrefillRequest = {
   Notes?: string;
 };
 
+// REQUEST to C# — PascalCase to match C# DTO property names
 export type EmbeddingsRequest = {
   InventoryId: number;
   Opts?: { Purpose?: string; Force?: number };
 };
 
+// REQUEST to C# — PascalCase to match C# DTO property names
 export type DraftPipelineOptions = {
   Keys?: { TitleHint?: string; Notes?: string; Files?: string };
   RunAiVision?: boolean;
@@ -160,10 +172,38 @@ export type DraftPipelineOptions = {
   AiVision?: { Overwrite?: boolean; MaxImages?: number };
 };
 
+// Response from C# — camelCase
 export type DraftPipelineResult = {
-  Draft: CreateDraftResponse;
-  BlobUploadResult: unknown;
-  AiVisionResult?: unknown;
-  AiEmbeddingsResult?: unknown;
-  AiKeywordsResult?: unknown;
+  draft: CreateDraftResponse;
+  blobUploadResult: unknown;
+  aiVisionResult?: unknown;
+  aiEmbeddingsResult?: unknown;
+  aiKeywordsResult?: unknown;
+};
+
+export type ItemUpdatedFields = {
+  name: string;
+  description: string;
+  priceCents: number;
+  quantity: number;
+  isFeatured: boolean;
+};
+
+export type InventoryProps = {
+  item:            InventoryItem;
+  onPublishToggle: () => void;
+  onDeleteOpen:    () => void;
+  onItemUpdated:   (fields: ItemUpdatedFields) => Promise<void>;
+};
+
+// Response from C# — camelCase
+export type SimilarItem = {
+  inventoryId: number;
+  publicId: string;
+  name: string;
+  description: string | null;
+  unitPriceCents: number;
+  isActive: boolean;
+  isDraft: boolean;
+  score: number;
 };

@@ -40,8 +40,8 @@ export default function ShopSection({ maxItems, hideFilters }: Props) {
       const q = search.toLowerCase();
       list = list.filter(
         (item) =>
-          item.Name.toLowerCase().includes(q) ||
-          (item.Description ?? "").toLowerCase().includes(q)
+          item.name.toLowerCase().includes(q) ||
+          (item.description ?? "").toLowerCase().includes(q)
       );
     }
     if (maxItems) list = list.slice(0, maxItems);
@@ -96,9 +96,9 @@ export default function ShopSection({ maxItems, hideFilters }: Props) {
           <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 1fr" }}>
             {filtered.map((item) => (
               <DesktopItemCard
-                key={item.InventoryId}
+                key={item.inventoryId}
                 item={item}
-                thumbnailUrl={getThumbnailUrl(item.InventoryId)}
+                thumbnailUrl={getThumbnailUrl(item.inventoryId)}
               />
             ))}
           </div>

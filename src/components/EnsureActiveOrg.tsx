@@ -14,6 +14,6 @@ export function EnsureActiveOrg() {
     const first = userMemberships.data?.[0];
     if (first) setActive({ organization: first.organization.id });
   }, [isLoaded, orgId, userMemberships.data, setActive]);
-  console.log('[ensure-active-org] mounted, isLoaded=', isLoaded, 'orgId=', orgId)
+  
   return null;
 }

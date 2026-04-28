@@ -37,17 +37,17 @@ export async function POST(req: Request, { params }: Context) {
       return new Response(text || urlRes.statusText, { status: urlRes.status });
     }
 
-    const { UploadUrl, RequiredHeaders, ContentType } = await urlRes.json() as {
-      UploadUrl: string;
-      RequiredHeaders: Record<string, string>;
-      ContentType: string;
+    const { uploadUrl, requiredHeaders, contentType } = await urlRes.json() as {
+      uploadUrl: string;
+      requiredHeaders: Record<string, string>;
+      contentType: string;
     };
 
     // 2. PUT blob to Azure
-    const blobHeaders = new Headers(Object.entries(RequiredHeaders ?? {}));
-    blobHeaders.set("Content-Type", ContentType);
+    const blobHeaders = new Headers(Object.entries(requiredHeaders ?? {}));
+    blobHeaders.set("Content-Type", contentType);
 
-    const putRes = await fetch(UploadUrl, {
+    const putRes = await fetch(uploadUrl, {
       method: "PUT",
       headers: blobHeaders,
       body: await file.arrayBuffer(),
@@ -64,12 +64,12 @@ export async function POST(req: Request, { params }: Context) {
       `/api/items/${inventoryId}/images?ttlMinutes=60`
     );
 
-    if (!imagesRes.ok) return Response.json({ ReadUrl: null });
+    if (!imagesRes.ok) return Response.json({ readUrl: null });
 
     const images = await imagesRes.json() as InventoryImage[];
-    const updated = images.find((img) => img.ImageId === imageId);
+    const updated = images.find((img) => img.imageId === imageId);
 
-    return Response.json({ ReadUrl: updated?.ReadUrl ?? null });
+    return Response.json({ readUrl: updated?.readUrl ?? null });
   } catch (err) {
     return serverError(err);
   }

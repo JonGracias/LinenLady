@@ -71,8 +71,8 @@ export default function Draft({ inventoryId }: DraftProps) {
         if (!cancelled) {
           const loaded = Array.isArray(data) ? data : [];
           setImages(loaded);
-          const primary = loaded.find((x) => x.IsPrimary);
-          setActiveImageId(primary?.ImageId ?? loaded[0]?.ImageId ?? null);
+          const primary = loaded.find((x) => x.isPrimary);
+          setActiveImageId(primary?.imageId ?? loaded[0]?.imageId ?? null);
         }
       } catch { /* non-fatal */ }
     }
@@ -131,7 +131,7 @@ export default function Draft({ inventoryId }: DraftProps) {
   }, [inventoryId, item, router]);
 
   /* ── Primary image ── */
-  const primaryImageId = images.find((x) => x.IsPrimary)?.ImageId ?? null;
+  const primaryImageId = images.find((x) => x.isPrimary)?.imageId ?? null;
 
   const handleSetPrimary = useCallback(async (imageId: number) => {
     if (settingPrimary !== null || imageId === primaryImageId) return;
@@ -139,7 +139,7 @@ export default function Draft({ inventoryId }: DraftProps) {
     try {
       const res = await fetch(`/admin/api/items/${inventoryId}/images/${imageId}/primary`, { method: "PATCH" });
       if (!res.ok) return;
-      setImages((prev) => prev.map((img) => ({ ...img, IsPrimary: img.ImageId === imageId })));
+      setImages((prev) => prev.map((img) => ({ ...img, isPrimary: img.imageId === imageId })));
     } catch { /* non-fatal */ }
     finally { setSettingPrimary(null); }
   }, [inventoryId, primaryImageId, settingPrimary]);
@@ -154,10 +154,10 @@ export default function Draft({ inventoryId }: DraftProps) {
       { method: "POST", body: formData }
     );
     if (!res.ok) throw new Error(`Upload failed (${res.status})`);
-    const { ReadUrl } = await res.json() as { ReadUrl: string | null };
-    if (ReadUrl) {
+    const { readUrl } = await res.json() as { readUrl: string | null };
+    if (readUrl) {
       setImages((prev) =>
-        prev.map((img) => img.ImageId === activeImageId ? { ...img, ReadUrl } : img)
+        prev.map((img) => img.imageId === activeImageId ? { ...img, readUrl } : img)
       );
     }
   }, [inventoryId, activeImageId]);
@@ -180,7 +180,7 @@ export default function Draft({ inventoryId }: DraftProps) {
       const { images: freshImages } = await res.json() as { images: InventoryImage[] };
       if (Array.isArray(freshImages) && freshImages.length > 0) {
         setImages(freshImages);
-        setActiveImageId(freshImages[freshImages.length - 1].ImageId);
+        setActiveImageId(freshImages[freshImages.length - 1].imageId);
       }
     } catch (e: unknown) {
       setUploadError(e instanceof Error ? e.message : "Upload failed.");
@@ -195,8 +195,8 @@ export default function Draft({ inventoryId }: DraftProps) {
       const res = await fetch(`/admin/api/items/${inventoryId}/images/${imageId}`, { method: "DELETE" });
       if (!res.ok) throw new Error(await res.text().catch(() => "") || `Delete failed (${res.status})`);
       setImages((prev) => {
-        const next = prev.filter((img) => img.ImageId !== imageId);
-        if (activeImageId === imageId) setActiveImageId(next[0]?.ImageId ?? null);
+        const next = prev.filter((img) => img.imageId !== imageId);
+        if (activeImageId === imageId) setActiveImageId(next[0]?.imageId ?? null);
         return next;
       });
     } catch (e: unknown) {
@@ -206,14 +206,14 @@ export default function Draft({ inventoryId }: DraftProps) {
 
   /* ── Thumbnail click ── */
   const slidesWithUrl = useMemo(
-    () => images.filter((img): img is InventoryImage & { ReadUrl: string } =>
-      typeof img.ReadUrl === "string" && img.ReadUrl.length > 0),
+    () => images.filter((img): img is InventoryImage & { readUrl: string } =>
+      typeof img.readUrl === "string" && img.readUrl.length > 0),
     [images],
   );
 
   const handleThumbnailClick = useCallback((imageId: number) => {
     setActiveImageId(imageId);
-    const idx = slidesWithUrl.findIndex((img) => img.ImageId === imageId);
+    const idx = slidesWithUrl.findIndex((img) => img.imageId === imageId);
     if (idx !== -1 && swiperRef.current) swiperRef.current.slideTo(idx);
   }, [slidesWithUrl]);
 
@@ -243,7 +243,7 @@ export default function Draft({ inventoryId }: DraftProps) {
     </div>
   );
 
-  const activeImage = slidesWithUrl.find((img) => img.ImageId === activeImageId) ?? null;
+  const activeImage = slidesWithUrl.find((img) => img.imageId === activeImageId) ?? null;
 
   return (
     <>
@@ -273,7 +273,7 @@ export default function Draft({ inventoryId }: DraftProps) {
       {/* Details card */}
       <ItemDetailsCard
         item={item}
-        onPublishToggle={() => patchItem({ isActive: !item.IsActive })}
+        onPublishToggle={() => patchItem({ isActive: !item.isActive })}
         onDeleteOpen={() => setDeleteOpen(true)}
         onItemUpdated={handleItemUpdated}
       />
@@ -281,7 +281,7 @@ export default function Draft({ inventoryId }: DraftProps) {
       {/* Delete item modal */}
       <DeleteModal
         open={deleteOpen}
-        itemName={item.Name}
+        itemName={item.name}
         deleting={deleting}
         onClose={() => setDeleteOpen(false)}
         onConfirm={handleDelete}
@@ -291,7 +291,7 @@ export default function Draft({ inventoryId }: DraftProps) {
       {activeImage && (
         <ImageEditorModal
           open={editorOpen}
-          imageUrl={activeImage.ReadUrl}
+          imageUrl={activeImage.readUrl}
           onClose={() => setEditorOpen(false)}
           onSave={handleSaveEditedImage}
         />

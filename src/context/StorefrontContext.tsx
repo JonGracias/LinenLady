@@ -124,8 +124,8 @@ export function StorefrontProvider({ children }: { children: React.ReactNode }) 
       if (!res.ok) throw new Error(`Failed to load items: ${res.status}`);
       const data: GetItemsResponse = await res.json();
 
-      const fetchedItems      = Array.isArray(data.Items) ? data.Items : [];
-      const fetchedTotalCount = Number(data.TotalCount ?? 0);
+      const fetchedItems      = Array.isArray(data.items) ? data.items : [];
+      const fetchedTotalCount = Number(data.totalCount ?? 0);
 
       if (typeof (data as any).Page === "number" && (data as any).Page !== page) {
         setPage((data as any).Page);
@@ -157,7 +157,7 @@ export function StorefrontProvider({ children }: { children: React.ReactNode }) 
   // ── Thumbnails ──────────────────────────────────────────────────────────────
   // Auto-fetch thumbnails whenever items change
   useEffect(() => {
-    items.forEach((item) => ensureThumbnail(item.InventoryId));
+    items.forEach((item) => ensureThumbnail(item.inventoryId));
   }, [items]);
 
   const getThumbnailUrl = useCallback(
@@ -181,8 +181,8 @@ export function StorefrontProvider({ children }: { children: React.ReactNode }) 
         try {
           const res  = await fetch(`/api/items/${id}/images?ttlMinutes=${ttlMinutes}`);
           const list: InventoryImage[] = res.ok ? await res.json() : [];
-          const primary = list.find((i) => i?.IsPrimary) ?? list[0] ?? null;
-          setThumbs((prev) => ({ ...prev, [id]: primary?.ReadUrl ?? null }));
+          const primary = list.find((i) => i?.isPrimary) ?? list[0] ?? null;
+          setThumbs((prev) => ({ ...prev, [id]: primary?.readUrl ?? null }));
         } catch {
           setThumbs((prev) => ({ ...prev, [id]: null }));
         } finally {

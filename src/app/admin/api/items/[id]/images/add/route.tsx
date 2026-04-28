@@ -5,10 +5,10 @@ import { proxyFetch, serverError, parseId } from "@/lib/proxy";
 export const runtime = "nodejs";
 
 type NewBlobUrlResponse = {
-  UploadUrl: string;
-  RequiredHeaders: Record<string, string>;
-  ContentType: string;
-  BlobName: string;
+  uploadUrl: string;
+  requiredHeaders: Record<string, string>;
+  contentType: string;
+  blobName: string;
 };
 
 type Context = { params: Promise<{ id: string }> };
@@ -43,14 +43,14 @@ export async function POST(req: Request, { params }: Context) {
         return new Response(text || urlRes.statusText, { status: urlRes.status });
       }
 
-      const { UploadUrl, RequiredHeaders, ContentType, BlobName } =
+      const { uploadUrl, requiredHeaders, contentType, blobName } =
         await urlRes.json() as NewBlobUrlResponse;
 
       // 2. PUT blob to Azure
-      const blobHeaders = new Headers(Object.entries(RequiredHeaders ?? {}));
-      blobHeaders.set("Content-Type", ContentType);
+      const blobHeaders = new Headers(Object.entries(requiredHeaders ?? {}));
+      blobHeaders.set("Content-Type", contentType);
 
-      const putRes = await fetch(UploadUrl, {
+      const putRes = await fetch(uploadUrl, {
         method: "PUT",
         headers: blobHeaders,
         body: await file.arrayBuffer(),
@@ -62,7 +62,7 @@ export async function POST(req: Request, { params }: Context) {
         return new Response(`Blob upload failed: ${putRes.status} ${text}`, { status: 502 });
       }
 
-      uploadedPaths.push(BlobName);
+      uploadedPaths.push(blobName);
     }
 
     // 3. Register blobs in DB

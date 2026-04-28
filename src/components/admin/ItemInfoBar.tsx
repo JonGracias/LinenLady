@@ -7,8 +7,8 @@ import type { InventoryItem } from "@/types/inventory";
 type StatusBadge = { label: "Draft" | "Published" | "Unpublished"; className: string };
 
 function getStatusBadge(item: InventoryItem): StatusBadge {
-  if (item.IsDraft)  return { label: "Draft",       className: "bg-yellow-100 text-yellow-800 border border-yellow-300 dark:bg-yellow-900/50 dark:text-yellow-300 dark:border-yellow-700/50" };
-  if (item.IsActive) return { label: "Published",   className: "bg-green-100 text-green-800 border border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700/50" };
+  if (item.isDraft)  return { label: "Draft",       className: "bg-yellow-100 text-yellow-800 border border-yellow-300 dark:bg-yellow-900/50 dark:text-yellow-300 dark:border-yellow-700/50" };
+  if (item.isActive) return { label: "Published",   className: "bg-green-100 text-green-800 border border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700/50" };
   return                    { label: "Unpublished", className: "bg-gray-100 text-gray-600 border border-gray-300 dark:bg-gray-700/50 dark:text-gray-300 dark:border-gray-600/50" };
 }
 
@@ -27,12 +27,12 @@ export function ItemInfoBar({ item }: Props) {
   const [detailsOpen, setDetailsOpen] = useState(false);
 
   const badge      = getStatusBadge(item);
-  const skuDisplay = truncate(item.Sku, 12);
+  const skuDisplay = truncate(item.sku, 12);
 
   return (
     <div className="mb-4">
         <h1 className="mb-2 text-lg font-semibold text-gray-900 dark:text-gray-100 sm:text-xl">
-            {item.Name}
+            {item.name}
         </h1>
 
         <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -41,10 +41,10 @@ export function ItemInfoBar({ item }: Props) {
             </span>
             <span className="text-xs text-gray-300 dark:text-gray-600">•</span>
             <span className="text-sm text-gray-500 dark:text-gray-400">
-            ID <span className="font-mono">{item.InventoryId}</span>
+            ID <span className="font-mono">{item.inventoryId}</span>
             </span>
             <span className="text-xs text-gray-300 dark:text-gray-600">•</span>
-            <span className="cursor-default text-sm text-gray-500 dark:text-gray-400" title={item.Sku || undefined}>
+            <span className="cursor-default text-sm text-gray-500 dark:text-gray-400" title={item.sku || undefined}>
             SKU <span className="font-mono">{skuDisplay}</span>
             </span>
         </div>
@@ -65,16 +65,16 @@ export function ItemInfoBar({ item }: Props) {
       {detailsOpen && (
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
             <span className="rounded-full bg-gray-100 dark:bg-gray-800 px-2.5 py-1 text-xs text-gray-500 dark:text-gray-400">
-                Created {formatDate(item.CreatedAt)}
+                Created {formatDate(item.createdAt)}
             </span>
             <span className="rounded-full bg-gray-100 dark:bg-gray-800 px-2.5 py-1 text-xs text-gray-500 dark:text-gray-400">
-                Updated {formatDate(item.UpdatedAt)}
+                Updated {formatDate(item.updatedAt)}
             </span>
-            <span className="cursor-default text-sm text-gray-500 dark:text-gray-400" title={item.Sku || undefined}>
-                SKU <span className="font-mono">{item.Sku}</span>
+            <span className="cursor-default text-sm text-gray-500 dark:text-gray-400" title={item.sku || undefined}>
+                SKU <span className="font-mono">{item.sku}</span>
             </span>
             <span className="rounded-full bg-gray-100 dark:bg-gray-800 px-2.5 py-1 font-mono text-xs text-gray-500 dark:text-gray-400">
-                {item.PublicId}
+                {item.publicId}
             </span>
         </div>
       )}

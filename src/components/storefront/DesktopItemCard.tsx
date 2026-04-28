@@ -20,18 +20,18 @@ type Props = {
 
 export default function DesktopItemCard({ item, thumbnailUrl }: Props) {
   const { add, remove, has } = useCart();
-  const inCart = has(item.InventoryId);
+  const inCart = has(item.inventoryId);
 
   const toggleCart = (e: React.MouseEvent) => {
     e.preventDefault(); // don't navigate
     if (inCart) {
-      remove(item.InventoryId);
+      remove(item.inventoryId);
     } else {
       add({
-        InventoryId:    item.InventoryId,
-        Sku:            item.Sku,
-        Name:           item.Name,
-        UnitPriceCents: item.UnitPriceCents,
+        inventoryId:    item.inventoryId,
+        sku:            item.sku,
+        name:           item.name,
+        unitPriceCents: item.unitPriceCents,
         thumbnailUrl,
       });
     }
@@ -39,7 +39,7 @@ export default function DesktopItemCard({ item, thumbnailUrl }: Props) {
 
   return (
     <Link
-      href={`/shop/${item.Sku}`}
+      href={`/shop/${item.sku}`}
       className="group relative block overflow-hidden transition-all duration-400"
       style={{ textDecoration: "none", background: "var(--surface-bright)", borderRadius: "0.25rem" }}
     >
@@ -52,7 +52,7 @@ export default function DesktopItemCard({ item, thumbnailUrl }: Props) {
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={thumbnailUrl}
-            alt={item.Name}
+            alt={item.name}
             className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-103"
             style={{ transitionTimingFunction: "ease-in-out" }}
           />
@@ -86,7 +86,7 @@ export default function DesktopItemCard({ item, thumbnailUrl }: Props) {
         </div>
 
         {/* Featured badge */}
-        {item.IsFeatured && (
+        {item.isFeatured && (
           <div className="absolute left-0 top-4">
             <span
               className="ll-label px-3 py-1 text-[0.52rem] font-medium uppercase tracking-[0.15em]"
@@ -109,18 +109,18 @@ export default function DesktopItemCard({ item, thumbnailUrl }: Props) {
           className="ll-display mb-1 text-sm font-normal leading-snug line-clamp-2 min-h-[2.5rem]"
           style={{ color: "var(--on-surface)", letterSpacing: "-0.005em" }}
         >
-          {item.Name}
+          {item.name}
         </div>
 
-        {item.Description && (
+        {item.description && (
           <p className="ll-body mb-3 line-clamp-1 text-xs font-light" style={{ color: "var(--on-surface-variant)" }}>
-            {item.Description}
+            {item.description}
           </p>
         )}
 
         <div className="flex items-center justify-between">
           <span className="ll-label text-sm font-medium" style={{ color: "var(--primary)" }}>
-            {formatPrice(item.UnitPriceCents)}
+            {formatPrice(item.unitPriceCents)}
           </span>
 
           {/* Inline cart toggle (always visible, no hover needed) */}

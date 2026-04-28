@@ -36,9 +36,9 @@ export function AdminFilters() {
   const { filter, setFilter, counts, category, setCategory } = useInventoryContext();
 
   const filters: { value: Filter; label: string }[] = [
-    { value: "all",       label: `All (${counts.All})`            },
-    { value: "drafts",    label: `Drafts (${counts.Drafts})`      },
-    { value: "published", label: `Published (${counts.Published})` },
+    { value: "all",       label: `All (${counts.all})`            },
+    { value: "drafts",    label: `Drafts (${counts.drafts})`      },
+    { value: "published", label: `Published (${counts.published})` },
     { value: "featured",  label: "★ Featured"                     },
   ];
 

@@ -26,19 +26,19 @@ type Props = {
 };
 
 export function ItemDetailsCard({ item, onPublishToggle, onDeleteOpen, onItemUpdated }: Props) {
-  const [qty, setQty]                 = useState(item.QuantityOnHand);
+  const [qty, setQty]                 = useState(item.quantityOnHand);
   const [qtyPending, setQtyPending]   = useState(false);
-  const [featured, setFeatured]       = useState(item.IsFeatured ?? false);
+  const [featured, setFeatured]       = useState(item.isFeatured ?? false);
   const [featPending, setFeatPending] = useState(false);
 
   async function commitQty(next: number) {
-    if (next === item.QuantityOnHand || qtyPending) return;
+    if (next === item.quantityOnHand || qtyPending) return;
     setQtyPending(true);
     try {
       await onItemUpdated({
-        name:        item.Name,
-        description: item.Description ?? "",
-        priceCents:  item.UnitPriceCents,
+        name:        item.name,
+        description: item.description ?? "",
+        priceCents:  item.unitPriceCents,
         quantity:    next,
         isFeatured:  featured,
       });
@@ -54,9 +54,9 @@ export function ItemDetailsCard({ item, onPublishToggle, onDeleteOpen, onItemUpd
     setFeatPending(true);
     try {
       await onItemUpdated({
-        name:        item.Name,
-        description: item.Description ?? "",
-        priceCents:  item.UnitPriceCents,
+        name:        item.name,
+        description: item.description ?? "",
+        priceCents:  item.unitPriceCents,
         quantity:    qty,
         isFeatured:  next,
       });
@@ -78,7 +78,7 @@ export function ItemDetailsCard({ item, onPublishToggle, onDeleteOpen, onItemUpd
           <div>
             <span className="text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">Price</span>
             <p className="mt-0.5 text-xl font-bold text-gray-900 dark:text-gray-100 sm:text-2xl">
-              {formatMoney(item.UnitPriceCents)}
+              {formatMoney(item.unitPriceCents)}
             </p>
           </div>
 
@@ -132,7 +132,7 @@ export function ItemDetailsCard({ item, onPublishToggle, onDeleteOpen, onItemUpd
             onClick={onPublishToggle}
             className={[
               "flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition-colors sm:px-4",
-              item.IsActive
+              item.isActive
                 ? "border border-yellow-300 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 dark:border-yellow-700/50 dark:bg-yellow-900/30 dark:text-yellow-300 dark:hover:bg-yellow-900/50"
                 : "bg-green-600 text-white hover:bg-green-500",
             ].join(" ")}
@@ -140,7 +140,7 @@ export function ItemDetailsCard({ item, onPublishToggle, onDeleteOpen, onItemUpd
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
             </svg>
-            {item.IsActive ? "Unpublish" : "Publish"}
+            {item.isActive ? "Unpublish" : "Publish"}
           </button>
 
           <button
@@ -193,17 +193,17 @@ export function ItemDetailsCard({ item, onPublishToggle, onDeleteOpen, onItemUpd
 
       {/* Name + description */}
       <div>
-        <p className="mb-1 font-medium text-gray-900 dark:text-gray-100">{item.Name}</p>
+        <p className="mb-1 font-medium text-gray-900 dark:text-gray-100">{item.name}</p>
         <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-500 dark:text-gray-400">
-          {item.Description || "No description yet."}
+          {item.description || "No description yet."}
         </p>
       </div>
 
       <AiMetaPanel
-        inventoryId={item.InventoryId}
-        itemName={item.Name}
-        itemDescription={item.Description ?? ""}
-        itemPriceCents={item.UnitPriceCents}
+        inventoryId={item.inventoryId}
+        itemName={item.name}
+        itemDescription={item.description ?? ""}
+        itemPriceCents={item.unitPriceCents}
         onItemUpdated={(fields) => onItemUpdated({
           ...fields,
           quantity:   qty,
@@ -211,7 +211,7 @@ export function ItemDetailsCard({ item, onPublishToggle, onDeleteOpen, onItemUpd
         })}
       />
 
-      <SimilarItemsPanel inventoryId={item.InventoryId} minScore={0.50} />
+      <SimilarItemsPanel inventoryId={item.inventoryId} minScore={0.50} />
     </div>
   );
 }

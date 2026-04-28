@@ -126,10 +126,10 @@ export default function ItemSlider({
         >
           {items.map((item) => (
             <div
-              key={item.InventoryId}
+              key={item.inventoryId}
               className="w-full shrink-0 snap-center px-6"
             >
-              <FeaturedItemCard item={item} thumbnailUrl={getThumbnailUrl(item.InventoryId)} />
+              <FeaturedItemCard item={item} thumbnailUrl={getThumbnailUrl(item.inventoryId)} />
             </div>
           ))}
 
@@ -174,8 +174,8 @@ export default function ItemSlider({
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
         {items.map((item) => (
-          <div key={item.InventoryId} className="w-[300px] shrink-0">
-            <FeaturedItemCard item={item} thumbnailUrl={getThumbnailUrl(item.InventoryId)} />
+          <div key={item.inventoryId} className="w-[300px] shrink-0">
+            <FeaturedItemCard item={item} thumbnailUrl={getThumbnailUrl(item.inventoryId)} />
           </div>
         ))}
       </div>

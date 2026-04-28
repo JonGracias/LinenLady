@@ -56,9 +56,9 @@ export default function DesktopItemGrid({ items, getThumbnailUrl, onClearFilters
     >
       {items.map((item) => (
         <DesktopItemCard
-          key={item.InventoryId}
+          key={item.inventoryId}
           item={item}
-          thumbnailUrl={getThumbnailUrl(item.InventoryId)}
+          thumbnailUrl={getThumbnailUrl(item.inventoryId)}
         />
       ))}
     </div>

@@ -20,7 +20,7 @@ function MobileItemCard({
 }) {
   return (
     <Link
-      href={`/shop/${item.Sku}`}
+      href={`/shop/${item.sku}`}
       className="relative w-full shrink-0 snap-start flex flex-col"
       style={{ height: "100svh", background: "var(--rose-light)", textDecoration: "none" }}
     >
@@ -34,7 +34,7 @@ function MobileItemCard({
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={thumbnailUrl}
-              alt={item.Name}
+              alt={item.name}
               className="h-full w-full object-cover"
             />
           ) : (
@@ -45,7 +45,7 @@ function MobileItemCard({
               🪡
             </div>
           )}
-          {item.IsFeatured && (
+          {item.isFeatured && (
             <div
               className="absolute left-0 top-4 px-3 py-1 text-[0.55rem] font-medium uppercase tracking-[0.15em] text-white"
               style={{ background: "var(--rose-deep)" }}
@@ -66,13 +66,13 @@ function MobileItemCard({
             className="ll-display text-base font-normal leading-snug line-clamp-1"
             style={{ color: "var(--ink)" }}
           >
-            {item.Name}
+            {item.name}
           </div>
           <div
             className="ll-label mt-0.5 text-[0.65rem] uppercase tracking-[0.15em]"
             style={{ color: "var(--rose-deep)" }}
           >
-            {formatPrice(item.UnitPriceCents)}
+            {formatPrice(item.unitPriceCents)}
           </div>
         </div>
         <div
@@ -103,9 +103,9 @@ export default function MobileItemSlider({ items, getThumbnailUrl }: Props) {
     >
       {items.map((item) => (
         <MobileItemCard
-          key={item.InventoryId}
+          key={item.inventoryId}
           item={item}
-          thumbnailUrl={getThumbnailUrl(item.InventoryId)}
+          thumbnailUrl={getThumbnailUrl(item.inventoryId)}
         />
       ))}
 

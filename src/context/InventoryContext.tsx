@@ -29,7 +29,7 @@ export function useInventoryContext() {
   return ctx;
 }
 
-type CountsResponse = { All: number; Drafts: number; Published: number };
+type CountsResponse = { all: number; drafts: number; published: number };
 type CacheEntry = { items: InventoryItem[]; totalCount: number; timestamp: number };
 type CacheKey   = string;
 
@@ -69,7 +69,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
   const [pageSize, setPageSize]    = useState(10);
   const [totalCount, setTotalCount] = useState(0);
 
-  const [counts, setCounts] = useState<CountsResponse>({ All: 0, Drafts: 0, Published: 0 });
+  const [counts, setCounts] = useState<CountsResponse>({ all: 0, drafts: 0, published: 0 });
 
   // Wrap setters to also persist to localStorage
   const setFilter = useCallback((f: Filter) => {
@@ -122,9 +122,9 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
     try {
       const c = await apiGetJson<CountsResponse>("/api/items/counts");
       setCounts({
-        All:       Number(c?.All       ?? 0),
-        Drafts:    Number(c?.Drafts    ?? 0),
-        Published: Number(c?.Published ?? 0),
+        all:       Number(c?.all       ?? 0),
+        drafts:    Number(c?.drafts    ?? 0),
+        published: Number(c?.published ?? 0),
       });
     } catch { /* non-fatal */ }
   }, []);
@@ -155,8 +155,8 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
 
       const data = await apiGetJson<GetItemsResponse>(`/api/items?${params.toString()}`);
 
-      const fetchedItems      = Array.isArray(data.Items) ? data.Items : [];
-      const fetchedTotalCount = Number(data.TotalCount ?? 0);
+      const fetchedItems      = Array.isArray(data.items) ? data.items : [];
+      const fetchedTotalCount = Number(data.totalCount ?? 0);
 
       if (typeof (data as any).Page === "number" && (data as any).Page !== page) {
         setPage((data as any).Page);
@@ -208,8 +208,8 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
             `/api/items/${id}/images?ttlMinutes=${ttlMinutes}`
           );
           const list    = Array.isArray(imgs) ? imgs : [];
-          const primary = list.find((i) => i?.IsPrimary) ?? list[0] ?? null;
-          setThumbs((prev) => ({ ...prev, [id]: primary?.ReadUrl ?? null }));
+          const primary = list.find((i) => i?.isPrimary) ?? list[0] ?? null;
+          setThumbs((prev) => ({ ...prev, [id]: primary?.readUrl ?? null }));
         } catch {
           setThumbs((prev) => ({ ...prev, [id]: null }));
         } finally {

@@ -6,14 +6,14 @@ import Link from "next/link";
 import { useItemAi } from "@/context/ItemAiContext";
 
 type SimilarItem = {
-  InventoryId: number;
-  PublicId: string;
-  Name: string;
-  Description: string | null;
-  UnitPriceCents: number;
-  IsActive: boolean;
-  IsDraft: boolean;
-  Score: number;
+  inventoryId: number;
+  publicId: string;
+  name: string;
+  description: string | null;
+  unitPriceCents: number;
+  isActive: boolean;
+  isDraft: boolean;
+  score: number;
 };
 
 type Props = {
@@ -120,23 +120,23 @@ export default function SimilarItemsPanel({
       <div className="flex flex-col divide-y divide-gray-200 dark:divide-gray-700/50">
         {items.map((item) => (
           <Link
-            key={item.InventoryId}
-            href={`/admin/drafts/${item.InventoryId}`}
+            key={item.inventoryId}
+            href={`/admin/drafts/${item.inventoryId}`}
             className="group -mx-2 flex items-center gap-3 rounded-lg px-2 py-2.5 transition-colors first:pt-0 last:pb-0 hover:bg-gray-100 dark:hover:bg-gray-700/20"
           >
-            <ScorePill score={item.Score} />
+            <ScorePill score={item.score} />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium text-gray-700 dark:text-gray-200 transition-colors group-hover:text-gray-900 dark:group-hover:text-white">
-                {item.Name}
+                {item.name}
               </p>
-              {item.Description && (
+              {item.description && (
                 <p className="mt-0.5 truncate text-xs text-gray-400 dark:text-gray-500">
-                  {item.Description}
+                  {item.description}
                 </p>
               )}
             </div>
             <span className="flex-shrink-0 text-sm font-semibold text-gray-600 dark:text-gray-300">
-              {formatMoney(item.UnitPriceCents)}
+              {formatMoney(item.unitPriceCents)}
             </span>
             <svg
               className="h-4 w-4 flex-shrink-0 text-gray-300 dark:text-gray-600 transition-colors group-hover:text-gray-500 dark:group-hover:text-gray-400"

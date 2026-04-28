@@ -138,7 +138,7 @@ export default function AccountPage() {
     const res = await apiCall(`/reservations/${id}/cancel`, { method: "PATCH" });
     if (res.ok) {
       setReservations((rs) =>
-        rs.map((r) => r.ReservationId === id ? { ...r, Status: "Cancelled" } : r)
+        rs.map((r) => r.reservationId === id ? { ...r, Status: "Cancelled" } : r)
       );
     }
   };
@@ -154,14 +154,14 @@ export default function AccountPage() {
   const saveAddress = async () => {
     if (!addrForm) return;
     const res = await apiCall(
-      addrForm.AddressId ? `/customers/me/addresses/${addrForm.AddressId}` : "/customers/me/addresses",
-      { method: addrForm.AddressId ? "PUT" : "POST", body: JSON.stringify(addrForm) }
+      addrForm.addressId ? `/customers/me/addresses/${addrForm.addressId}` : "/customers/me/addresses",
+      { method: addrForm.addressId ? "PUT" : "POST", body: JSON.stringify(addrForm) }
     );
     if (res.ok) {
       const saved = await res.json();
       setAddresses((a) =>
-        addrForm.AddressId
-          ? a.map((x) => x.AddressId === saved.AddressId ? saved : x)
+        addrForm.addressId
+          ? a.map((x) => x.addressId === saved.AddressId ? saved : x)
           : [...a, saved]
       );
       setAddrForm(null);
@@ -171,7 +171,7 @@ export default function AccountPage() {
   const deleteAddress = async (id: number) => {
     if (!confirm("Remove this address?")) return;
     await apiCall(`/customers/me/addresses/${id}`, { method: "DELETE" });
-    setAddresses((a) => a.filter((x) => x.AddressId !== id));
+    setAddresses((a) => a.filter((x) => x.addressId !== id));
   };
 
   if (!isLoaded || loading) {
@@ -255,53 +255,53 @@ export default function AccountPage() {
             ) : (
               <div className="flex flex-col gap-4">
                 {reservations.map((r) => {
-                  const colors = STATUS_COLORS[r.Status] ?? STATUS_COLORS.Pending;
-                  const isActive = ["Pending","Confirmed","PaymentSent"].includes(r.Status);
+                  const colors = STATUS_COLORS[r.status] ?? STATUS_COLORS.Pending;
+                  const isActive = ["Pending","Confirmed","PaymentSent"].includes(r.status);
                   return (
-                    <div key={r.ReservationId} className="border p-6" style={{ borderColor: "var(--linen)", background: "var(--cream-dark)" }}>
+                    <div key={r.reservationId} className="border p-6" style={{ borderColor: "var(--linen)", background: "var(--cream-dark)" }}>
                       <div className="mb-4 flex items-start justify-between gap-4">
                         <div>
-                          <div className="ll-display text-lg font-normal" style={{ color: "var(--ink)" }}>{r.ItemName}</div>
-                          <div className="ll-label mt-0.5 text-[0.62rem] uppercase tracking-[0.12em]" style={{ color: "var(--ink-soft)" }}>SKU: {r.ItemSku}</div>
+                          <div className="ll-display text-lg font-normal" style={{ color: "var(--ink)" }}>{r.itemName}</div>
+                          <div className="ll-label mt-0.5 text-[0.62rem] uppercase tracking-[0.12em]" style={{ color: "var(--ink-soft)" }}>SKU: {r.itemSku}</div>
                         </div>
                         <span className="ll-label shrink-0 px-3 py-1 text-[0.58rem] font-medium uppercase tracking-[0.12em]" style={{ background: colors.bg, color: colors.color }}>
-                          {r.Status}
+                          {r.status}
                         </span>
                       </div>
 
                       <div className="mb-4 flex flex-wrap gap-6 text-sm">
                         <div>
                           <div className="ll-label text-[0.58rem] uppercase tracking-[0.1em] mb-0.5" style={{ color: "var(--ink-soft)" }}>Reserved</div>
-                          <div className="ll-body italic" style={{ color: "var(--ink)" }}>{formatDate(r.ReservedAt)}</div>
+                          <div className="ll-body italic" style={{ color: "var(--ink)" }}>{formatDate(r.reservedAt)}</div>
                         </div>
                         {isActive && (
                           <div>
                             <div className="ll-label text-[0.58rem] uppercase tracking-[0.1em] mb-0.5" style={{ color: "var(--ink-soft)" }}>Expires</div>
-                            <div className="ll-body italic" style={{ color: "var(--rose-deep)" }}>{timeLeft(r.ExpiresAt)}</div>
+                            <div className="ll-body italic" style={{ color: "var(--rose-deep)" }}>{timeLeft(r.expiresAt)}</div>
                           </div>
                         )}
                         <div>
                           <div className="ll-label text-[0.58rem] uppercase tracking-[0.1em] mb-0.5" style={{ color: "var(--ink-soft)" }}>Amount</div>
-                          <div className="ll-body italic" style={{ color: "var(--ink)" }}>{formatPrice(r.AmountCents)}</div>
+                          <div className="ll-body italic" style={{ color: "var(--ink)" }}>{formatPrice(r.amountCents)}</div>
                         </div>
                       </div>
 
                       <div className="flex flex-wrap gap-3">
-                        {r.SquarePaymentLinkUrl && r.Status === "PaymentSent" && (
-                          <a href={r.SquarePaymentLinkUrl} target="_blank" rel="noreferrer"
+                        {r.squarePaymentLinkUrl && r.status === "PaymentSent" && (
+                          <a href={r.squarePaymentLinkUrl} target="_blank" rel="noreferrer"
                             className="ll-label inline-block px-6 py-2.5 text-[0.65rem] font-medium uppercase tracking-[0.15em] text-white transition-all hover:-translate-y-px"
                             style={{ background: "var(--rose-deep)", textDecoration: "none" }}>
                             Complete Payment →
                           </a>
                         )}
                         {isActive && (
-                          <button onClick={() => cancelReservation(r.ReservationId)}
+                          <button onClick={() => cancelReservation(r.reservationId)}
                             className="ll-label border px-6 py-2.5 text-[0.65rem] font-medium uppercase tracking-[0.15em] transition-colors hover:bg-[#fee2e2]"
                             style={{ borderColor: "var(--linen)", color: "var(--ink-soft)" }}>
                             Cancel
                           </button>
                         )}
-                        <Link href={`/shop/${r.ItemSku}`}
+                        <Link href={`/shop/${r.itemSku}`}
                           className="ll-label border px-6 py-2.5 text-[0.65rem] font-medium uppercase tracking-[0.15em] transition-colors hover:bg-[#c8daca]"
                           style={{ borderColor: "var(--sage)", color: "var(--sage-deep)", textDecoration: "none" }}>
                           View Item
@@ -335,17 +335,17 @@ export default function AccountPage() {
 
             <div className="flex flex-col gap-4">
               {addresses.map((a) => (
-                <div key={a.AddressId} className="border p-5" style={{ borderColor: "var(--linen)", background: "var(--cream-dark)" }}>
+                <div key={a.addressId} className="border p-5" style={{ borderColor: "var(--linen)", background: "var(--cream-dark)" }}>
                   <div className="mb-1 flex items-center gap-3">
-                    <span className="ll-label text-[0.6rem] font-medium uppercase tracking-[0.12em]" style={{ color: "var(--sage-deep)" }}>{a.Label}</span>
-                    {a.IsDefault && <span className="ll-label text-[0.55rem] px-2 py-0.5 uppercase tracking-[0.1em] text-white" style={{ background: "var(--rose-deep)" }}>Default</span>}
+                    <span className="ll-label text-[0.6rem] font-medium uppercase tracking-[0.12em]" style={{ color: "var(--sage-deep)" }}>{a.label}</span>
+                    {a.isDefault && <span className="ll-label text-[0.55rem] px-2 py-0.5 uppercase tracking-[0.1em] text-white" style={{ background: "var(--rose-deep)" }}>Default</span>}
                   </div>
                   <address className="ll-body not-italic text-sm font-light leading-relaxed" style={{ color: "var(--ink-soft)" }}>
-                    {a.Street1}{a.Street2 && `, ${a.Street2}`}<br />{a.City}, {a.State} {a.Zip}
+                    {a.street1}{a.street2 && `, ${a.street2}`}<br />{a.city}, {a.state} {a.zip}
                   </address>
                   <div className="mt-3 flex gap-3">
                     <button onClick={() => setAddrForm(a)} className="ll-label text-[0.6rem] uppercase tracking-[0.12em] underline" style={{ color: "var(--sage-deep)", background: "none", border: "none", cursor: "pointer" }}>Edit</button>
-                    <button onClick={() => deleteAddress(a.AddressId)} className="ll-label text-[0.6rem] uppercase tracking-[0.12em] underline" style={{ color: "var(--rose-deep)", background: "none", border: "none", cursor: "pointer" }}>Remove</button>
+                    <button onClick={() => deleteAddress(a.addressId)} className="ll-label text-[0.6rem] uppercase tracking-[0.12em] underline" style={{ color: "var(--rose-deep)", background: "none", border: "none", cursor: "pointer" }}>Remove</button>
                   </div>
                 </div>
               ))}
@@ -355,7 +355,7 @@ export default function AccountPage() {
             {addrForm !== null && (
               <div className="mt-6 border p-6" style={{ borderColor: "var(--linen)", background: "var(--cream-dark)" }}>
                 <h3 className="ll-display mb-5 text-lg font-normal italic" style={{ color: "var(--ink)" }}>
-                  {addrForm.AddressId ? "Edit Address" : "New Address"}
+                  {addrForm.addressId ? "Edit Address" : "New Address"}
                 </h3>
                 <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 1fr" }}>
                   {[
@@ -378,7 +378,7 @@ export default function AccountPage() {
                   ))}
                   <div style={{ gridColumn: "1 / -1" }}>
                     <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={!!addrForm.IsDefault}
+                      <input type="checkbox" checked={!!addrForm.isDefault}
                         onChange={(e) => setAddrForm((f) => ({ ...f, IsDefault: e.target.checked }))} />
                       <span className="ll-label text-[0.62rem] uppercase tracking-[0.12em]" style={{ color: "var(--ink-soft)" }}>Set as default address</span>
                     </label>
@@ -440,19 +440,19 @@ export default function AccountPage() {
                 <p className="ll-body italic text-base" style={{ color: "var(--brown-light)" }}>No messages yet. Say hello!</p>
               )}
               {messages.map((m) => {
-                const isOutbound = m.Direction === "Outbound";
+                const isOutbound = m.direction === "Outbound";
                 return (
-                  <div key={m.MessageId} className={`flex ${isOutbound ? "justify-start" : "justify-end"}`}>
+                  <div key={m.messageId} className={`flex ${isOutbound ? "justify-start" : "justify-end"}`}>
                     <div className="max-w-[75%] px-4 py-3"
                       style={{
                         background: isOutbound ? "var(--cream-dark)" : "var(--rose-deep)",
                         color: isOutbound ? "var(--ink)" : "#fff",
                         border: isOutbound ? "1px solid var(--linen)" : "none",
                       }}>
-                      <p className="ll-body text-sm font-light leading-relaxed">{m.Body}</p>
+                      <p className="ll-body text-sm font-light leading-relaxed">{m.body}</p>
                       <div className={`ll-label mt-1 text-[0.55rem] uppercase tracking-[0.1em] ${isOutbound ? "" : "text-right"}`}
                         style={{ color: isOutbound ? "var(--ink-soft)" : "rgba(255,255,255,0.65)" }}>
-                        {isOutbound ? "Noemi" : "You"} · {new Date(m.SentAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                        {isOutbound ? "Noemi" : "You"} · {new Date(m.sentAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
                       </div>
                     </div>
                   </div>

@@ -19,7 +19,7 @@ type Props = {
 export default function FeaturedItemCard({ item, thumbnailUrl }: Props) {
   return (
     <Link
-      href={`/shop/${item.Sku}`}
+      href={`/shop/${item.sku}`}
       className="group block overflow-hidden border border-[#e8ddd0] bg-[#faf6f0] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(44,31,26,0.10)]"
     >
       {/* image */}
@@ -28,7 +28,7 @@ export default function FeaturedItemCard({ item, thumbnailUrl }: Props) {
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={thumbnailUrl}
-            alt={item.Name}
+            alt={item.name}
             className="h-full w-full object-cover"
           />
         ) : (
@@ -36,7 +36,7 @@ export default function FeaturedItemCard({ item, thumbnailUrl }: Props) {
             🪡
           </div>
         )}
-        {item.IsFeatured && (
+        {item.isFeatured && (
           <div
             className="absolute left-3 top-3 px-2 py-0.5 text-[0.55rem] font-medium uppercase tracking-[0.15em] text-white"
             style={{ fontFamily: "'Jost', sans-serif", background: "#b07878" }}
@@ -52,15 +52,15 @@ export default function FeaturedItemCard({ item, thumbnailUrl }: Props) {
           className="mb-1 text-base font-normal leading-snug line-clamp-2 min-h-[2.8rem]"
           style={{ fontFamily: "'Playfair Display', serif", color: "#2c1f1a" }}
         >
-          {item.Name}
+          {item.name}
         </div>
 
-        {item.Description && (
+        {item.description && (
           <p
             className="mb-3 line-clamp-2 text-sm font-light leading-relaxed"
             style={{ fontFamily: "'Cormorant Garamond', serif", color: "#5c4a42" }}
           >
-            {item.Description}
+            {item.description}
           </p>
         )}
 
@@ -69,7 +69,7 @@ export default function FeaturedItemCard({ item, thumbnailUrl }: Props) {
             className="text-sm font-medium"
             style={{ fontFamily: "'Jost', sans-serif", color: "#b07878" }}
           >
-            {formatPrice(item.UnitPriceCents)}
+            {formatPrice(item.unitPriceCents)}
           </span>
           <span
             className="border px-3 py-1 text-[0.6rem] font-medium uppercase tracking-[0.15em] transition-colors duration-200 group-hover:bg-[#8fad94] group-hover:text-white"

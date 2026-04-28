@@ -27,10 +27,10 @@ type Props = {
   settingPrimary:    number | null;
 };
 
-type SlideFull = InventoryImage & { ReadUrl: string };
+type SlideFull = InventoryImage & { readUrl: string };
 
 function isFull(img: InventoryImage): img is SlideFull {
-  return typeof img.ReadUrl === "string" && img.ReadUrl.length > 0;
+  return typeof img.readUrl === "string" && img.readUrl.length > 0;
 }
 
 export function ThumbnailStrip({
@@ -55,8 +55,8 @@ export function ThumbnailStrip({
   const addMenuRef   = useRef<HTMLDivElement>(null);
 
   const slides = images.filter(isFull);
-  const activeImage  = slides.find((img) => img.ImageId === activeImageId) ?? null;
-  const activeIsPrimary = activeImage?.ImageId === primaryImageId;
+  const activeImage  = slides.find((img) => img.imageId === activeImageId) ?? null;
+  const activeIsPrimary = activeImage?.imageId === primaryImageId;
 
   // Click-outside for add menu
   const handleMenuToggle = () => {
@@ -146,15 +146,15 @@ export function ThumbnailStrip({
       {slides.length > 0 && (
         <div className="flex flex-wrap justify-center gap-2">
           {slides.map((img) => {
-            const isActive           = img.ImageId === activeImageId;
-            const isPrimary          = img.ImageId === primaryImageId;
-            const isConfirmingDelete = img.ImageId === confirmDeleteImageId;
-            const isDeletingThis     = img.ImageId === deletingImageId;
+            const isActive           = img.imageId === activeImageId;
+            const isPrimary          = img.imageId === primaryImageId;
+            const isConfirmingDelete = img.imageId === confirmDeleteImageId;
+            const isDeletingThis     = img.imageId === deletingImageId;
 
             return (
-              <div key={img.ImageId} className="relative">
+              <div key={img.imageId} className="relative">
                 <button
-                  onClick={() => onThumbnailClick(img.ImageId)}
+                  onClick={() => onThumbnailClick(img.imageId)}
                   className={[
                     "group relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-all",
                     isActive
@@ -162,7 +162,7 @@ export function ThumbnailStrip({
                       : "border-gray-300 dark:border-gray-600 opacity-70 hover:border-gray-400 dark:hover:border-gray-400 hover:opacity-100",
                   ].join(" ")}
                 >
-                  <img src={img.ReadUrl} alt="" className="h-full w-full object-cover" />
+                  <img src={img.readUrl} alt="" className="h-full w-full object-cover" />
                   {isPrimary && (
                     <div className="absolute right-1 top-1">
                       <div className="flex h-4 w-4 items-center justify-center rounded-full bg-green-500 shadow">
@@ -187,7 +187,7 @@ export function ThumbnailStrip({
                   isConfirmingDelete ? (
                     <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 flex gap-1 whitespace-nowrap">
                       <button
-                        onClick={() => handleDeleteConfirm(img.ImageId)}
+                        onClick={() => handleDeleteConfirm(img.imageId)}
                         className="rounded bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white hover:bg-red-600"
                       >
                         Delete
@@ -201,7 +201,7 @@ export function ThumbnailStrip({
                     </div>
                   ) : (
                     <button
-                      onClick={(e) => { e.stopPropagation(); setConfirmDeleteImageId(img.ImageId); }}
+                      onClick={(e) => { e.stopPropagation(); setConfirmDeleteImageId(img.imageId); }}
                       className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-gray-800 dark:bg-gray-900 border border-gray-600 text-gray-300 hover:bg-red-600 hover:border-red-500 hover:text-white transition-colors"
                       aria-label="Delete image"
                     >
@@ -280,11 +280,11 @@ export function ThumbnailStrip({
         <div className="flex h-8 items-center justify-center gap-3 mt-5">
           {!activeIsPrimary ? (
             <button
-              onClick={() => onSetPrimary(activeImage.ImageId)}
+              onClick={() => onSetPrimary(activeImage.imageId)}
               disabled={settingPrimary !== null}
               className="flex items-center gap-1.5 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 transition-colors hover:border-green-500 hover:bg-green-50 hover:text-green-700 dark:hover:border-green-600 dark:hover:bg-green-900/30 dark:hover:text-green-300 disabled:opacity-50"
             >
-              {settingPrimary === activeImage.ImageId ? (
+              {settingPrimary === activeImage.imageId ? (
                 <>
                   <svg className="h-3 w-3 animate-spin" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={4} />

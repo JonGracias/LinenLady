@@ -21,8 +21,8 @@ export default function ImageCarousel({ images, onSwiper, onSlideChange }: Props
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const slides = (images ?? []).filter(
-    (x): x is InventoryImage & { ReadUrl: string } =>
-      typeof x.ReadUrl === "string" && x.ReadUrl.length > 0
+    (x): x is InventoryImage & { readUrl: string } =>
+      typeof x.readUrl === "string" && x.readUrl.length > 0
   );
 
   if (slides.length === 0) return null;
@@ -44,7 +44,7 @@ export default function ImageCarousel({ images, onSwiper, onSlideChange }: Props
         onSwiper={onSwiper}
         onSlideChange={(swiper) => {
           const img = slides[swiper.activeIndex];
-          if (img) onSlideChange?.(img.ImageId);
+          if (img) onSlideChange?.(img.imageId);
         }}
         navigation
         pagination={{ clickable: true }}
@@ -52,9 +52,9 @@ export default function ImageCarousel({ images, onSwiper, onSlideChange }: Props
         slidesPerView={1}
       >
         {slides.map((img, i) => (
-          <SwiperSlide key={img.ImageId ?? i}>
+          <SwiperSlide key={img.imageId ?? i}>
             <img
-              src={img.ReadUrl}
+              src={img.readUrl}
               alt={`Slide ${i + 1}`}
               className="bg-black"
             />

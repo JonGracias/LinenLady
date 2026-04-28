@@ -10,14 +10,14 @@ import HeroBanner, { type BannerSlide } from "@/components/storefront/HeroBanner
 import { SitePhoto } from "@/components/shared/SitePhoto";
 
 type HeroSlideDto = {
-  SlideId:   number;
-  Heading:   string | null;
-  Subtext:   string | null;
-  LinkUrl:   string | null;
-  LinkLabel: string | null;
-  IsActive:  boolean;
-  SortOrder: number;
-  Media:     { ReadUrl: string | null } | null;
+  slideId:   number;
+  heading:   string | null;
+  subtext:   string | null;
+  linkUrl:   string | null;
+  linkLabel: string | null;
+  isActive:  boolean;
+  sortOrder: number;
+  media:     { readUrl: string | null } | null;
 };
 
 /* Reusable section title used by CategoryGrid and inline sections */
@@ -53,11 +53,11 @@ export default function HomePage() {
       .then((data: HeroSlideDto[]) => {
         if (!Array.isArray(data) || data.length === 0) return;
         const slides: BannerSlide[] = data.map((s) => ({
-          photoUrl:      s.Media?.ReadUrl ?? undefined,
-          headline:      s.Heading        ?? "Curators of Antique & Vintage Linens",
-          sub:           s.Subtext        ?? undefined,
-          href:          s.LinkUrl        ?? "/shop",
-          cta:           s.LinkLabel      ?? "Explore the Collection",
+          photoUrl:      s.media?.readUrl ?? undefined,
+          headline:      s.heading        ?? "Curators of Antique & Vintage Linens",
+          sub:           s.subtext        ?? undefined,
+          href:          s.linkUrl        ?? "/shop",
+          cta:           s.linkLabel      ?? "Explore the Collection",
           secondaryHref: "/#schedule",
           secondaryCta:  "View Archive",
         }));

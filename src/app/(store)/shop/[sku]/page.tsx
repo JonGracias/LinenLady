@@ -89,7 +89,7 @@ function DesktopGallery({ images }: { images: InventoryImage[] }) {
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={images[active]?.ReadUrl ?? ""}
+          src={images[active]?.readUrl ?? ""}
           alt={`Detail view ${active + 1}`}
           className="h-full w-full object-cover transition-opacity duration-500"
         />
@@ -113,7 +113,7 @@ function DesktopGallery({ images }: { images: InventoryImage[] }) {
         <div className="flex gap-2 overflow-x-auto">
           {images.map((img, i) => (
             <button
-              key={img.ImageId}
+              key={img.imageId}
               onClick={() => setActive(i)}
               className="shrink-0 overflow-hidden transition-all duration-300"
               style={{
@@ -130,7 +130,7 @@ function DesktopGallery({ images }: { images: InventoryImage[] }) {
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={img.ReadUrl ?? ""}
+                src={img.readUrl ?? ""}
                 alt=""
                 className="h-full w-full object-cover"
               />
@@ -162,12 +162,12 @@ function MobileCarousel({ images }: { images: InventoryImage[] }) {
     <div className="relative overflow-hidden w-full" style={{ aspectRatio: "4/3" }}>
       {images.map((img, i) => (
         <div
-          key={img.ImageId}
+          key={img.imageId}
           className="absolute inset-0 transition-opacity duration-500"
           style={{ opacity: i === active ? 1 : 0, zIndex: i === active ? 1 : 0 }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={img.ReadUrl ?? ""} alt="" className="h-full w-full object-cover" />
+          <img src={img.readUrl ?? ""} alt="" className="h-full w-full object-cover" />
         </div>
       ))}
 
@@ -209,9 +209,9 @@ function ReserveModal({
   item: ItemDetail;
 }) {
   if (!open) return null;
-  const subject = encodeURIComponent(`Reservation Inquiry — ${item.Name} (${item.Sku})`);
+  const subject = encodeURIComponent(`Reservation Inquiry — ${item.name} (${item.sku})`);
   const body = encodeURIComponent(
-    `Hello,\n\nI am interested in reserving the following piece:\n\nItem: ${item.Name}\nSKU: ${item.Sku}\nPrice: ${formatPrice(item.UnitPriceCents)}\n\nPlease let me know about availability.\n\nThank you.`
+    `Hello,\n\nI am interested in reserving the following piece:\n\nItem: ${item.name}\nSKU: ${item.sku}\nPrice: ${formatPrice(item.unitPriceCents)}\n\nPlease let me know about availability.\n\nThank you.`
   );
   const mailto = `mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL}?subject=${subject}&body=${body}`;
 
@@ -236,7 +236,7 @@ function ReserveModal({
           Reserve This Piece
         </p>
         <h3 className="ll-display text-xl font-normal mb-2" style={{ color: "var(--on-surface)" }}>
-          {item.Name}
+          {item.name}
         </h3>
         <p className="ll-body text-sm font-light mb-6" style={{ color: "var(--on-surface-variant)" }}>
           Every piece is one of a kind. Sending this inquiry will open your email client with the details pre-filled — Noemi will respond within 24 hours to confirm availability and arrange next steps.
@@ -309,20 +309,20 @@ export default function ItemDetailPage() {
       setItem(data);
 
       /* ── Fetch images ── */
-      const imgRes = await fetch(`/api/items/${data.InventoryId}/images`);
+      const imgRes = await fetch(`/api/items/${data.inventoryId}/images`);
       if (imgRes.ok) {
         const imgs: InventoryImage[] = await imgRes.json();
-        setImages(imgs.sort((a, b) => (b.IsPrimary ? 1 : 0) - (a.IsPrimary ? 1 : 0) || a.SortOrder - b.SortOrder));
+        setImages(imgs.sort((a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0) || a.sortOrder - b.sortOrder));
       }
 
       /* ── Fetch related (similar) ── */
-      const relRes = await fetch(`/api/items/${data.InventoryId}/similar?top=3`);
+      const relRes = await fetch(`/api/items/${data.inventoryId}/similar?top=3`);
       if (relRes.ok) {
         const relData = await relRes.json();
         const rel3 = relData.slice(0, 3) as ItemDetail[];
         setRelated(rel3);
         // Pre-fetch thumbnails for related items via the storefront context cache
-        rel3.forEach((r) => ensureThumbnail(r.InventoryId));
+        rel3.forEach((r) => ensureThumbnail(r.inventoryId));
       }
     } catch {
       setError("error");
@@ -383,7 +383,7 @@ export default function ItemDetailPage() {
         className="ll-texture-overlay min-h-screen pb-28 md:pb-0"
         style={{ background: "var(--surface)", color: "var(--on-surface)" }}
       >
-        <Breadcrumb name={item.Name} />
+        <Breadcrumb name={item.name} />
 
         {/* ────────────────────────────────────────────────────────
             Desktop: two-column layout — gallery left, info right
@@ -406,7 +406,7 @@ export default function ItemDetailPage() {
             {/* Status + SKU */}
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                {item.IsFeatured && (
+                {item.isFeatured && (
                   <span
                     className="ll-label px-2.5 py-1 text-[0.5rem] font-medium uppercase tracking-[0.15em]"
                     style={{ background: "var(--primary)", color: "var(--on-primary)", borderRadius: "0.2rem" }}
@@ -425,7 +425,7 @@ export default function ItemDetailPage() {
                 className="ll-label text-[0.55rem] uppercase tracking-[0.12em]"
                 style={{ color: "var(--outline)" }}
               >
-                {item.Sku}
+                {item.sku}
               </span>
             </div>
 
@@ -438,7 +438,7 @@ export default function ItemDetailPage() {
                 letterSpacing: "-0.015em",
               }}
             >
-              {item.Name}
+              {item.name}
             </h1>
 
             {/* Price */}
@@ -446,16 +446,16 @@ export default function ItemDetailPage() {
               className="ll-display text-2xl font-normal mb-6"
               style={{ color: "var(--primary)", letterSpacing: "-0.01em" }}
             >
-              {formatPrice(item.UnitPriceCents)}
+              {formatPrice(item.unitPriceCents)}
             </p>
 
             {/* Description */}
-            {item.Description && (
+            {item.description && (
               <p
                 className="ll-body text-[1rem] font-light leading-[1.85] mb-8"
                 style={{ color: "var(--on-surface-variant)" }}
               >
-                {item.Description}
+                {item.description}
               </p>
             )}
 
@@ -463,7 +463,7 @@ export default function ItemDetailPage() {
             {(() => {
               // Parse KeywordsJson once — safe fallback to {} if missing/invalid
               let kw: Record<string, string[]> = {};
-              try { if (item.KeywordsJson) kw = JSON.parse(item.KeywordsJson); } catch { /* ignore */ }
+              try { if (item.keywordsJson) kw = JSON.parse(item.keywordsJson); } catch { /* ignore */ }
 
               const condition = kw.condition?.[0] ?? null;
               const material  = (kw.materials ?? kw.material)?.[0] ?? null;
@@ -471,7 +471,7 @@ export default function ItemDetailPage() {
               const specs = [
                 { label: "Condition", value: condition ?? "Heritage Grade" },
                 { label: "Material",  value: material  ?? "Natural Linen"  },
-                { label: "Quantity",  value: item.QuantityOnHand > 1 ? `${item.QuantityOnHand} available` : "One of a Kind" },
+                { label: "Quantity",  value: item.quantityOnHand > 1 ? `${item.quantityOnHand} available` : "One of a Kind" },
                 { label: "Era",       value: kw.era?.[0] ?? kw.style?.[0] ?? "Antique" },
               ];
 
@@ -508,28 +508,28 @@ export default function ItemDetailPage() {
               </button>
               <button
                 onClick={() => {
-                  if (has(item.InventoryId)) {
-                    remove(item.InventoryId);
+                  if (has(item.inventoryId)) {
+                    remove(item.inventoryId);
                   } else {
                     add({
-                      InventoryId:    item.InventoryId,
-                      Sku:            item.Sku,
-                      Name:           item.Name,
-                      UnitPriceCents: item.UnitPriceCents,
-                      thumbnailUrl:   images[0]?.ReadUrl ?? null,
+                      InventoryId:    item.inventoryId,
+                      Sku:            item.sku,
+                      Name:           item.name,
+                      UnitPriceCents: item.unitPriceCents,
+                      thumbnailUrl:   images[0]?.readUrl ?? null,
                     });
                   }
                 }}
                 className="ll-label py-3.5 text-center text-[0.62rem] uppercase tracking-[0.15em] transition-all duration-300"
                 style={{
-                  background:   has(item.InventoryId) ? "var(--primary)" : "transparent",
-                  color:        has(item.InventoryId) ? "var(--on-primary)" : "var(--on-surface-variant)",
-                  border:       has(item.InventoryId) ? "1px solid var(--primary)" : "1px solid rgba(196,181,168,0.4)",
+                  background:   has(item.inventoryId) ? "var(--primary)" : "transparent",
+                  color:        has(item.inventoryId) ? "var(--on-primary)" : "var(--on-surface-variant)",
+                  border:       has(item.inventoryId) ? "1px solid var(--primary)" : "1px solid rgba(196,181,168,0.4)",
                   borderRadius: "0.25rem",
                   cursor:       "pointer",
                 }}
               >
-                {has(item.InventoryId) ? "✓ Added to Reservation List" : "+ Add to Reservation List"}
+                {has(item.inventoryId) ? "✓ Added to Reservation List" : "+ Add to Reservation List"}
               </button>
             </div>
 
@@ -566,8 +566,8 @@ export default function ItemDetailPage() {
             <div className="grid gap-6" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
               {related.map((rel) => (
                 <Link
-                  key={rel.InventoryId}
-                  href={`/shop/${rel.Sku}`}
+                  key={rel.inventoryId}
+                  href={`/shop/${rel.sku}`}
                   className="group block"
                   style={{ textDecoration: "none" }}
                 >
@@ -575,11 +575,11 @@ export default function ItemDetailPage() {
                     className="overflow-hidden mb-3"
                     style={{ aspectRatio: "4/3", background: "var(--surface-container-highest)", borderRadius: "0.2rem" }}
                   >
-                    {getThumbnailUrl(rel.InventoryId) ? (
+                    {getThumbnailUrl(rel.inventoryId) ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={getThumbnailUrl(rel.InventoryId)!}
-                        alt={rel.Name}
+                        src={getThumbnailUrl(rel.inventoryId)!}
+                        alt={rel.name}
                         className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                       />
                     ) : (
@@ -588,9 +588,9 @@ export default function ItemDetailPage() {
                       </div>
                     )}
                   </div>
-                  <p className="ll-display text-sm font-normal mb-0.5" style={{ color: "var(--on-surface)" }}>{rel.Name}</p>
+                  <p className="ll-display text-sm font-normal mb-0.5" style={{ color: "var(--on-surface)" }}>{rel.name}</p>
                   <p className="ll-label text-[0.6rem] uppercase tracking-[0.1em]" style={{ color: "var(--primary)" }}>
-                    {formatPrice(rel.UnitPriceCents)}
+                    {formatPrice(rel.unitPriceCents)}
                   </p>
                 </Link>
               ))}
@@ -650,22 +650,22 @@ export default function ItemDetailPage() {
         {/* Add to List — left half */}
         <button
           onClick={() => {
-            if (has(item.InventoryId)) {
-              remove(item.InventoryId);
+            if (has(item.inventoryId)) {
+              remove(item.inventoryId);
             } else {
               add({
-                InventoryId:    item.InventoryId,
-                Sku:            item.Sku,
-                Name:           item.Name,
-                UnitPriceCents: item.UnitPriceCents,
-                thumbnailUrl:   images[0]?.ReadUrl ?? null,
+                InventoryId:    item.inventoryId,
+                Sku:            item.sku,
+                Name:           item.name,
+                UnitPriceCents: item.unitPriceCents,
+                thumbnailUrl:   images[0]?.readUrl ?? null,
               });
             }
           }}
           className="ll-label flex-1 flex flex-col items-center justify-center gap-1.5 py-4 text-[0.58rem] uppercase tracking-[0.12em] transition-all duration-300"
           style={{
-            background:  has(item.InventoryId) ? "var(--surface-container-low)" : "var(--surface-bright)",
-            color:       has(item.InventoryId) ? "var(--primary)"               : "var(--on-surface-variant)",
+            background:  has(item.inventoryId) ? "var(--surface-container-low)" : "var(--surface-bright)",
+            color:       has(item.inventoryId) ? "var(--primary)"               : "var(--on-surface-variant)",
             cursor:      "pointer",
             border:      "none",
             borderRight: "1px solid rgba(196,181,168,0.2)",
@@ -673,12 +673,12 @@ export default function ItemDetailPage() {
         >
           <svg
             width="18" height="18" viewBox="0 0 24 24"
-            fill={has(item.InventoryId) ? "currentColor" : "none"}
+            fill={has(item.inventoryId) ? "currentColor" : "none"}
             stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
           >
             <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
           </svg>
-          {has(item.InventoryId) ? "✓ In List" : "Add to List"}
+          {has(item.inventoryId) ? "✓ In List" : "Add to List"}
         </button>
 
         {/* Reserve — right half */}

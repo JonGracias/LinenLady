@@ -8,10 +8,10 @@ import { useItemAi } from "@/context/ItemAiContext";
 /* ── Types ──────────────────────────────────────────────────────────────── */
 
 type AiMeta = {
-  KeywordsJson: string | null;
-  KeywordsGeneratedAt: string | null;
-  SeoJson: string | null;
-  SeoGeneratedAt: string | null;
+  keywordsJson: string | null;
+  keywordsGeneratedAt: string | null;
+  seoJson: string | null;
+  seoGeneratedAt: string | null;
 };
 
 type SeoData = {
@@ -158,8 +158,8 @@ export default function AiMetaPanel({
             const freshMeta = await metaRes.json() as AiMeta;
             setMeta(freshMeta);
             notifyKeywordsUpdated(
-              freshMeta.KeywordsGeneratedAt ?? new Date().toISOString(),
-              freshMeta.SeoGeneratedAt
+              freshMeta.keywordsGeneratedAt ?? new Date().toISOString(),
+              freshMeta.seoGeneratedAt
             );
           }
           steps.push("keywords & SEO updated");
@@ -175,8 +175,8 @@ export default function AiMetaPanel({
   }, [inventoryId, activeFields, aiHint, itemName, itemDescription, itemPriceCents, onItemUpdated, notifyKeywordsUpdated]);
 
   /* ── Render ── */
-  const keywords = parseKeywords(meta?.KeywordsJson ?? null);
-  const seo      = parseSeo(meta?.SeoJson ?? null);
+  const keywords = parseKeywords(meta?.keywordsJson ?? null);
+  const seo      = parseSeo(meta?.seoJson ?? null);
 
   if (loading) {
     return (
@@ -286,8 +286,8 @@ export default function AiMetaPanel({
           <div className="border-t border-gray-200 dark:border-gray-700/50 pt-4">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-xs font-medium text-gray-400 dark:text-gray-500">Generated keywords</span>
-              {meta?.KeywordsGeneratedAt && (
-                <span className="text-xs text-gray-400 dark:text-gray-600">{formatDate(meta.KeywordsGeneratedAt)}</span>
+              {meta?.keywordsGeneratedAt && (
+                <span className="text-xs text-gray-400 dark:text-gray-600">{formatDate(meta.keywordsGeneratedAt)}</span>
               )}
             </div>
             <div className="flex flex-col gap-2">
@@ -325,8 +325,8 @@ export default function AiMetaPanel({
           <div className="border-t border-gray-200 dark:border-gray-700/50 pt-4">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-xs font-medium text-gray-400 dark:text-gray-500">SEO preview</span>
-              {meta?.SeoGeneratedAt && (
-                <span className="text-xs text-gray-400 dark:text-gray-600">{formatDate(meta.SeoGeneratedAt)}</span>
+              {meta?.seoGeneratedAt && (
+                <span className="text-xs text-gray-400 dark:text-gray-600">{formatDate(meta.seoGeneratedAt)}</span>
               )}
             </div>
             {/* Google SERP card */}

@@ -380,12 +380,12 @@ export function buildSlidesFromItems(
   getThumbnail: (id: number) => string | null
 ): BannerSlide[] {
   const slides: BannerSlide[] = items.slice(0, 5).map((item) => ({
-    thumbnailUrl:  getThumbnail(item.InventoryId),
-    itemName:      item.Name,
+    thumbnailUrl:  getThumbnail(item.inventoryId),
+    itemName:      item.name,
     label:         "Featured Piece",
-    headline:      item.Name,
-    sub:           item.Description ?? undefined,
-    href:          `/shop/${item.Sku}`,
+    headline:      item.name,
+    sub:           item.description ?? undefined,
+    href:          `/shop/${item.sku}`,
     cta:           "View This Piece",
     secondaryHref: "/shop",
     secondaryCta:  "Browse Collection",

@@ -6,25 +6,25 @@ import { MediaPickerModal, type SiteMediaItem } from "@/components/shared/MediaP
 import { CropModal } from "@/components/shared/CropModal";
 
 type HeroSlide = {
-  SlideId:   number;
-  MediaId:   number | null;
-  Media:     SiteMediaItem | null;
-  Heading:   string | null;
-  Subtext:   string | null;
-  LinkUrl:   string | null;
-  LinkLabel: string | null;
-  SortOrder: number;
-  IsActive:  boolean;
+  slideId:   number;
+  mediaId:   number | null;
+  media:     SiteMediaItem | null;
+  heading:   string | null;
+  subtext:   string | null;
+  linkUrl:   string | null;
+  linkLabel: string | null;
+  sortOrder: number;
+  isActive:  boolean;
 };
 
 const EMPTY_FORM = {
-  Heading:   "",
-  Subtext:   "",
-  LinkUrl:   "",
-  LinkLabel: "",
-  IsActive:  true,
-  MediaId:   null as number | null,
-  Media:     null as SiteMediaItem | null,
+  heading:   "",
+  subtext:   "",
+  linkUrl:   "",
+  linkLabel: "",
+  isActive:  true,
+  mediaId:   null as number | null,
+  media:     null as SiteMediaItem | null,
 };
 
 export default function AdminHeroPage() {
@@ -59,15 +59,15 @@ export default function AdminHeroPage() {
   const openNew  = () => { setForm({ ...EMPTY_FORM }); setEditingId("new"); setError(null); };
   const openEdit = (slide: HeroSlide) => {
     setForm({
-      Heading:   slide.Heading   ?? "",
-      Subtext:   slide.Subtext   ?? "",
-      LinkUrl:   slide.LinkUrl   ?? "",
-      LinkLabel: slide.LinkLabel ?? "",
-      IsActive:  slide.IsActive,
-      MediaId:   slide.MediaId,
-      Media:     slide.Media,
+      heading:   slide.heading   ?? "",
+      subtext:   slide.subtext   ?? "",
+      linkUrl:   slide.linkUrl   ?? "",
+      linkLabel: slide.linkLabel ?? "",
+      isActive:  slide.isActive,
+      mediaId:   slide.mediaId,
+      media:     slide.media,
     });
-    setEditingId(slide.SlideId);
+    setEditingId(slide.slideId);
     setError(null);
   };
   const cancelEdit = () => { setEditingId(null); setError(null); };
@@ -77,15 +77,15 @@ export default function AdminHeroPage() {
     setError(null);
     try {
       const body = {
-        MediaId:   form.MediaId,
-        Heading:   form.Heading   || null,
-        Subtext:   form.Subtext   || null,
-        LinkUrl:   form.LinkUrl   || null,
-        LinkLabel: form.LinkLabel || null,
-        SortOrder: editingId === "new"
+        mediaId:   form.mediaId,
+        heading:   form.heading   || null,
+        subtext:   form.subtext   || null,
+        linkUrl:   form.linkUrl   || null,
+        linkLabel: form.linkLabel || null,
+        sortOrder: editingId === "new"
           ? (slides.length + 1) * 10
-          : slides.find((s) => s.SlideId === editingId)?.SortOrder ?? 0,
-        IsActive: form.IsActive,
+          : slides.find((s) => s.slideId === editingId)?.sortOrder ?? 0,
+        isActive: form.isActive,
       };
       const url    = editingId === "new" ? "/admin/api/site/hero" : `/admin/api/site/hero/${editingId}`;
       const method = editingId === "new" ? "POST" : "PATCH";
@@ -107,10 +107,10 @@ export default function AdminHeroPage() {
   };
 
   const handleToggleActive = async (slide: HeroSlide) => {
-    await fetch(`/admin/api/site/hero/${slide.SlideId}`, {
+    await fetch(`/admin/api/site/hero/${slide.slideId}`, {
       method:  "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...slide, IsActive: !slide.IsActive, MediaId: slide.MediaId }),
+      body: JSON.stringify({ ...slide, isActive: !slide.isActive }),
     });
     await load();
   };
@@ -120,11 +120,11 @@ export default function AdminHeroPage() {
     const target    = index + dir;
     if (target < 0 || target >= newSlides.length) return;
     [newSlides[index], newSlides[target]] = [newSlides[target], newSlides[index]];
-    const reorder = newSlides.map((s, i) => ({ SlideId: s.SlideId, SortOrder: (i + 1) * 10 }));
+    const reorder = newSlides.map((s, i) => ({ slideId: s.slideId, sortOrder: (i + 1) * 10 }));
     await fetch("/admin/api/site/hero/reorder", {
       method:  "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ Slides: reorder }),
+      body: JSON.stringify({ slides: reorder }),
     });
     await load();
   };
@@ -132,13 +132,13 @@ export default function AdminHeroPage() {
   // Step 1: media picked → open crop modal
   const handlePickMedia = (media: SiteMediaItem) => {
     setPickerOpen(false);
-    if (!media.ReadUrl) {
+    if (!media.readUrl) {
       // No URL to crop — use as-is
-      setForm((f) => ({ ...f, MediaId: media.MediaId, Media: media }));
+      setForm((f) => ({ ...f, mediaId: media.mediaId, media: media }));
       return;
     }
     setCropPending(media);
-    setCropSrc(media.ReadUrl);
+    setCropSrc(media.readUrl);
     setCropOpen(true);
   };
 
@@ -153,16 +153,16 @@ export default function AdminHeroPage() {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          Name:          (cropPending.Name ?? "slide") + " (cropped)",
-          FileName:      croppedFile.name,
-          ContentType:   "image/jpeg",
-          FileSizeBytes: croppedFile.size,
+          name:          (cropPending.name ?? "slide") + " (cropped)",
+          fileName:      croppedFile.name,
+          contentType:   "image/jpeg",
+          fileSizeBytes: croppedFile.size,
         }),
       });
       if (!createRes.ok) throw new Error("Failed to save cropped image.");
-      const { MediaId: newMediaId, UploadUrl } = await createRes.json();
+      const { mediaId: newMediaId, uploadUrl } = await createRes.json();
 
-      await fetch(UploadUrl, {
+      await fetch(uploadUrl, {
         method:  "PUT",
         headers: { "x-ms-blob-type": "BlockBlob", "Content-Type": "image/jpeg" },
         body:    croppedFile,
@@ -172,8 +172,8 @@ export default function AdminHeroPage() {
       const previewUrl = URL.createObjectURL(croppedFile);
       setForm((f) => ({
         ...f,
-        MediaId: newMediaId,
-        Media:   { ...cropPending, MediaId: newMediaId, ReadUrl: previewUrl },
+        mediaId: newMediaId,
+        media:   { ...cropPending, mediaId: newMediaId, readUrl: previewUrl },
       }));
     } catch (e: any) {
       setError(e.message ?? "Failed to save cropped image.");
@@ -236,8 +236,8 @@ export default function AdminHeroPage() {
                     className="shrink-0 overflow-hidden"
                     style={{ width: 168, height: 72, background: "#242424", border: "1px solid rgba(255,255,255,0.08)" }}
                   >
-                    {form.Media?.ReadUrl
-                      ? <img src={form.Media.ReadUrl} alt="" className="h-full w-full object-cover" />
+                    {form.media?.readUrl
+                      ? <img src={form.media.readUrl} alt="" className="h-full w-full object-cover" />
                       : <div className="flex h-full w-full items-center justify-center text-xl opacity-20">🖼</div>
                     }
                   </div>
@@ -246,11 +246,11 @@ export default function AdminHeroPage() {
                     className="ll-label px-4 py-2 text-[0.62rem] uppercase tracking-[0.15em] transition-colors"
                     style={{ border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.6)", background: "none", cursor: "pointer" }}
                   >
-                    {form.Media ? "Change photo" : "Pick photo"}
+                    {form.media ? "Change photo" : "Pick photo"}
                   </button>
-                  {form.Media && (
+                  {form.media && (
                     <button
-                      onClick={() => setForm((f) => ({ ...f, MediaId: null, Media: null }))}
+                      onClick={() => setForm((f) => ({ ...f, mediaId: null, media: null }))}
                       className="ll-label text-[0.62rem] uppercase tracking-[0.1em] opacity-50 hover:opacity-100"
                       style={{ color: "#e07070", background: "none", border: "none", cursor: "pointer" }}
                     >
@@ -263,7 +263,7 @@ export default function AdminHeroPage() {
               {/* Heading */}
               <div>
                 <label className="ll-label mb-2 block text-[0.6rem] uppercase tracking-[0.15em]" style={{ color: "rgba(255,255,255,0.4)" }}>Heading</label>
-                <input type="text" value={form.Heading} onChange={(e) => setForm((f) => ({ ...f, Heading: e.target.value }))}
+                <input type="text" value={form.heading} onChange={(e) => setForm((f) => ({ ...f, heading: e.target.value }))}
                   placeholder="Thirty Years of Sunday Mornings"
                   className="ll-body w-full bg-transparent px-3 py-2 text-sm outline-none placeholder:italic"
                   style={{ color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.1)", caretColor: "var(--rose-light)" }} />
@@ -272,7 +272,7 @@ export default function AdminHeroPage() {
               {/* Subtext */}
               <div>
                 <label className="ll-label mb-2 block text-[0.6rem] uppercase tracking-[0.15em]" style={{ color: "rgba(255,255,255,0.4)" }}>Subtext</label>
-                <input type="text" value={form.Subtext} onChange={(e) => setForm((f) => ({ ...f, Subtext: e.target.value }))}
+                <input type="text" value={form.subtext} onChange={(e) => setForm((f) => ({ ...f, subtext: e.target.value }))}
                   placeholder="Antique linens, handpicked since 1994"
                   className="ll-body w-full bg-transparent px-3 py-2 text-sm outline-none placeholder:italic"
                   style={{ color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.1)", caretColor: "var(--rose-light)" }} />
@@ -281,7 +281,7 @@ export default function AdminHeroPage() {
               {/* Link URL */}
               <div>
                 <label className="ll-label mb-2 block text-[0.6rem] uppercase tracking-[0.15em]" style={{ color: "rgba(255,255,255,0.4)" }}>Link URL</label>
-                <input type="text" value={form.LinkUrl} onChange={(e) => setForm((f) => ({ ...f, LinkUrl: e.target.value }))}
+                <input type="text" value={form.linkUrl} onChange={(e) => setForm((f) => ({ ...f, linkUrl: e.target.value }))}
                   placeholder="/shop"
                   className="ll-body w-full bg-transparent px-3 py-2 text-sm outline-none placeholder:italic"
                   style={{ color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.1)", caretColor: "var(--rose-light)" }} />
@@ -290,7 +290,7 @@ export default function AdminHeroPage() {
               {/* Link label */}
               <div>
                 <label className="ll-label mb-2 block text-[0.6rem] uppercase tracking-[0.15em]" style={{ color: "rgba(255,255,255,0.4)" }}>Link Label</label>
-                <input type="text" value={form.LinkLabel} onChange={(e) => setForm((f) => ({ ...f, LinkLabel: e.target.value }))}
+                <input type="text" value={form.linkLabel} onChange={(e) => setForm((f) => ({ ...f, linkLabel: e.target.value }))}
                   placeholder="Browse the Collection"
                   className="ll-body w-full bg-transparent px-3 py-2 text-sm outline-none placeholder:italic"
                   style={{ color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.1)", caretColor: "var(--rose-light)" }} />
@@ -298,8 +298,8 @@ export default function AdminHeroPage() {
 
               {/* Active toggle */}
               <div className="flex items-center gap-3">
-                <input type="checkbox" id="isActive" checked={form.IsActive}
-                  onChange={(e) => setForm((f) => ({ ...f, IsActive: e.target.checked }))}
+                <input type="checkbox" id="isActive" checked={form.isActive}
+                  onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
                   className="h-4 w-4 accent-rose-400" />
                 <label htmlFor="isActive" className="ll-label text-[0.62rem] uppercase tracking-[0.15em]" style={{ color: "rgba(255,255,255,0.5)" }}>
                   Active (visible on site)
@@ -334,13 +334,13 @@ export default function AdminHeroPage() {
         ) : (
           <div className="flex flex-col gap-3">
             {slides.map((slide, index) => (
-              <div key={slide.SlideId} className="flex items-center gap-4 p-4"
-                style={{ background: "#1a1a1a", border: `1px solid ${slide.IsActive ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.03)"}`, opacity: slide.IsActive ? 1 : 0.5 }}>
+              <div key={slide.slideId} className="flex items-center gap-4 p-4"
+                style={{ background: "#1a1a1a", border: `1px solid ${slide.isActive ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.03)"}`, opacity: slide.isActive ? 1 : 0.5 }}>
 
                 {/* Thumbnail at 21:9 */}
                 <div className="shrink-0 overflow-hidden" style={{ width: 126, height: 54, background: "#242424" }}>
-                  {slide.Media?.ReadUrl
-                    ? <img src={slide.Media.ReadUrl} alt="" className="h-full w-full object-cover" />
+                  {slide.media?.readUrl
+                    ? <img src={slide.media.readUrl} alt="" className="h-full w-full object-cover" />
                     : <div className="flex h-full w-full items-center justify-center text-xl opacity-20">🖼</div>
                   }
                 </div>
@@ -348,13 +348,13 @@ export default function AdminHeroPage() {
                 {/* Content */}
                 <div className="flex-1 min-w-0">
                   <div className="ll-display text-sm font-normal" style={{ color: "rgba(255,255,255,0.8)" }}>
-                    {slide.Heading || <span style={{ color: "rgba(255,255,255,0.2)", fontStyle: "italic" }}>No heading</span>}
+                    {slide.heading || <span style={{ color: "rgba(255,255,255,0.2)", fontStyle: "italic" }}>No heading</span>}
                   </div>
-                  {slide.Subtext && (
-                    <div className="ll-body text-xs font-light truncate mt-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>{slide.Subtext}</div>
+                  {slide.subtext && (
+                    <div className="ll-body text-xs font-light truncate mt-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>{slide.subtext}</div>
                   )}
-                  {slide.LinkUrl && (
-                    <div className="ll-label text-[0.58rem] uppercase tracking-[0.1em] mt-1" style={{ color: "rgba(176,120,120,0.7)" }}>→ {slide.LinkUrl}</div>
+                  {slide.linkUrl && (
+                    <div className="ll-label text-[0.58rem] uppercase tracking-[0.1em] mt-1" style={{ color: "rgba(176,120,120,0.7)" }}>→ {slide.linkUrl}</div>
                   )}
                 </div>
 
@@ -368,13 +368,13 @@ export default function AdminHeroPage() {
                     style={{ border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.5)", background: "none", cursor: "pointer" }}>↓</button>
                   <button onClick={() => handleToggleActive(slide)}
                     className="ll-label px-3 py-1 text-[0.58rem] uppercase tracking-[0.1em] transition-colors"
-                    style={{ border: "1px solid rgba(255,255,255,0.1)", color: slide.IsActive ? "rgba(144,196,144,0.8)" : "rgba(255,255,255,0.3)", background: "none", cursor: "pointer" }}>
-                    {slide.IsActive ? "Live" : "Hidden"}
+                    style={{ border: "1px solid rgba(255,255,255,0.1)", color: slide.isActive ? "rgba(144,196,144,0.8)" : "rgba(255,255,255,0.3)", background: "none", cursor: "pointer" }}>
+                    {slide.isActive ? "Live" : "Hidden"}
                   </button>
                   <button onClick={() => openEdit(slide)}
                     className="ll-label px-3 py-1 text-[0.58rem] uppercase tracking-[0.1em] transition-colors hover:bg-white/5"
                     style={{ border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.5)", background: "none", cursor: "pointer" }}>Edit</button>
-                  <button onClick={() => handleDelete(slide.SlideId)}
+                  <button onClick={() => handleDelete(slide.slideId)}
                     className="ll-label px-3 py-1 text-[0.58rem] uppercase tracking-[0.1em] transition-colors hover:bg-red-900/20"
                     style={{ border: "1px solid rgba(200,100,100,0.2)", color: "rgba(200,100,100,0.6)", background: "none", cursor: "pointer" }}>Delete</button>
                 </div>
@@ -396,7 +396,7 @@ export default function AdminHeroPage() {
       <CropModal
         open={cropOpen}
         src={cropSrc}
-        fileName={(cropPending?.Name ?? "slide") + ".jpg"}
+        fileName={(cropPending?.name ?? "slide") + ".jpg"}
         onConfirm={handleCropConfirm}
         onCancel={handleCropCancel}
       />

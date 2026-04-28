@@ -1,61 +1,61 @@
 // src/types/customer.ts
 
 export type ReservationDto = {
-  ReservationId:       number;
-  CustomerId:          number;
-  InventoryId:         number;
-  Status:              "Pending" | "Confirmed" | "PaymentSent" | "Completed" | "Expired" | "Cancelled";
-  ReservedAt:          string;
-  ExpiresAt:           string;
-  PaymentSentAt:       string | null;
-  CompletedAt:         string | null;
-  CustomerNotes:       string | null;
-  SquarePaymentLinkUrl: string | null;
-  AmountCents:         number;
+  reservationId:        number;
+  customerId:           number;
+  inventoryId:          number;
+  status:               "Pending" | "Confirmed" | "PaymentSent" | "Completed" | "Expired" | "Cancelled";
+  reservedAt:           string;
+  expiresAt:            string;
+  paymentSentAt:        string | null;
+  completedAt:          string | null;
+  customerNotes:        string | null;
+  squarePaymentLinkUrl: string | null;
+  amountCents:          number;
   // Denormalized
-  ItemName:   string | null;
-  ItemSku:    string | null;
-  ItemPublicId: string | null;
-  ThumbnailUrl: string | null;
+  itemName:     string | null;
+  itemSku:      string | null;
+  itemPublicId: string | null;
+  thumbnailUrl: string | null;
 };
 
 export type CustomerDto = {
-  CustomerId:      number;
-  ClerkUserId:     string;
-  Email:           string;
-  FirstName:       string | null;
-  LastName:        string | null;
-  Phone:           string | null;
-  IsEmailVerified: boolean;
-  CreatedAt:       string;
+  customerId:      number;
+  clerkUserId:     string;
+  email:           string;
+  firstName:       string | null;
+  lastName:        string | null;
+  phone:           string | null;
+  isEmailVerified: boolean;
+  createdAt:       string;
 };
 
 export type CustomerAddressDto = {
-  AddressId:  number;
-  CustomerId: number;
-  Label:      string;
-  Street1:    string;
-  Street2:    string | null;
-  City:       string;
-  State:      string;
-  Zip:        string;
-  Country:    string;
-  IsDefault:  boolean;
+  addressId:  number;
+  customerId: number;
+  label:      string;
+  street1:    string;
+  street2:    string | null;
+  city:       string;
+  state:      string;
+  zip:        string;
+  country:    string;
+  isDefault:  boolean;
 };
 
 export type CustomerPreferenceDto = {
-  PreferenceId: number;
-  CustomerId:   number;
-  Category:     string;
-  NotifyOnNew:  boolean;
+  preferenceId: number;
+  customerId:   number;
+  category:     string;
+  notifyOnNew:  boolean;
 };
 
 export type MessageDto = {
-  MessageId:     number;
-  CustomerId:    number;
-  ReservationId: number | null;
-  Direction:     "Inbound" | "Outbound";
-  Body:          string;
-  IsRead:        boolean;
-  SentAt:        string;
+  messageId:     number;
+  customerId:    number;
+  reservationId: number | null;
+  direction:     "Inbound" | "Outbound";
+  body:          string;
+  isRead:        boolean;
+  sentAt:        string;
 };

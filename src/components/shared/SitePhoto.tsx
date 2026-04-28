@@ -49,7 +49,7 @@ export function SitePhoto({ siteKey, alt, className, style, objectFit = "cover" 
       const res = await fetch(`/api/site/config/${encodeURIComponent(siteKey)}`, {
         method:  "PUT",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ MediaId: media.MediaId }),
+        body:    JSON.stringify({ MediaId: media.mediaId }),
       });
       if (res.ok) setConfig(await res.json());
     } finally {
@@ -57,7 +57,7 @@ export function SitePhoto({ siteKey, alt, className, style, objectFit = "cover" 
     }
   };
 
-  const imgUrl = config?.Media?.ReadUrl ?? null;
+  const imgUrl = config?.Media?.readUrl ?? null;
 
   return (
     <>

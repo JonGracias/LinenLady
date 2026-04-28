@@ -26,7 +26,7 @@ export function AdminItemsTable() {
 
   useEffect(() => {
     for (const x of items) {
-      ensureThumbnail(x.InventoryId);
+      ensureThumbnail(x.inventoryId);
     }
   }, [items, ensureThumbnail]);
 
@@ -83,16 +83,16 @@ export function AdminItemsTable() {
   }
 
   function DesktopRow({ x, rowNum }: { x: InventoryItem; rowNum: number }) {
-    const status = x.IsDraft ? "Draft" : x.IsActive ? "Published" : "Unpublished";
-    const statusColor = x.IsDraft
+    const status = x.isDraft ? "Draft" : x.isActive ? "Published" : "Unpublished";
+    const statusColor = x.isDraft
       ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300"
-      : x.IsActive
+      : x.isActive
         ? "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300"
         : "bg-gray-100 text-gray-600 dark:bg-gray-700/50 dark:text-gray-300";
-    const thumbUrl = getThumbnailUrl(x.InventoryId);
+    const thumbUrl = getThumbnailUrl(x.inventoryId);
 
     return (
-      <Link href={`/admin/drafts/${x.InventoryId}`} className="block">
+      <Link href={`/admin/drafts/${x.inventoryId}`} className="block">
         <div className="grid border-b border-gray-100 dark:border-gray-700/50 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors cursor-pointer"
              style={{ gridTemplateColumns: gridColsDesktop, height: `${ROW_HEIGHT}px` }}>
 
@@ -110,7 +110,7 @@ export function AdminItemsTable() {
 
           <div className={itemCell}>
             <div className="overflow-hidden text-ellipsis whitespace-nowrap w-full font-medium justify-start items-start">
-              {x.Name}
+              {x.name}
             </div>
           </div>
 
@@ -121,12 +121,12 @@ export function AdminItemsTable() {
           </div>
 
           <div className={itemCell}>
-            {x.QuantityOnHand}
+            {x.quantityOnHand}
           </div>
 
           <div className={itemCell}>
             <div className="font-semibold">
-              {money(x.UnitPriceCents)}
+              {money(x.unitPriceCents)}
             </div>
           </div>
 
@@ -136,16 +136,16 @@ export function AdminItemsTable() {
   }
 
   function MobileRow({ x, rowNum }: { x: InventoryItem; rowNum: number }) {
-    const status = x.IsDraft ? "Draft" : x.IsActive ? "Published" : "Unpublished";
-    const statusColor = x.IsDraft
+    const status = x.isDraft ? "Draft" : x.isActive ? "Published" : "Unpublished";
+    const statusColor = x.isDraft
       ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300"
-      : x.IsActive
+      : x.isActive
         ? "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300"
         : "bg-gray-100 text-gray-600 dark:bg-gray-700/50 dark:text-gray-300";
-    const thumbUrl = getThumbnailUrl(x.InventoryId);
+    const thumbUrl = getThumbnailUrl(x.inventoryId);
 
     return (
-      <Link href={`/admin/drafts/${x.InventoryId}`} className="block">
+      <Link href={`/admin/drafts/${x.inventoryId}`} className="block">
         <div
           className="grid border-b border-gray-100 dark:border-gray-700/50 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors cursor-pointer"
           style={{ gridTemplateColumns: gridColsMobile, height: `${ROW_HEIGHT}px` }}
@@ -162,13 +162,13 @@ export function AdminItemsTable() {
           </div>
           <div className="px-3 py-3 flex flex-col justify-center">
             <div className="font-medium text-gray-900 dark:text-gray-100 overflow-hidden text-ellipsis whitespace-nowrap">
-              {x.Name}
+              {x.name}
             </div>
             <div className="flex items-center gap-2 mt-1">
               <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${statusColor}`}>
                 {status}
               </span>
-              <span className="text-xs text-gray-500 dark:text-gray-400">{money(x.UnitPriceCents)}</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">{money(x.unitPriceCents)}</span>
             </div>
           </div>
         </div>
@@ -221,7 +221,7 @@ export function AdminItemsTable() {
           <>
             {/* Items */}
             <div className="hidden md:block">
-              {items.map((x, i) => <DesktopRow key={x.InventoryId} x={x} rowNum={totalCount - (page - 1) * pageSize - i} />)}
+              {items.map((x, i) => <DesktopRow key={x.inventoryId} x={x} rowNum={totalCount - (page - 1) * pageSize - i} />)}
               {emptyRows.map((i) => (
                 <div
                   key={`empty-${i}`}
@@ -234,7 +234,7 @@ export function AdminItemsTable() {
               ))}
             </div>
             <div className="md:hidden">
-              {items.map((x, i) => <MobileRow key={x.InventoryId} x={x} rowNum={totalCount - (page - 1) * pageSize - i} />)}
+              {items.map((x, i) => <MobileRow key={x.inventoryId} x={x} rowNum={totalCount - (page - 1) * pageSize - i} />)}
             </div>
           </>
 

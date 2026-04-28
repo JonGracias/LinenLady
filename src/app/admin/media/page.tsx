@@ -5,12 +5,12 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ImageEditorModal } from "@/components/shared/ImageEditorModal";
 
 type SiteMediaItem = {
-  MediaId:       number;
-  Name:          string;
-  BlobPath:      string;
-  ReadUrl:       string | null;
-  FileSizeBytes: number | null;
-  UploadedAt:    string;
+  mediaId:       number;
+  name:          string;
+  blobPath:      string;
+  readUrl:       string | null;
+  fileSizeBytes: number | null;
+  uploadedAt:    string;
 };
 
 export default function AdminMediaPage() {
@@ -98,7 +98,7 @@ export default function AdminMediaPage() {
     setDeleting(id);
     try {
       await fetch(`/admin/api/site/media/${id}`, { method: "DELETE" });
-      setItems((prev) => prev.filter((m) => m.MediaId !== id));
+      setItems((prev) => prev.filter((m) => m.mediaId !== id));
     } finally {
       setDeleting(null);
     }
@@ -183,7 +183,7 @@ export default function AdminMediaPage() {
           <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))" }}>
             {items.map((item) => (
               <div
-                key={item.MediaId}
+                key={item.mediaId}
                 className="group relative overflow-hidden"
                 style={{ background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.07)", cursor: "pointer" }}
               >
@@ -193,8 +193,8 @@ export default function AdminMediaPage() {
                   style={{ background: "#242424" }}
                   onClick={() => setEditing(item)}
                 >
-                  {item.ReadUrl
-                    ? <img src={item.ReadUrl} alt={item.Name} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                  {item.readUrl
+                    ? <img src={item.readUrl} alt={item.name} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
                     : <div className="flex h-full w-full items-center justify-center text-4xl opacity-20">🖼</div>
                   }
                   {/* Edit hint on hover */}
@@ -211,15 +211,15 @@ export default function AdminMediaPage() {
                 {/* Name + delete */}
                 <div className="flex items-center justify-between px-3 py-2" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
                   <div className="ll-label truncate text-[0.6rem] uppercase tracking-[0.1em]" style={{ color: "rgba(255,255,255,0.55)" }}>
-                    {item.Name}
+                    {item.name}
                   </div>
                   <button
-                    onClick={(e) => { e.stopPropagation(); handleDelete(item.MediaId); }}
-                    disabled={deleting === item.MediaId}
+                    onClick={(e) => { e.stopPropagation(); handleDelete(item.mediaId); }}
+                    disabled={deleting === item.mediaId}
                     className="ll-label ml-2 shrink-0 text-[0.65rem] opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity disabled:opacity-30"
                     style={{ color: "#e07070", background: "none", border: "none" }}
                   >
-                    {deleting === item.MediaId ? "…" : "✕"}
+                    {deleting === item.mediaId ? "…" : "✕"}
                   </button>
                 </div>
               </div>
@@ -231,8 +231,8 @@ export default function AdminMediaPage() {
       {/* Image editor modal */}
       <ImageEditorModal
         open={!!editing}
-        src={editing?.ReadUrl ?? null}
-        fileName={editing?.Name ?? ""}
+        src={editing?.readUrl ?? null}
+        fileName={editing?.name ?? ""}
         onClose={() => setEditing(null)}
         onSave={handleEditorSave}
       />

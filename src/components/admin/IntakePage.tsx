@@ -172,10 +172,10 @@ export default function IntakePage() {
         for (const it of snapshot) form.append("files", it.file);
 
         const result      = await createDraftFrom(form);
-        const inventoryId = Number(result?.Draft?.InventoryId);
+        const inventoryId = Number(result?.draft?.inventoryId);
 
         if (!Number.isFinite(inventoryId)) {
-          throw new Error("Draft pipeline completed but InventoryId was missing.");
+          throw new Error("Draft pipeline completed but inventoryId was missing.");
         }
 
         toast("success", `Draft created (#${inventoryId})`);
