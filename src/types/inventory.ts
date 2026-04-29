@@ -3,7 +3,7 @@
 // Casing convention:
 //   - PascalCase = request body shapes sent TO the C# backend (must match C# DTO property names)
 //   - camelCase  = everything else (responses from C#, internal TS types)
-// test
+
 
 export type InventoryItem = {
   inventoryId: number;
