@@ -1,14 +1,8 @@
 // src/app/api/items/[id]/route.ts
-import { proxyFetch, forwardJson, serverError } from "@/lib/proxy";
+import { proxyJson } from "@/lib/proxy";
 
-type Context = { params: Promise<{ id: string }> };
+type P = { id: string };
 
-export async function GET(_req: Request, { params }: Context) {
-  try {
-    const { id } = await params;
-    const upstream = await proxyFetch(`/api/items/${id}`);
-    return forwardJson(upstream);
-  } catch (err) {
-    return serverError(err);
-  }
-}
+export const GET = proxyJson<P>({
+  path: ({ id }) => `/api/items/${encodeURIComponent(id)}`,
+});

@@ -1,18 +1,9 @@
-// /admin/api/items/[id]/keywords/generate/route.ts
-import { proxyFetch, forwardJson, serverError } from "@/lib/proxy";
+// src/app/admin/api/items/[id]/keywords/generate/route.ts
+import { proxyJson } from "@/lib/proxy";
 
-type Context = { params: Promise<{ id: string }> };
+type P = { id: string };
 
-export async function POST(req: Request, { params }: Context) {
-  try {
-    const { id } = await params;
-    const body = await req.text(); // pass body through
-    const upstream = await proxyFetch(
-      `/api/items/${encodeURIComponent(id)}/keywords/generate`,
-      { method: "POST", body }
-    );
-    return forwardJson(upstream);
-  } catch (err) {
-    return serverError(err);
-  }
-}
+export const POST = proxyJson<P>({
+  path: ({ id }) => `/api/items/${encodeURIComponent(id)}/keywords/generate`,
+  method: "POST",
+});

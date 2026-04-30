@@ -1,11 +1,4 @@
-// /admin/api/items/counts/route.ts
-import { proxyFetch, forwardJson, serverError } from "@/lib/proxy";
+// src/app/admin/api/items/counts/route.ts
+import { proxyJson } from "@/lib/proxy";
 
-export async function GET() {
-  try {
-    const upstream = await proxyFetch("/api/items/counts");
-    return forwardJson(upstream);
-  } catch (err) {
-    return serverError(err);
-  }
-}
+export const GET = proxyJson({ path: () => "/api/items/counts" });

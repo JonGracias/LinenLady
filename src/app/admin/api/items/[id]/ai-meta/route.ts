@@ -1,28 +1,16 @@
-// /admin/api/items/[id]/ai-meta/route.ts
-import { proxyFetch, forwardJson, serverError } from "@/lib/proxy";
+// src/app/admin/api/items/[id]/ai-meta/route.ts
+//
+// Note: GET reads from /ai-meta but PATCH writes to /ai-meta/notes — that's
+// the C# API's shape, not a typo.
+import { proxyJson } from "@/lib/proxy";
 
-type Context = { params: Promise<{ id: string }> };
+type P = { id: string };
 
-export async function GET(_req: Request, { params }: Context) {
-  try {
-    const { id } = await params;
-    const upstream = await proxyFetch(`/api/items/${encodeURIComponent(id)}/ai-meta`);
-    return forwardJson(upstream);
-  } catch (err) {
-    return serverError(err);
-  }
-}
+export const GET = proxyJson<P>({
+  path: ({ id }) => `/api/items/${encodeURIComponent(id)}/ai-meta`,
+});
 
-export async function PATCH(req: Request, { params }: Context) {
-  try {
-    const { id } = await params;
-    const body = await req.text();
-    const upstream = await proxyFetch(
-      `/api/items/${encodeURIComponent(id)}/ai-meta/notes`,
-      { method: "PATCH", body }
-    );
-    return forwardJson(upstream);
-  } catch (err) {
-    return serverError(err);
-  }
-}
+export const PATCH = proxyJson<P>({
+  path: ({ id }) => `/api/items/${encodeURIComponent(id)}/ai-meta/notes`,
+  method: "PATCH",
+});

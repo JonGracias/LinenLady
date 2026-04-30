@@ -158,10 +158,6 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
       const fetchedItems      = Array.isArray(data.items) ? data.items : [];
       const fetchedTotalCount = Number(data.totalCount ?? 0);
 
-      if (typeof (data as any).Page === "number" && (data as any).Page !== page) {
-        setPage((data as any).Page);
-      }
-
       setItems(fetchedItems);
       setTotalCount(fetchedTotalCount);
 
@@ -171,13 +167,15 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
         timestamp:  Date.now(),
       });
 
-      if (typeof (data as any).page === "number" && (data as any).page !== page) {
-        setPage((data as any).page);
+      // C# response is camelCase per GetItemsResponse — sync if upstream
+      // clamped the page (e.g. requested page 5 but only 3 exist).
+      if (typeof data.page === "number" && data.page !== page) {
+        setPage(data.page);
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       setItems([]);
       setTotalCount(0);
-      setError(e?.message ?? "Failed to load inventory");
+      setError(e instanceof Error ? e.message : "Failed to load inventory");
     } finally {
       setLoading(false);
     }

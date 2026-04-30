@@ -1,11 +1,16 @@
 // /lib/createDraft.ts
 
-import type { CreateDraftRequest, CreateDraftResponse, DraftPipelineOptions, DraftPipelineResult } from "@/types/inventory";
+import type {
+  CreateDraftRequest,
+  CreateDraftResponse,
+  DraftPipelineOptions,
+  DraftPipelineResult,
+} from "@/types/inventory";
 
 const ROUTES = {
-  create:       "/admin/api/draft/create",
-  blobUpload:   "/admin/api/draft/blob-upload",
-  aiVision:     "/admin/api/draft/ai-vision",
+  create:     "/admin/api/draft/create",
+  blobUpload: "/admin/api/draft/blob-upload",
+  aiVision:   "/admin/api/draft/ai-vision",
 } as const;
 
 //-----------------------------------------------------------------------------------------//
@@ -37,8 +42,6 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
   return (await res.json()) as T;
 }
 
-//-----------------------------------------------------------------------------------------//
-
 async function postForm<T>(url: string, form: FormData): Promise<T> {
   const res = await fetch(url, {
     method: "POST",
@@ -54,14 +57,15 @@ async function postForm<T>(url: string, form: FormData): Promise<T> {
   return (await res.json().catch(() => ({}))) as T;
 }
 
+//-----------------------------------------------------------------------------------------//
+
 /**
  * Main orchestration: pass the *original* FormData from your component form.
  * Expected by default:
  *  - titleHint: string
- *  - notes: string
- *  - files: File[] (from <input type="file" name="files" multiple />)
+ *  - notes:     string
+ *  - files:     File[] (from <input type="file" name="files" multiple />)
  */
-
 export async function createDraftFrom(
   form: FormData,
   options: DraftPipelineOptions = {}
@@ -81,7 +85,7 @@ export async function createDraftFrom(
   }
 
   // ---------------------------------------------------------------------------
-  // 1) /api/draft/create (gets InventoryId + Uploads with SAS URLs + headers)
+  // 1) /api/draft/create — gets InventoryId + Uploads with SAS URLs + headers
   // ---------------------------------------------------------------------------
   const createReq: CreateDraftRequest = {
     TitleHint,
@@ -95,18 +99,16 @@ export async function createDraftFrom(
   const draft = await postJson<CreateDraftResponse>(ROUTES.create, createReq);
 
   if (!draft?.inventoryId) {
-    throw new Error("Draft create response missing InventoryId.");
+    throw new Error("Draft create response missing inventoryId.");
   }
   if (!Array.isArray(draft.uploads) || draft.uploads.length !== Files.length) {
     throw new Error(
-      `Draft create returned Uploads (${draft?.uploads?.length ?? 0}) that do not match file count (${Files.length}).`
+      `Draft create returned uploads (${draft?.uploads?.length ?? 0}) that do not match file count (${Files.length}).`
     );
   }
 
   // ---------------------------------------------------------------------------
-  // 2) /api/draft/blob-upload
-  //     - PUT the blobs to Azure (SAS) + write DB image rows
-  //     - We send FormData: "draft" JSON + "files" (same count/order as Uploads)
+  // 2) /api/draft/blob-upload — PUT blobs to Azure (SAS) + write DB image rows
   // ---------------------------------------------------------------------------
   const uploadForm = new FormData();
   uploadForm.append("draft", JSON.stringify(draft));
@@ -115,39 +117,24 @@ export async function createDraftFrom(
   const blobUploadResult = await postForm<unknown>(ROUTES.blobUpload, uploadForm);
 
   // ---------------------------------------------------------------------------
-  // 3) /api/draft/ai-vision
-  //     - Scans images, writes name + description back to the item
-  //     - Must complete before keywords step so the text is in the DB
+  // 3) /api/draft/ai-vision — scans images, writes name + description to item
   // ---------------------------------------------------------------------------
   let aiVisionResult: unknown | undefined;
   const runAiVision = options.RunAiVision ?? true;
   if (runAiVision) {
+    // PascalCase to match C# DTO property names — see types/inventory.ts.
     aiVisionResult = await postJson(ROUTES.aiVision, {
       InventoryId: draft.inventoryId,
-      overwrite:   options.AiVision?.Overwrite ?? false,
-      maxImages:   options.AiVision?.MaxImages ?? Math.min(4, Files.length),
+      Overwrite:   options.AiVision?.Overwrite ?? false,
+      MaxImages:   options.AiVision?.MaxImages ?? Math.min(4, Files.length),
       TitleHint,
       Notes,
     });
   }
 
   // ---------------------------------------------------------------------------
-  // 4) /api/draft/ai-embeddings
-  //     - Generates and stores the vector for this item
-  // ---------------------------------------------------------------------------
-/*   let AiEmbeddingsResult: unknown | undefined;
-  const runAiEmbeddings = options.RunAiEmbeddings ?? true;
-  if (runAiEmbeddings) {
-    AiEmbeddingsResult = await postJson(ROUTES.aiEmbeddings, {
-      InventoryId: Draft.InventoryId,
-    });
-  } */
-
-  // ---------------------------------------------------------------------------
-  // 5) /api/items/[id]/keywords/generate
-  //     - Generates structured keywords + SEO from name, description, notes
-  //     - Also refreshes the vector so keywords are baked in
-  //     - Non-fatal: a failure here does not fail the whole draft creation
+  // 4) /api/items/[id]/keywords/generate — structured keywords + SEO.
+  //    Non-fatal: a failure here does not fail the whole draft creation.
   // ---------------------------------------------------------------------------
   let aiKeywordsResult: unknown | undefined;
   const runAiKeywords = options.RunAiKeywords ?? true;
@@ -158,10 +145,9 @@ export async function createDraftFrom(
         {}
       );
     } catch (err) {
-      // Keywords are non-critical — draft is usable without them
       console.warn("Keywords generation failed (non-fatal):", err);
     }
   }
 
-  return { draft, blobUploadResult, aiVisionResult, /* AiEmbeddingsResult */ aiKeywordsResult };
+  return { draft, blobUploadResult, aiVisionResult, aiKeywordsResult };
 }

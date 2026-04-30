@@ -1,23 +1,17 @@
-// /admin/api/items/[id]/similar/route.ts
-import { proxyFetch, forwardJson, serverError } from "@/lib/proxy";
+// src/app/admin/api/items/[id]/similar/route.ts
+import { proxyJson } from "@/lib/proxy";
 
-type Context = { params: Promise<{ id: string }> };
+type P = { id: string };
 
-export async function GET(req: Request, { params }: Context) {
-  try {
-    const { id } = await params;
-    const { searchParams } = new URL(req.url);
-
-    const top           = searchParams.get("top")           ?? "10";
-    const minScore      = searchParams.get("minScore")      ?? "0.85";
-    const publishedOnly = searchParams.get("publishedOnly") ?? "true";
-
-    const upstream = await proxyFetch(
-      `/api/items/${encodeURIComponent(id)}/similar?top=${top}&minScore=${minScore}&publishedOnly=${publishedOnly}`
-    );
-
-    return forwardJson(upstream);
-  } catch (err) {
-    return serverError(err);
-  }
-}
+export const GET = proxyJson<P>({
+  path: ({ id }, req) => {
+    const sp = new URL(req.url).searchParams;
+    const top           = sp.get("top")           ?? "10";
+    const minScore      = sp.get("minScore")      ?? "0.85";
+    const publishedOnly = sp.get("publishedOnly") ?? "true";
+    return `/api/items/${encodeURIComponent(id)}/similar`
+      + `?top=${encodeURIComponent(top)}`
+      + `&minScore=${encodeURIComponent(minScore)}`
+      + `&publishedOnly=${encodeURIComponent(publishedOnly)}`;
+  },
+});
