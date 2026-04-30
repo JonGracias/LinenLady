@@ -66,6 +66,10 @@
 }
 
 /* ── Hamburger ─────────────────────────────────────────────────────────── */
+/* Visibility is handled here via a media query so it can't lose a cascade
+   fight with Tailwind utilities. Hidden at ≥1024px (Tailwind's `lg` breakpoint),
+   inline-flex below. The component still adds `lg:hidden` as a belt-and-
+   suspenders signal, but this rule is the source of truth. */
 .nav-hamburger {
   display: inline-flex;
   flex-direction: column;
@@ -77,6 +81,11 @@
   background: none;
   border: none;
   cursor: pointer;
+}
+@media (min-width: 1024px) {
+  .nav-hamburger {
+    display: none;
+  }
 }
 .nav-hamburger-line {
   display: block;

@@ -27,6 +27,16 @@ function isExternalHref(href: string) {
   return href.startsWith("mailto:") || href.startsWith("http");
 }
 
+// Shared classes for the wordmark — defined once, used in both mobile and
+// desktop slots. Keeps the two renders visually identical.
+const WORDMARK_CLASSES =
+  "ll-display text-base font-normal italic tracking-wide";
+const WORDMARK_STYLE: React.CSSProperties = {
+  color: "var(--on-surface)",
+  textDecoration: "none",
+  letterSpacing: "0.04em",
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CartIcon — extracted because it appears in two places and the SVG was noisy.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -171,6 +181,14 @@ function HelpDropdown() {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main header
+//
+// Layout: a 3-column CSS grid (left | center | right). This replaces the
+// previous absolute-positioning approach where the wordmark and the nav both
+// targeted `left: 50%` and competed for the same horizontal slot. With the
+// grid, each region owns its column and physically cannot overlap the others.
+//
+// Mobile  : [hamburger] [wordmark]  [actions]
+// Desktop : [wordmark]  [nav]       [actions + help + auth]
 // ─────────────────────────────────────────────────────────────────────────────
 export default function StorefrontHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -194,42 +212,55 @@ export default function StorefrontHeader() {
       className="glass relative z-50 border-b"
       style={{ borderColor: "rgba(196,181,168,0.2)" }}
     >
-      <div className="mx-auto flex h-16 max-w-[1800px] items-center justify-between px-6 md:px-12">
+      <div className="mx-auto grid h-16 max-w-[1800px] grid-cols-3 items-center gap-6 px-6 md:px-12">
 
-        {/* ── Mobile: hamburger ───────────────────────────────────────────── */}
-        <button
-          type="button"
-          className="nav-hamburger lg:hidden"
-          onClick={() => setMobileOpen((o) => !o)}
-          aria-label={mobileOpen ? "Close menu" : "Open menu"}
-          aria-expanded={mobileOpen}
-          aria-controls={drawerId}
-        >
-          <span className="nav-hamburger-line" />
-          <span className="nav-hamburger-line" />
-          <span className="nav-hamburger-line" />
-        </button>
+        {/* ── LEFT COLUMN ────────────────────────────────────────────────── */}
+        {/* Mobile: hamburger.  Desktop: wordmark.                            */}
+        <div className="flex items-center justify-start min-w-0">
+          <button
+            type="button"
+            className="nav-hamburger lg:hidden"
+            onClick={() => setMobileOpen((o) => !o)}
+            aria-label={mobileOpen ? "Close menu" : "Open menu"}
+            aria-expanded={mobileOpen}
+            aria-controls={drawerId}
+          >
+            <span className="nav-hamburger-line" />
+            <span className="nav-hamburger-line" />
+            <span className="nav-hamburger-line" />
+          </button>
 
-        {/* ── Wordmark ────────────────────────────────────────────────────── */}
-        <Link
-          href="/"
-          className="absolute left-1/2 -translate-x-1/2 lg:static lg:translate-x-0 ll-display text-base font-normal italic tracking-wide"
-          style={{ color: "var(--on-surface)", textDecoration: "none", letterSpacing: "0.04em" }}
-        >
-          {STORE_NAME}
-        </Link>
+          <Link
+            href="/"
+            className={`hidden lg:block ${WORDMARK_CLASSES}`}
+            style={WORDMARK_STYLE}
+          >
+            {STORE_NAME}
+          </Link>
+        </div>
 
-        {/* ── Desktop nav (centered) ──────────────────────────────────────── */}
-        <nav className="hidden lg:flex absolute left-1/2 -translate-x-1/2 items-center gap-10" aria-label="Primary">
-          {NAV_LINKS.map(({ href, label }) => (
-            <Link key={href} href={href} className="nav-link">
-              {label}
-            </Link>
-          ))}
-        </nav>
+        {/* ── CENTER COLUMN ──────────────────────────────────────────────── */}
+        {/* Mobile: wordmark.  Desktop: primary nav.                          */}
+        <div className="flex items-center justify-center min-w-0">
+          <Link
+            href="/"
+            className={`lg:hidden truncate ${WORDMARK_CLASSES}`}
+            style={WORDMARK_STYLE}
+          >
+            {STORE_NAME}
+          </Link>
 
-        {/* ── Right side actions ──────────────────────────────────────────── */}
-        <div className="flex items-center gap-4">
+          <nav className="hidden lg:flex items-center gap-10" aria-label="Primary">
+            {NAV_LINKS.map(({ href, label }) => (
+              <Link key={href} href={href} className="nav-link">
+                {label}
+              </Link>
+            ))}
+          </nav>
+        </div>
+
+        {/* ── RIGHT COLUMN ───────────────────────────────────────────────── */}
+        <div className="flex items-center justify-end gap-4 min-w-0">
           <CartIcon count={count} />
           <HelpDropdown />
 
