@@ -22,7 +22,7 @@ export function EnsureActiveOrg() {
     // the first one. This makes /admin work without the user having to
     // manually switch orgs in the Clerk UI.
     const preferred =
-      (ADMIN_ORG_ID && memberships.find((m) => m.organization.id === ADMIN_ORG_ID))
+      (ADMIN_ORG_ID ? memberships.find((m) => m.organization.id === ADMIN_ORG_ID) : undefined)
       ?? memberships[0];
 
     setActive({ organization: preferred.organization.id });
