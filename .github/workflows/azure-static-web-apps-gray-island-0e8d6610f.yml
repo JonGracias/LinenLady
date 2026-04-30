@@ -23,8 +23,8 @@ jobs:
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
         env:
-          NEXT_PUBLIC_ADMIN_ORG_ID: ${{ vars.NEXT_PUBLIC_ADMIN_ORG_ID }}
-          NEXT_PUBLIC_STORE_NAME: ${{ vars.NEXT_PUBLIC_STORE_NAME }}
+          NEXT_PUBLIC_ADMIN_ORG_ID: Admin
+          NEXT_PUBLIC_STORE_NAME: Noemi The Linen Lady
           NEXT_PUBLIC_ADMIN_NAME: ${{ vars.NEXT_PUBLIC_ADMIN_NAME }}
           NEXT_PUBLIC_CONTACT_EMAIL: ${{ vars.NEXT_PUBLIC_CONTACT_EMAIL }}
           NEXT_PUBLIC_BASE_URL: ${{ vars.NEXT_PUBLIC_BASE_URL }}
