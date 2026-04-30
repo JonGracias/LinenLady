@@ -1,12 +1,6 @@
-// /admin/api/items/route.ts
-import { proxyFetch, forwardJson, serverError } from "@/lib/proxy";
+// src/app/admin/api/items/route.ts
+import { proxyJson, searchString } from "@/lib/proxy";
 
-export async function GET(req: Request) {
-  try {
-    const qs = new URL(req.url).searchParams.toString();
-    const upstream = await proxyFetch(qs ? `/api/items?${qs}` : "/api/items");
-    return forwardJson(upstream);
-  } catch (err) {
-    return serverError(err);
-  }
-}
+export const GET = proxyJson({
+  path: (_, req) => `/api/items${searchString(req)}`,
+});

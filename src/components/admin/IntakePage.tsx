@@ -44,14 +44,18 @@ export default function IntakePage() {
 
   const [photos, setPhotos]     = useState<PhotoItem[]>([]);
   const [error, setError]       = useState<string | null>(null);
-  const [starting, setStarting] = useState(false);
   const [finishing, setFinishing] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Mirror photos in a ref so the unmount cleanup sees the current list,
+  // not the empty array from the initial render.
+  const photosRef = useRef<PhotoItem[]>([]);
+  useEffect(() => { photosRef.current = photos; }, [photos]);
+
   const count     = photos.length;
-  const canSubmit = !starting && count >= 1 && count <= 4;
+  const canSubmit = count >= 1 && count <= 4;
 
   // ─── Camera capture ───────────────────────────────────────────────────────
 
@@ -154,16 +158,17 @@ export default function IntakePage() {
     setError(null);
   }
 
-  async function submitDraft(e?: React.FormEvent) {
+  function submitDraft(e?: React.FormEvent) {
     e?.preventDefault();
     if (!canSubmit) return;
-
-    setStarting(true);
-    setError(null);
 
     const snapshot = photos.slice();
     const label    = snapshot.map((x) => x.file.name).join(", ");
 
+    // Detach previewUrls so clearAll's revoke doesn't break the snapshot's
+    // file references — but we don't actually need previewUrls for upload, only
+    // file. clearAll revokes the URLs, which is fine because we don't use them
+    // after this point.
     clearAll();
 
     startJob(label, async () => {
@@ -181,13 +186,12 @@ export default function IntakePage() {
         toast("success", `Draft created (#${inventoryId})`);
         reloadItems();
         return { inventoryId };
-      } catch (err: any) {
-        toast("error", `Draft failed: ${err?.message ?? "Unknown error"}`);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Unknown error";
+        toast("error", `Draft failed: ${msg}`);
         throw err;
       }
     });
-
-    setStarting(false);
   }
 
   function onCancel() {
@@ -195,11 +199,15 @@ export default function IntakePage() {
   }
 
   function onDoneUploading() {
+    // If photos are still selected, submit them and enter the finishing state
+    // so the overlay shows until the background job completes.
     if (photos.length > 0) {
       submitDraft();
+      setFinishing(true);
+      return;
     }
-
-    if (allDone && photos.length === 0) {
+    // No selection. If everything else is done, leave; otherwise wait for it.
+    if (allDone) {
       router.push("/admin/items");
       return;
     }
@@ -212,12 +220,12 @@ export default function IntakePage() {
     }
   }, [finishing, allDone, router]);
 
+  // Revoke any outstanding object URLs on unmount. Uses a ref to read the
+  // CURRENT photos rather than the stale closure from the empty deps array.
   useEffect(() => {
     return () => {
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      photos.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+      photosRef.current.forEach((p) => URL.revokeObjectURL(p.previewUrl));
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -397,7 +405,7 @@ export default function IntakePage() {
               disabled={!canSubmit}
               className="rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors shadow-sm hover:shadow"
             >
-              {starting ? "Starting..." : "Next"}
+              Next
             </button>
             <button
               type="button"

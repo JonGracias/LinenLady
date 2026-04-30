@@ -1,32 +1,37 @@
-// /admin/items/[id]/images/routes.ts
-import { InventoryImage } from "@/types/inventory";
+// src/app/admin/api/items/[id]/images/route.ts
+//
+// FIX: previously this route used raw `fetch` with a hardcoded BASE constant,
+// which (a) defaulted to a different port than every other route (7071 vs 5152),
+// and (b) bypassed the Clerk JWT entirely. SAS-issuing endpoints MUST be
+// authenticated. Now uses proxyFetch like the rest of the codebase.
+
+import type { InventoryImage } from "@/types/inventory";
+import { proxyFetch, serverError } from "@/lib/proxy";
 import { NextResponse } from "next/server";
 
-const BASE = process.env.LINENLADY_API_BASE_URL || "http://localhost:7071";
+type Context = { params: Promise<{ id: string }> };
 
-export async function GET(
-  req: Request,
-  context: { params: Promise<{ id: string }> }
-) {
-  const url = new URL(req.url);
-  const ttlMinutes = url.searchParams.get("ttlMinutes") ?? "60";
+export async function GET(req: Request, { params }: Context) {
+  try {
+    const { id } = await params;
+    const ttlMinutes = new URL(req.url).searchParams.get("ttlMinutes") ?? "60";
 
-  const { id } = await context.params;
+    const upstream = await proxyFetch(
+      `/api/items/${encodeURIComponent(id)}/images?ttlMinutes=${encodeURIComponent(ttlMinutes)}`
+    );
 
-  const upstream = await fetch(
-    `${BASE}/api/items/${encodeURIComponent(id)}/images?ttlMinutes=${encodeURIComponent(ttlMinutes)}`,
-    { cache: "no-store" }
-  );
+    if (!upstream.ok) {
+      const text = await upstream.text().catch(() => "");
+      return new NextResponse(text || upstream.statusText, { status: upstream.status });
+    }
 
-  if (!upstream.ok) {
-    const text = await upstream.text();
-    return new NextResponse(text, { status: upstream.status });
+    const raw = await upstream.json().catch(() => null);
+
+    // Normalize: always return InventoryImage[]
+    const images: InventoryImage[] = Array.isArray(raw) ? raw : raw ? [raw] : [];
+
+    return NextResponse.json(images);
+  } catch (err) {
+    return serverError(err);
   }
-
-  const raw = await upstream.json();
-
-  // Normalize: always return InventoryImage[]
-  const images: InventoryImage[] = Array.isArray(raw) ? raw : raw ? [raw] : [];
-
-  return NextResponse.json(images);
 }
