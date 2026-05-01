@@ -3,7 +3,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
-import { SignInButton, useUser, UserButton } from "@clerk/nextjs";
+import { SignInButton, SignOutButton, useUser } from "@clerk/nextjs";
 import { useCart } from "@/context/CartContext";
 
 const STORE_NAME    = process.env.NEXT_PUBLIC_STORE_NAME    ?? "The Linen Lady";
@@ -180,6 +180,189 @@ function HelpDropdown() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// AccountDropdown — visible at all breakpoints, icon-only trigger. Mirrors
+// HelpDropdown's open/close mechanics (outside-click backdrop, Escape
+// dismissal, ARIA shape) but trades the text+chevron pattern for the same
+// silent-icon affordance the cart uses. Contents switch on auth state:
+//
+//   Signed out → "Sign In" item, opens Clerk's modal sign-in flow.
+//   Signed in  → "Account" link + "Sign Out" action, separated by a divider so
+//                the destructive action reads as distinct from navigation.
+//
+// Why no visible label: this lives next to the cart icon at all breakpoints
+// and needs to read as a peer of it, not as a nav item. Aria-label carries the
+// accessibility load — sighted users get the icon; screen-reader users get
+// "Account menu — {name}" when signed in so they know whose account it is
+// before opening the menu.
+// ─────────────────────────────────────────────────────────────────────────────
+function AccountDropdown() {
+  const [open, setOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuId = useId();
+  const { isSignedIn, user } = useUser();
+
+  // Close on Escape, restoring focus to the toggle. Identical to HelpDropdown.
+  useEffect(() => {
+    if (!open) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setOpen(false);
+        buttonRef.current?.focus();
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open]);
+
+  const accessibleName = isSignedIn
+    ? `Account menu — ${user?.firstName ?? user?.username ?? "signed in"}`
+    : "Account menu";
+
+  return (
+    <div className="relative">
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="nav-icon-button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={menuId}
+        aria-label={accessibleName}
+      >
+        {isSignedIn ? (
+          // Initial-in-circle, mirroring Clerk's UserButton avatar fallback.
+          // 28px circle keeps the trigger's tap target close to the silhouette
+          // version's visual weight. Initial sourced from firstName → username
+          // → email, so something always renders even before Clerk hydrates a
+          // full user object.
+          <span
+            className="ll-label inline-flex items-center justify-center text-[0.7rem] font-medium uppercase"
+            style={{
+              width: "1.75rem",
+              height: "1.75rem",
+              borderRadius: "9999px",
+              background: "var(--primary)",
+              color: "var(--on-primary)",
+              letterSpacing: 0,
+            }}
+            aria-hidden="true"
+          >
+            {(user?.firstName?.[0]
+              ?? user?.username?.[0]
+              ?? user?.primaryEmailAddress?.emailAddress?.[0]
+              ?? "?").toUpperCase()}
+          </span>
+        ) : (
+          // Person silhouette — same stroke weight (1.5) and 18×18 size as the
+          // cart icon so the two read as a matched pair when anonymous.
+          <svg
+            width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+        )}
+      </button>
+
+      {open && (
+        <>
+          <div
+            className="nav-dropdown-backdrop"
+            onClick={() => setOpen(false)}
+            aria-hidden="true"
+          />
+
+          <div id={menuId} className="nav-dropdown" role="menu">
+            <div className="px-5 pt-5 pb-2">
+              <p className="ll-label text-[0.58rem] font-medium uppercase tracking-[0.2em]" style={{ color: "var(--on-surface-variant)" }}>
+                {isSignedIn ? "Your Account" : "Welcome"}
+              </p>
+            </div>
+
+            {!isSignedIn ? (
+              // ── Signed-out menu ─────────────────────────────────────────
+              // SignInButton wraps a child it renders as the trigger. We give
+              // it a div that visually matches a nav-dropdown-item so the
+              // dropdown reads as a single coherent menu rather than a
+              // dropdown-with-an-embedded-button. onClick on the wrapping div
+              // closes the dropdown; SignInButton intercepts the underlying
+              // click to open Clerk's modal.
+              <div className="flex flex-col pb-3">
+                <SignInButton mode="modal">
+                  <div
+                    role="menuitem"
+                    tabIndex={0}
+                    onClick={() => setOpen(false)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") setOpen(false);
+                    }}
+                    className="nav-dropdown-item cursor-pointer"
+                  >
+                    <span className="ll-label text-[0.65rem] font-medium uppercase tracking-[0.1em]" style={{ color: "var(--on-surface)" }}>
+                      Sign In
+                    </span>
+                    <span className="ll-body text-xs font-light" style={{ color: "var(--on-surface-variant)" }}>
+                      Access reservations, messages, and your order history
+                    </span>
+                  </div>
+                </SignInButton>
+              </div>
+            ) : (
+              // ── Signed-in menu ──────────────────────────────────────────
+              <div className="flex flex-col pb-3">
+                <Link
+                  href="/account"
+                  role="menuitem"
+                  onClick={() => setOpen(false)}
+                  className="nav-dropdown-item"
+                >
+                  <span className="ll-label text-[0.65rem] font-medium uppercase tracking-[0.1em]" style={{ color: "var(--on-surface)" }}>
+                    Account
+                  </span>
+                  <span className="ll-body text-xs font-light" style={{ color: "var(--on-surface-variant)" }}>
+                    Profile, addresses, reservations, messages
+                  </span>
+                </Link>
+
+                {/* Divider separates navigation from the destructive action.
+                    Same border treatment as HelpDropdown's footer. */}
+                <div
+                  className="border-t mx-5 my-2"
+                  style={{ borderColor: "rgba(196,181,168,0.2)" }}
+                  aria-hidden="true"
+                />
+
+                <SignOutButton>
+                  <div
+                    role="menuitem"
+                    tabIndex={0}
+                    onClick={() => setOpen(false)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") setOpen(false);
+                    }}
+                    className="nav-dropdown-item cursor-pointer"
+                  >
+                    <span className="ll-label text-[0.65rem] font-medium uppercase tracking-[0.1em]" style={{ color: "var(--on-surface)" }}>
+                      Sign Out
+                    </span>
+                    <span className="ll-body text-xs font-light" style={{ color: "var(--on-surface-variant)" }}>
+                      End your session on this device
+                    </span>
+                  </div>
+                </SignOutButton>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Main header
 //
 // Layout: a 3-column CSS grid (left | center | right). This replaces the
@@ -188,7 +371,7 @@ function HelpDropdown() {
 // grid, each region owns its column and physically cannot overlap the others.
 //
 // Mobile  : [hamburger] [wordmark]  [actions]
-// Desktop : [wordmark]  [nav]       [actions + help + auth]
+// Desktop : [wordmark]  [nav]       [actions + help + account]
 // ─────────────────────────────────────────────────────────────────────────────
 export default function StorefrontHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -260,24 +443,16 @@ export default function StorefrontHeader() {
         </div>
 
         {/* ── RIGHT COLUMN ───────────────────────────────────────────────── */}
+        {/* CartIcon and AccountDropdown stay visible at all breakpoints —
+            both are icon-only and read as a matched pair. HelpDropdown is
+            desktop-only (lg:); its mobile equivalents live inside the drawer
+            below. The previous SignInButton / UserButton block was replaced
+            by AccountDropdown — that menu now owns the sign-in trigger when
+            anonymous and the account/sign-out actions when authenticated. */}
         <div className="flex items-center justify-end gap-4 min-w-0">
           <CartIcon count={count} />
           <HelpDropdown />
-
-          {!isSignedIn ? (
-            <SignInButton mode="modal">
-              <button type="button" className="btn-secondary text-[0.65rem] px-5 py-2">
-                Sign In
-              </button>
-            </SignInButton>
-          ) : (
-            <div className="flex items-center gap-3">
-              <Link href="/account" className="nav-link hidden lg:block">
-                Account
-              </Link>
-              <UserButton appearance={{ elements: { avatarBox: "w-7 h-7" } }} />
-            </div>
-          )}
+          <AccountDropdown />
         </div>
       </div>
 
@@ -341,6 +516,40 @@ export default function StorefrontHeader() {
                     {label}
                   </Link>
                 )
+              )}
+
+              {/* Mobile auth section — drawer-equivalent of AccountDropdown.
+                  Kept simple here because the drawer is already a full menu;
+                  no nested dropdown needed. */}
+              {!isSignedIn ? (
+                <SignInButton mode="modal">
+                  <button
+                    type="button"
+                    onClick={closeMobile}
+                    className="nav-mobile-item nav-mobile-item--secondary text-left"
+                  >
+                    Sign In
+                  </button>
+                </SignInButton>
+              ) : (
+                <>
+                  <Link
+                    href="/account"
+                    onClick={closeMobile}
+                    className="nav-mobile-item nav-mobile-item--secondary"
+                  >
+                    Account
+                  </Link>
+                  <SignOutButton>
+                    <button
+                      type="button"
+                      onClick={closeMobile}
+                      className="nav-mobile-item nav-mobile-item--secondary text-left"
+                    >
+                      Sign Out
+                    </button>
+                  </SignOutButton>
+                </>
               )}
             </nav>
           </div>
