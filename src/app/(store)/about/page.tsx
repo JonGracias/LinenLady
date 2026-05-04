@@ -593,8 +593,8 @@ export default function AboutPage() {
           >
             Browse the Collection
           </Link>
-          <a
-            href="mailto:noemi@linenlady.com"
+          <Link
+            href="/account?tab=messages"
             className="ll-label inline-block border px-10 py-4 text-[0.72rem] font-medium uppercase tracking-[0.15em] transition-all duration-200 hover:-translate-y-0.5"
             style={{
               borderColor: "var(--sage)",
@@ -609,7 +609,7 @@ export default function AboutPage() {
             }}
           >
             Get in Touch
-          </a>
+          </Link>
         </div>
       </section>
 

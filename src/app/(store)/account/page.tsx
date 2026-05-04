@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useUser, useAuth, SignOutButton } from "@clerk/nextjs";
 import type { ReservationDto, CustomerAddressDto, CustomerPreferenceDto, MessageDto } from "@/types/customer";
 import { CATEGORY_OPTIONS } from "@/types/inventory";
@@ -52,10 +53,42 @@ type Tab = "reservations" | "address" | "preferences" | "messages";
 ───────────────────────────────────────────────────────────── */
 
 export default function AccountPage() {
+  // useSearchParams forces a CSR bailout, which Next 16 requires us to opt
+  // into explicitly with a Suspense boundary at the page boundary. The inner
+  // component holds all the actual logic; this wrapper is purely structural.
+  return (
+    <React.Suspense fallback={null}>
+      <AccountPageInner />
+    </React.Suspense>
+  );
+}
+
+function AccountPageInner() {
   const { user, isLoaded } = useUser();
   const { getToken }       = useAuth();
+  const searchParams       = useSearchParams();
 
-  const [tab, setTab]           = useState<Tab>("reservations");
+  // Seed tab from `?tab=` so deep-links from elsewhere (header dropdown,
+  // reservation success redirect, etc) land on the right pane. Validated
+  // against the Tab union — anything else falls back to reservations.
+  const [tab, setTab] = useState<Tab>(() => {
+    const t = searchParams?.get("tab");
+    return t === "address" || t === "preferences" || t === "messages" || t === "reservations"
+      ? t
+      : "reservations";
+  });
+  // `?reserved=<id>` (or `?reserved=cart`) after the reserve flow → show a
+  // one-time success banner. We capture the value at mount and surface it;
+  // a Dismiss button or the next navigation clears it.
+  type ReservedBanner = { kind: "single"; id: number } | { kind: "cart" } | null;
+  const [justReserved, setJustReserved] = useState<ReservedBanner>(() => {
+    const r = searchParams?.get("reserved");
+    if (!r) return null;
+    if (r === "cart") return { kind: "cart" };
+    const n = Number.parseInt(r, 10);
+    return Number.isFinite(n) ? { kind: "single", id: n } : null;
+  });
+
   const [loading, setLoading]   = useState(true);
 
   const [reservations, setReservations] = useState<ReservationDto[]>([]);
@@ -241,6 +274,52 @@ export default function AccountPage() {
         {/* ── Reservations ── */}
         {tab === "reservations" && (
           <div className="max-w-3xl">
+            {/* One-time success banner after the reserve flow. The banner
+                shows whether this is a brand-new reservation, a re-click of
+                a piece already reserved, or a multi-item cart submission. */}
+            {justReserved !== null && (() => {
+              const isCart    = justReserved.kind === "cart";
+              const isExisting =
+                justReserved.kind === "single" &&
+                reservations.some(r => r.reservationId === justReserved.id);
+              return (
+                <div
+                  className="mb-6 flex items-start justify-between gap-4 border p-4"
+                  style={{
+                    borderColor: "var(--sage)",
+                    background:  "var(--sage-light)",
+                    color:       "var(--sage-deep)",
+                  }}
+                  role="status"
+                >
+                  <div>
+                    <p className="ll-label mb-1 text-[0.62rem] uppercase tracking-[0.18em]">
+                      {isCart
+                        ? "Reservations Confirmed"
+                        : isExisting
+                        ? "Reservation Confirmed"
+                        : "Reservation Sent"}
+                    </p>
+                    <p className="ll-body text-sm font-light">
+                      {isCart
+                        ? "Your pieces are held for 48 hours each. Noemi will follow up — replies arrive in your messages."
+                        : isExisting
+                        ? "Your piece is held for 48 hours. Noemi will follow up with next steps — replies arrive in your messages."
+                        : "Working on it — your reservation should appear below shortly. If not, refresh."}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setJustReserved(null)}
+                    aria-label="Dismiss"
+                    className="ll-label shrink-0 self-start px-2 py-1 text-[0.65rem] uppercase tracking-[0.1em] transition-opacity hover:opacity-60"
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "inherit" }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              );
+            })()}
+
             <h2 className="ll-display mb-8 text-xl font-normal" style={{ color: "var(--ink)" }}>
               Your <em className="italic" style={{ color: "var(--rose-deep)" }}>Reservations</em>
             </h2>

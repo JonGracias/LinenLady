@@ -2,8 +2,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useUser, useAuth } from "@clerk/nextjs";
 import type { InventoryItem, InventoryImage } from "@/types/inventory";
 import { useStorefrontContext } from "@/context/StorefrontContext";
 import { useCart } from "@/context/CartContext";
@@ -197,23 +198,102 @@ function MobileCarousel({ images }: { images: InventoryImage[] }) {
   );
 }
 
-/* ─── Reserve modal (email link) ─────────────────────────────────────────── */
+/* ─── Reserve modal (API-driven) ──────────────────────────────────────────── */
+//
+// Replaces the previous mailto: implementation. Posts directly to
+// /api/reservations, which writes a reservation row AND a threaded message
+// in cust.Message — Noemi sees it in the admin inbox immediately.
+//
+// Sign-in required: the API gates this with the Customer policy. If the
+// user is unauthenticated, the modal funnels them through Clerk sign-in
+// with a redirect back to this page so they land where they started.
 
 function ReserveModal({
   open,
   onClose,
   item,
+  onReserved,
 }: {
   open: boolean;
   onClose: () => void;
   item: ItemDetail;
+  onReserved?: () => void;
 }) {
+  const { isSignedIn, isLoaded } = useUser();
+  const { getToken }             = useAuth();
+  const router                   = useRouter();
+
+  const [notes,    setNotes]    = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error,    setError]    = useState<string | null>(null);
+
   if (!open) return null;
-  const subject = encodeURIComponent(`Reservation Inquiry — ${item.name} (${item.sku})`);
-  const body = encodeURIComponent(
-    `Hello,\n\nI am interested in reserving the following piece:\n\nItem: ${item.name}\nSKU: ${item.sku}\nPrice: ${formatPrice(item.unitPriceCents)}\n\nPlease let me know about availability.\n\nThank you.`
-  );
-  const mailto = `mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL}?subject=${subject}&body=${body}`;
+
+  const goSignIn = () => {
+    const here = typeof window !== "undefined"
+      ? window.location.pathname + window.location.search
+      : `/shop/${item.sku}`;
+    router.push(`/sign-in?redirect_url=${encodeURIComponent(here)}`);
+  };
+
+  const submit = async () => {
+    setSubmitting(true);
+    setError(null);
+    try {
+      const token = await getToken();
+      const res = await fetch("/api/reservations", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization:  `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          inventoryId:   item.inventoryId,
+          customerNotes: notes.trim() || null,
+        }),
+      });
+
+      // Success: send the customer to their reservation list. They'll see the
+      // newly-created reservation there with status, expiry, payment link
+      // (when Square is wired). The ?reserved=<id> query param lets the
+      // account page surface a one-time success banner.
+      if (res.ok) {
+        const created = await res.json().catch(() => null) as { reservationId?: number } | null;
+        const id = created?.reservationId;
+        onReserved?.();
+        router.push(`/account?tab=reservations${id ? `&reserved=${id}` : ""}`);
+        return;
+      }
+
+      // Structured 409: the customer already reserved this piece (likely a
+      // double-click or React StrictMode dev re-render). Send them to their
+      // reservation list instead of showing a confusing "reserved by another
+      // customer" error — the existing reservation IS theirs.
+      if (res.status === 409) {
+        const ct = res.headers.get("content-type") ?? "";
+        if (ct.includes("application/json")) {
+          const body = await res.json().catch(() => null) as
+            | { reason?: string; reservationId?: number; message?: string }
+            | null;
+          if (body?.reason === "already_reserved_by_you") {
+            onReserved?.();
+            router.push(
+              `/account?tab=reservations${body.reservationId ? `&reserved=${body.reservationId}` : ""}`
+            );
+            return;
+          }
+        }
+      }
+
+      // Anything else: surface the API's text/plain message.
+      const text = await res.text().catch(() => "");
+      setError(text || `Could not reserve (HTTP ${res.status}).`);
+      setSubmitting(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Network error.");
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div
@@ -238,25 +318,82 @@ function ReserveModal({
         <h3 className="ll-display text-xl font-normal mb-2" style={{ color: "var(--on-surface)" }}>
           {item.name}
         </h3>
-        <p className="ll-body text-sm font-light mb-6" style={{ color: "var(--on-surface-variant)" }}>
-          Every piece is one of a kind. Sending this inquiry will open your email client with the details pre-filled — Noemi will respond within 24 hours to confirm availability and arrange next steps.
-        </p>
-        <div className="flex flex-col gap-3">
-          <a
-            href={mailto}
-            className="btn-primary text-center text-[0.65rem] py-3.5"
-            style={{ display: "block" }}
-          >
-            Open Email to Reserve →
-          </a>
-          <button
-            onClick={onClose}
-            className="ll-label py-3 text-[0.62rem] uppercase tracking-[0.12em] transition-opacity hover:opacity-60"
-            style={{ color: "var(--on-surface-variant)" }}
-          >
-            Cancel
-          </button>
-        </div>
+
+        {!isLoaded ? (
+          /* ── Loading auth state ───────────────────────────────── */
+          <p className="ll-body text-sm italic" style={{ color: "var(--on-surface-variant)" }}>
+            Loading…
+          </p>
+        ) : !isSignedIn ? (
+          /* ── Unauthenticated — funnel to sign-in ──────────────── */
+          <>
+            <p className="ll-body text-sm font-light mb-6" style={{ color: "var(--on-surface-variant)" }}>
+              Reservations are tied to your account so Noemi can reach you and you can follow the conversation. Sign in or create an account to continue — it takes a moment.
+            </p>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={goSignIn}
+                className="btn-primary text-center text-[0.65rem] py-3.5"
+                style={{ display: "block" }}
+              >
+                Sign In to Reserve →
+              </button>
+              <button
+                onClick={onClose}
+                className="ll-label py-3 text-[0.62rem] uppercase tracking-[0.12em] transition-opacity hover:opacity-60"
+                style={{ color: "var(--on-surface-variant)" }}
+              >
+                Cancel
+              </button>
+            </div>
+          </>
+        ) : (
+          /* ── Signed in — show form ────────────────────────────── */
+          <>
+            <p className="ll-body text-sm font-light mb-5" style={{ color: "var(--on-surface-variant)" }}>
+              Add a note for Noemi if you&apos;d like — your reservation will hold this piece for 48 hours and start a thread you can follow under Messages.
+            </p>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={3}
+              placeholder="Optional — any details for Noemi (timing, fit, occasion…)"
+              className="ll-body mb-3 w-full resize-none border p-3 text-sm font-light outline-none placeholder:italic"
+              style={{
+                borderColor: "var(--outline)",
+                background: "var(--surface)",
+                color: "var(--on-surface)",
+              }}
+            />
+            {error && (
+              <p
+                className="ll-body mb-3 text-sm"
+                role="alert"
+                style={{ color: "#991b1b" }}
+              >
+                {error}
+              </p>
+            )}
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={submit}
+                disabled={submitting}
+                className="btn-primary text-center text-[0.65rem] py-3.5 disabled:opacity-50"
+                style={{ display: "block" }}
+              >
+                {submitting ? "Reserving…" : "Reserve This Piece →"}
+              </button>
+              <button
+                onClick={onClose}
+                disabled={submitting}
+                className="ll-label py-3 text-[0.62rem] uppercase tracking-[0.12em] transition-opacity hover:opacity-60 disabled:opacity-30"
+                style={{ color: "var(--on-surface-variant)" }}
+              >
+                Cancel
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -696,8 +833,18 @@ export default function ItemDetailPage() {
         </button>
       </div>
 
-      {/* Reserve modal */}
-      <ReserveModal open={reserveOpen} onClose={() => setReserveOpen(false)} item={item} />
+      {/* Reserve modal — keyed so each open resets internal form state
+          without an explicit useEffect cleanup. Cheaper than the reset effect
+          and dodges the React 19 "setState in effect" warning. */}
+      {reserveOpen && (
+        <ReserveModal
+          key={`reserve-${item.inventoryId}`}
+          open
+          onClose={() => setReserveOpen(false)}
+          item={item}
+          onReserved={fetchItem}
+        />
+      )}
     </>
   );
 }

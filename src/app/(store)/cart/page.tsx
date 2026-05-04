@@ -1,7 +1,10 @@
 // src/app/(store)/cart/page.tsx
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useUser, useAuth } from "@clerk/nextjs";
 import { useCart } from "@/context/CartContext";
 
 function formatPrice(cents: number) {
@@ -12,25 +15,122 @@ function formatPrice(cents: number) {
   }).format(cents / 100);
 }
 
+// Per-item reserve status during a multi-reserve submission.
+// "ok" = reservation row created server-side; "err" = surfaced to the user.
+type ItemStatus = "idle" | "pending" | "ok" | "err";
+
 export default function CartPage() {
   const { items, remove, clear, count } = useCart();
+  const { isSignedIn, isLoaded }        = useUser();
+  const { getToken }                    = useAuth();
+  const router                          = useRouter();
+
+  const [statuses, setStatuses] = useState<Record<number, ItemStatus>>({});
+  const [errors,   setErrors]   = useState<Record<number, string>>({});
+  const [submitting, setSubmitting] = useState(false);
+  const [globalError, setGlobalError] = useState<string | null>(null);
 
   const total = items.reduce((sum, i) => sum + i.unitPriceCents, 0);
 
-  /* Build the reserve-all mailto */
-  const buildMailto = () => {
-    const subject = encodeURIComponent("Reservation Inquiry — Multiple Pieces");
-    const itemLines = items
-      .map((i, idx) => `${idx + 1}. ${i.name} (SKU: ${i.sku}) — ${formatPrice(i.unitPriceCents)}`)
-      .join("\n");
-    const body = encodeURIComponent(
-      `Hello Noemi,\n\nI am interested in reserving the following pieces:\n\n${itemLines}\n\nTotal: ${formatPrice(total)}\n\nPlease let me know about availability and next steps.\n\nThank you.`
+  const okCount = Object.values(statuses).filter((s) => s === "ok").length;
+  const allDone = items.length > 0 && items.every(
+    (i) => statuses[i.inventoryId] === "ok" || statuses[i.inventoryId] === "err"
+  );
+
+  const reserveAll = async () => {
+    setGlobalError(null);
+
+    if (!isSignedIn) {
+      const here = "/cart";
+      router.push(`/sign-in?redirect_url=${encodeURIComponent(here)}`);
+      return;
+    }
+
+    setSubmitting(true);
+    let token: string | null = null;
+    try {
+      token = await getToken();
+    } catch {
+      setGlobalError("Could not authenticate. Try signing out and back in.");
+      setSubmitting(false);
+      return;
+    }
+
+    // Sequential submission: server enforces uniqueness per inventory item, so
+    // racing them in parallel risks confusing 409 ordering. The cart is small
+    // (≤ a handful of items typically) so the latency cost is negligible.
+    let anySuccess = false;
+    for (const it of items) {
+      if (statuses[it.inventoryId] === "ok") continue;
+
+      setStatuses((s) => ({ ...s, [it.inventoryId]: "pending" }));
+
+      try {
+        const res = await fetch("/api/reservations", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization:  `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            inventoryId:   it.inventoryId,
+            customerNotes: null,
+          }),
+        });
+
+        if (res.ok) {
+          setStatuses((s) => ({ ...s, [it.inventoryId]: "ok" }));
+          remove(it.inventoryId);
+          anySuccess = true;
+          continue;
+        }
+
+        // 409 with structured body → customer already reserved this item.
+        // Treat it as a success for cart-flow purposes (the reservation
+        // exists, that's what the user wanted) and clear it from the cart.
+        if (res.status === 409) {
+          const ct = res.headers.get("content-type") ?? "";
+          if (ct.includes("application/json")) {
+            const body = await res.json().catch(() => null) as
+              | { reason?: string } | null;
+            if (body?.reason === "already_reserved_by_you") {
+              setStatuses((s) => ({ ...s, [it.inventoryId]: "ok" }));
+              remove(it.inventoryId);
+              anySuccess = true;
+              continue;
+            }
+          }
+        }
+
+        const text = await res.text().catch(() => "");
+        setStatuses((s) => ({ ...s, [it.inventoryId]: "err" }));
+        setErrors((e) => ({
+          ...e,
+          [it.inventoryId]: text || `HTTP ${res.status}`,
+        }));
+      } catch (e) {
+        setStatuses((s) => ({ ...s, [it.inventoryId]: "err" }));
+        setErrors((e2) => ({
+          ...e2,
+          [it.inventoryId]: e instanceof Error ? e.message : "Network error",
+        }));
+      }
+    }
+
+    setSubmitting(false);
+
+    // If everything succeeded, jump straight to the reservation list — saves
+    // the user a click and matches the single-item flow's behavior.
+    const remainingErrors = items.some(
+      (i) => statuses[i.inventoryId] === "err"
     );
-    return `mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL}?subject=${subject}&body=${body}`;
+    if (anySuccess && !remainingErrors) {
+      router.push(`/account?tab=reservations&reserved=cart`);
+    }
   };
 
   /* ── Empty state ── */
-  if (count === 0) {
+  if (count === 0 && okCount === 0) {
     return (
       <div
         className="ll-texture-overlay min-h-[60vh] flex flex-col items-center justify-center px-6 text-center"
@@ -48,6 +148,45 @@ export default function CartPage() {
         <Link href="/shop" className="btn-primary">
           Browse the Collection →
         </Link>
+      </div>
+    );
+  }
+
+  /* ── Success summary (all items reserved) ── */
+  if (count === 0 && okCount > 0) {
+    return (
+      <div
+        className="ll-texture-overlay min-h-[60vh] flex flex-col items-center justify-center px-6 text-center"
+        style={{ background: "var(--surface)", color: "var(--on-surface)" }}
+      >
+        <p
+          className="ll-label mb-2 text-[0.62rem] font-medium uppercase tracking-[0.25em]"
+          style={{ color: "var(--primary)" }}
+        >
+          Reservations Sent
+        </p>
+        <p
+          className="ll-display text-2xl font-normal italic mb-4"
+          style={{ color: "var(--on-surface)", letterSpacing: "-0.01em" }}
+        >
+          {okCount === 1 ? "One piece" : `${okCount} pieces`} reserved
+        </p>
+        <p className="ll-body mb-8 max-w-md text-base font-light leading-relaxed" style={{ color: "var(--on-surface-variant)" }}>
+          Noemi will follow up shortly. You can track each reservation and reply to her under{" "}
+          <Link href="/account?tab=messages" style={{ color: "var(--primary)" }}>Messages</Link>{" "}in your account.
+        </p>
+        <div className="flex gap-3">
+          <Link href="/account?tab=reservations" className="btn-primary">
+            View My Reservations →
+          </Link>
+          <Link
+            href="/shop"
+            className="ll-label inline-block py-3 px-6 text-[0.62rem] uppercase tracking-[0.12em] transition-opacity hover:opacity-60"
+            style={{ color: "var(--on-surface-variant)" }}
+          >
+            Keep Browsing
+          </Link>
+        </div>
       </div>
     );
   }
@@ -84,80 +223,103 @@ export default function CartPage() {
 
         {/* ── Item list ── */}
         <div className="flex flex-col gap-0" style={{ borderTop: "1px solid rgba(196,181,168,0.15)" }}>
-          {items.map((item) => (
-            <div
-              key={item.inventoryId}
-              className="flex items-center gap-5 py-5"
-              style={{ borderBottom: "1px solid rgba(196,181,168,0.15)" }}
-            >
-              {/* Thumbnail */}
+          {items.map((item) => {
+            const status = statuses[item.inventoryId] ?? "idle";
+            const err    = errors[item.inventoryId];
+            return (
               <div
-                className="shrink-0 overflow-hidden"
-                style={{
-                  width: 72,
-                  height: 72,
-                  borderRadius: "0.2rem",
-                  background: "var(--surface-container-highest)",
-                }}
+                key={item.inventoryId}
+                className="flex items-center gap-5 py-5"
+                style={{ borderBottom: "1px solid rgba(196,181,168,0.15)" }}
               >
-                {item.thumbnailUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={item.thumbnailUrl}
-                    alt={item.name}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div
-                    className="flex h-full w-full items-center justify-center ll-display text-[0.5rem] italic"
-                    style={{ color: "var(--outline-variant)" }}
+                {/* Thumbnail */}
+                <div
+                  className="shrink-0 overflow-hidden"
+                  style={{
+                    width: 72,
+                    height: 72,
+                    borderRadius: "0.2rem",
+                    background: "var(--surface-container-highest)",
+                  }}
+                >
+                  {item.thumbnailUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={item.thumbnailUrl}
+                      alt={item.name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div
+                      className="flex h-full w-full items-center justify-center ll-display text-[0.5rem] italic"
+                      style={{ color: "var(--outline-variant)" }}
+                    >
+                      LL
+                    </div>
+                  )}
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <Link
+                    href={`/shop/${item.sku}`}
+                    className="ll-display text-sm font-normal leading-snug line-clamp-2 transition-opacity hover:opacity-60"
+                    style={{ color: "var(--on-surface)", textDecoration: "none" }}
                   >
-                    LL
-                  </div>
-                )}
-              </div>
+                    {item.name}
+                  </Link>
+                  <p
+                    className="ll-label mt-1 text-[0.55rem] uppercase tracking-[0.12em]"
+                    style={{ color: "var(--outline)" }}
+                  >
+                    {item.sku}
+                  </p>
+                  {status === "err" && err && (
+                    <p
+                      className="ll-body mt-1 text-[0.7rem] font-light"
+                      role="alert"
+                      style={{ color: "#991b1b" }}
+                    >
+                      {err}
+                    </p>
+                  )}
+                  {status === "pending" && (
+                    <p
+                      className="ll-label mt-1 text-[0.55rem] uppercase tracking-[0.12em]"
+                      style={{ color: "var(--on-surface-variant)" }}
+                    >
+                      Reserving…
+                    </p>
+                  )}
+                </div>
 
-              {/* Info */}
-              <div className="flex-1 min-w-0">
-                <Link
-                  href={`/shop/${item.sku}`}
-                  className="ll-display text-sm font-normal leading-snug line-clamp-2 transition-opacity hover:opacity-60"
-                  style={{ color: "var(--on-surface)", textDecoration: "none" }}
-                >
-                  {item.name}
-                </Link>
-                <p
-                  className="ll-label mt-1 text-[0.55rem] uppercase tracking-[0.12em]"
-                  style={{ color: "var(--outline)" }}
-                >
-                  {item.sku}
-                </p>
+                {/* Price + remove */}
+                <div className="flex flex-col items-end gap-2 shrink-0">
+                  <span
+                    className="ll-display text-sm font-normal"
+                    style={{ color: "var(--primary)" }}
+                  >
+                    {formatPrice(item.unitPriceCents)}
+                  </span>
+                  <button
+                    onClick={() => remove(item.inventoryId)}
+                    disabled={submitting}
+                    className="ll-label text-[0.55rem] uppercase tracking-[0.1em] transition-opacity hover:opacity-60 disabled:opacity-30"
+                    style={{ color: "var(--on-surface-variant)", background: "none", border: "none", cursor: "pointer" }}
+                    aria-label={`Remove ${item.name}`}
+                  >
+                    Remove
+                  </button>
+                </div>
               </div>
-
-              {/* Price + remove */}
-              <div className="flex flex-col items-end gap-2 shrink-0">
-                <span
-                  className="ll-display text-sm font-normal"
-                  style={{ color: "var(--primary)" }}
-                >
-                  {formatPrice(item.unitPriceCents)}
-                </span>
-                <button
-                  onClick={() => remove(item.inventoryId)}
-                  className="ll-label text-[0.55rem] uppercase tracking-[0.1em] transition-opacity hover:opacity-60"
-                  style={{ color: "var(--on-surface-variant)", background: "none", border: "none", cursor: "pointer" }}
-                  aria-label={`Remove ${item.name}`}
-                >
-                  Remove
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
 
           {/* Clear all */}
           <button
             onClick={clear}
-            className="ll-label mt-4 self-start text-[0.58rem] uppercase tracking-[0.12em] transition-opacity hover:opacity-60"
+            disabled={submitting}
+            className="ll-label mt-4 self-start text-[0.58rem] uppercase tracking-[0.12em] transition-opacity hover:opacity-60 disabled:opacity-30"
             style={{ color: "var(--on-surface-variant)", background: "none", border: "none", cursor: "pointer" }}
           >
             Clear List
@@ -227,15 +389,37 @@ export default function CartPage() {
             className="ll-body mb-5 text-xs font-light italic leading-relaxed"
             style={{ color: "var(--outline)" }}
           >
-            No payment is collected now. Sending this inquiry opens your email — Noemi will confirm availability and arrange next steps.
+            No payment is collected now. Sending these reservations starts a thread with Noemi — she&apos;ll confirm availability and arrange next steps in your account.
           </p>
 
-          <a
-            href={buildMailto()}
-            className="btn-primary block text-center py-4 text-[0.65rem] tracking-[0.15em] mb-3"
+          {globalError && (
+            <p
+              className="ll-body mb-3 text-xs"
+              role="alert"
+              style={{ color: "#991b1b" }}
+            >
+              {globalError}
+            </p>
+          )}
+
+          <button
+            onClick={reserveAll}
+            disabled={submitting || !isLoaded || items.length === 0}
+            className="btn-primary block w-full text-center py-4 text-[0.65rem] tracking-[0.15em] mb-3 disabled:opacity-50"
+            style={{ border: "none", cursor: submitting ? "wait" : "pointer" }}
           >
-            Reserve These Pieces →
-          </a>
+            {!isLoaded
+              ? "Loading…"
+              : !isSignedIn
+              ? "Sign In to Reserve →"
+              : submitting
+              ? "Reserving…"
+              : allDone
+              ? "Done"
+              : count === 1
+              ? "Reserve This Piece →"
+              : `Reserve ${count} Pieces →`}
+          </button>
 
           <Link
             href="/shop"

@@ -187,15 +187,15 @@ export default function HomePage() {
               Every item is one of a kind. Reach out to ask about availability, reserve something, or describe what you&apos;re looking for.
             </p>
           </div>
-          <a
-            href={`mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL}`}
+          <Link
+            href="/account?tab=messages"
             className="ll-label mt-8 md:mt-0 inline-block whitespace-nowrap px-10 py-4 text-[0.72rem] font-medium uppercase tracking-[0.15em] transition-all duration-400"
             style={{ background: "var(--on-primary)", color: "var(--primary)", borderRadius: "0.375rem" }}
             onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = "var(--primary-container)")}
             onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = "var(--on-primary)")}
           >
             Get in Touch
-          </a>
+          </Link>
         </div>
       </section>
 
