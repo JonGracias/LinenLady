@@ -220,21 +220,6 @@ function AccountPageInner() {
       <div className="ll-texture-overlay pointer-events-none fixed inset-0 z-0" />
       <BorderMotif />
 
-      {/* Nav */}
-      <nav className="relative z-10 flex items-center justify-between border-b px-12 py-5" style={{ borderColor: "var(--linen)", backgroundColor: "var(--cream)" }}>
-        <Link href="/" className="ll-display text-lg italic" style={{ color: "var(--brown)", textDecoration: "none" }}>
-          Noemi <span style={{ fontStyle: "normal", color: "var(--rose-deep)" }}>· The Linen Lady</span>
-        </Link>
-        <div className="flex items-center gap-8">
-          <Link href="/shop" className="ll-label text-[0.72rem] font-medium uppercase tracking-[0.15em]" style={{ color: "var(--ink-soft)", textDecoration: "none" }}>Shop</Link>
-          <SignOutButton>
-            <button className="ll-label text-[0.72rem] font-medium uppercase tracking-[0.15em] transition-colors hover:text-[#b07878]" style={{ color: "var(--ink-soft)", background: "none", border: "none", cursor: "pointer" }}>
-              Sign Out
-            </button>
-          </SignOutButton>
-        </div>
-      </nav>
-
       {/* Header */}
       <div className="relative z-[1] border-b px-16 py-12" style={{ borderColor: "var(--linen)", background: "linear-gradient(135deg, var(--cream) 0%, var(--cream-dark) 100%)" }}>
         <div className="ll-label mb-2 text-[0.62rem] font-medium uppercase tracking-[0.25em]" style={{ color: "var(--sage-deep)" }}>My Account</div>
