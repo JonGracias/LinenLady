@@ -59,3 +59,15 @@ export type MessageDto = {
   isRead:        boolean;
   sentAt:        string;
 };
+
+export type ConversationSummaryDto = {
+  firstName:          string;
+  lastName:           string;
+  email:              string;
+  customerId:         number;
+  totalMessages:      number;
+  unreadInboundCount: number;
+  lastMessageAt:      string | null;
+  lastMessageDirection: "Inbound" | "Outbound";
+  lastMessageBody:      string; 
+}
