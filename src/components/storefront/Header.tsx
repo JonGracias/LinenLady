@@ -17,9 +17,9 @@ const NAV_LINKS = [
 ];
 
 const HELP_LINKS = [
-  { href: "/account?tab=reservations", label: "Order History",     desc: "View your past and active reservations"   },
-  { href: "/account?tab=reservations", label: "Where's My Order",  desc: "Check your reservation or payment status" },
-  { href: "/terms",                    label: "Shipping & Returns", desc: "Policies on shipping and all sales final"  },
+  { href: "/account?tab=orders",   label: "Order History",      desc: "View your past and active orders"          },
+  { href: "/account?tab=orders",   label: "Where's My Order",   desc: "Check your order or payment status"        },
+  { href: "/terms",                label: "Shipping & Returns", desc: "Policies on shipping and all sales final"  },
   ...(CONTACT_EMAIL ? [{ href: `mailto:${CONTACT_EMAIL}`, label: "Email Us", desc: "Get in touch with Noemi directly" }] : []),
 ];
 
@@ -38,14 +38,16 @@ const WORDMARK_STYLE: React.CSSProperties = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BasketIcon — extracted because it appears in two places and the SVG was noisy.
+// BasketIcon — extracted because it appears in two places and the SVG was
+// noisy. (Was CartIcon — renamed alongside the cart→basket model migration;
+// the bag/basket SVG was kept since it still reads as a shopping container.)
 // ─────────────────────────────────────────────────────────────────────────────
 function BasketIcon({ count }: { count: number }) {
   return (
     <Link
-      href="/basket"
+      href="/account?tab=basket"
       className="nav-icon-button"
-      aria-label={`Basket — ${count} ${count === 1 ? "item" : "items"}`}
+      aria-label={`Basket — ${count} ${count === 1 ? "piece" : "pieces"}`}
     >
       <svg
         width="18" height="18" viewBox="0 0 24 24" fill="none"
@@ -57,7 +59,7 @@ function BasketIcon({ count }: { count: number }) {
         <path d="M16 10a4 4 0 0 1-8 0" />
       </svg>
       {count > 0 && (
-        <span className="nav-basket-badge" aria-hidden="true">
+        <span className="nav-cart-badge" aria-hidden="true">
           {count > 9 ? "9+" : count}
         </span>
       )}
@@ -111,7 +113,7 @@ function HelpDropdown() {
         <>
           {/* Backdrop catches outside clicks. z-index puts it under the
               dropdown panel but over the rest of the header — fixes the
-              previous bug where clicks on the basket/wordmark fired through. */}
+              previous bug where clicks on the cart/wordmark fired through. */}
           <div
             className="nav-dropdown-backdrop"
             onClick={() => setOpen(false)}
@@ -305,7 +307,7 @@ function AccountDropdown() {
                       Sign In
                     </span>
                     <span className="ll-body text-xs font-light" style={{ color: "var(--on-surface-variant)" }}>
-                      Access reservations, messages, and your order history
+                      Access your basket, orders, and messages
                     </span>
                   </div>
                 </SignInButton>
@@ -323,7 +325,7 @@ function AccountDropdown() {
                     Account
                   </span>
                   <span className="ll-body text-xs font-light" style={{ color: "var(--on-surface-variant)" }}>
-                    Profile, addresses, reservations, messages
+                    Basket, orders, addresses, messages
                   </span>
                 </Link>
 
@@ -483,8 +485,8 @@ export default function StorefrontHeader() {
                 </Link>
               ))}
 
-              <Link href="/basket" onClick={closeMobile} className="nav-mobile-item">
-                <span>Reservation List</span>
+              <Link href="/account?tab=basket" onClick={closeMobile} className="nav-mobile-item">
+                <span>Basket</span>
                 {count > 0 && (
                   <span
                     className="ll-label text-[0.52rem] px-2 py-0.5 font-medium"

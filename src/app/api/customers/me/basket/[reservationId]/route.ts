@@ -1,13 +1,17 @@
 // src/app/api/customers/me/basket/[reservationId]/route.ts
+import { proxyFetch, forwardJson, serverError } from "@/lib/proxy";
 
-import { proxyJson, requireId } from "@/lib/proxy";
+type Context = { params: Promise<{ reservationId: string }> };
 
-type P = { reservationId: string };
-
-export const DELETE = proxyJson<P>({
-  path: ({ params }) => {
-    const id = requireId(params.reservationId, "reservationId");
-    return `/api/customers/me/basket/items/${id}`;
-  },
-  method: "DELETE",
-});
+export async function DELETE(_req: Request, { params }: Context) {
+  try {
+    const { reservationId } = await params;
+    const upstream = await proxyFetch(
+      `/api/customers/me/basket/items/${reservationId}`,
+      { method: "DELETE" }
+    );
+    return forwardJson(upstream);
+  } catch (err) {
+    return serverError(err);
+  }
+}

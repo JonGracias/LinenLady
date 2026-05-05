@@ -1,12 +1,17 @@
 // src/app/api/customers/me/orders/[orderId]/route.ts
+import { proxyFetch, forwardJson, serverError } from "@/lib/proxy";
 
-import { proxyJson, requireId } from "@/lib/proxy";
+type Context = { params: Promise<{ orderId: string }> };
 
-type P = { orderId: string };
-
-export const GET = proxyJson<P>({
-  path: ({ params }) => {
-    const id = requireId(params.orderId, "orderId");
-    return `/api/customers/me/orders/${id}`;
-  },
-});
+export async function GET(_req: Request, { params }: Context) {
+  try {
+    const { orderId } = await params;
+    const upstream = await proxyFetch(
+      `/api/customers/me/orders/${orderId}`,
+      { method: "GET" }
+    );
+    return forwardJson(upstream);
+  } catch (err) {
+    return serverError(err);
+  }
+}

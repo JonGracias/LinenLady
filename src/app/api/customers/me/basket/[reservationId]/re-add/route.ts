@@ -1,13 +1,17 @@
 // src/app/api/customers/me/basket/[reservationId]/re-add/route.ts
+import { proxyFetch, forwardJson, serverError } from "@/lib/proxy";
 
-import { proxyJson, requireId } from "@/lib/proxy";
+type Context = { params: Promise<{ reservationId: string }> };
 
-type P = { reservationId: string };
-
-export const POST = proxyJson<P>({
-  path: ({ params }) => {
-    const id = requireId(params.reservationId, "reservationId");
-    return `/api/customers/me/basket/items/${id}/re-add`;
-  },
-  method: "POST",
-});
+export async function POST(_req: Request, { params }: Context) {
+  try {
+    const { reservationId } = await params;
+    const upstream = await proxyFetch(
+      `/api/customers/me/basket/items/${reservationId}/re-add`,
+      { method: "POST" }
+    );
+    return forwardJson(upstream);
+  } catch (err) {
+    return serverError(err);
+  }
+}

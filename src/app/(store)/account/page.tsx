@@ -60,7 +60,7 @@ function AccountPageInner() {
   const [tab, setTab] = useState<Tab>(() => {
     const t = searchParams?.get("tab");
     // Accept "reservations" as an alias for "basket" so old bookmarks still
-    // land somewhere sensible — same with deep-links from the basket-redirect
+    // land somewhere sensible — same with deep-links from the cart-redirect
     // shim during the cutover. Drop the alias once the redirect is gone.
     if (t === "reservations" || t === "basket") return "basket";
     if (t === "orders" || t === "address" || t === "preferences" || t === "messages") return t;

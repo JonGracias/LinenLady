@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ReservationDto, CustomerAddressDto } from "@/types/customer";
+import { useBasket } from "@/context/BasketContext";
 
 /* ─────────────────────────────────────────────────────────────
    Helpers
@@ -55,6 +56,16 @@ export default function BasketTab({
 }: BasketTabProps) {
   const router = useRouter();
 
+  // BasketProvider keeps its own copy of the basket (for the header badge,
+  // shop "in basket" indicators, etc). Mutations here go through apiCall
+  // rather than provider.add/remove, so the provider is blind to them
+  // unless we tell it. refresh() is a cheap GET that re-syncs.
+  //
+  // Sync points: after every successful remove, re-add, and checkout.
+  // Checkout is the most important — it empties the basket, and the badge
+  // would otherwise still show items that are now in the orders tab.
+  const { refresh: refreshBasket } = useBasket();
+
   // Split active / recently-expired from the unified list. The server returns
   // both kinds in a single basket payload — simpler than two endpoints — and
   // the UI splits them into two visual sections.
@@ -103,6 +114,9 @@ export default function BasketTab({
       // Replace the row in-place so it transitions from active → expired
       // without a refetch. Server is the source of truth on canReAdd.
       onChange(reservations.map(r => r.reservationId === id ? updated : r));
+      // Tell the provider — header badge would otherwise still count this item.
+      // Fire-and-forget; the badge is allowed to lag a heartbeat behind.
+      refreshBasket().catch(() => { /* badge stays stale until next nav; not fatal */ });
     } catch (e) {
       setGlobalError(e instanceof Error ? e.message : "Couldn't remove that item.");
     } finally {
@@ -124,6 +138,8 @@ export default function BasketTab({
       const created: ReservationDto = await res.json();
       // The expired row stays (audit), the new active row is appended.
       onChange([...reservations, created]);
+      // New active reservation → bump the badge.
+      refreshBasket().catch(() => { /* see removeItem note */ });
     } catch (e) {
       setGlobalError(e instanceof Error ? e.message : "Couldn't add that piece back.");
     } finally {
@@ -180,6 +196,12 @@ export default function BasketTab({
       }
 
       const order = await res.json() as { orderId: number; squarePaymentLinkUrl: string | null };
+
+      // Checkout converts active reservations into an order — the basket
+      // is now (largely) empty server-side. Refresh BEFORE navigating so
+      // the header badge updates before the page changes; await it so the
+      // Square redirect doesn't race past the GET.
+      await refreshBasket().catch(() => { /* see removeItem note */ });
 
       // Square payment link lives on the order. Route the customer to
       // Square if we have one; if the link generation failed (handler
