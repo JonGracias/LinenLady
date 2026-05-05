@@ -1,23 +1,79 @@
 // src/types/customer.ts
+//
+// Customer-facing DTOs mirroring LinenLady.API/Contracts/CustomerContracts.cs.
+// Fields are camelCase here because the API serializes that way (default
+// System.Text.Json policy).
+//
+// Reservation status collapsed to two values in the basket migration —
+// historical orders carry the OLD set on the API side as legacy data, but
+// the frontend never sees them in the new world; the messages tab is the
+// only place a stale value could leak through and it's display-only there.
 
 export type ReservationDto = {
-  reservationId:        number;
-  customerId:           number;
-  inventoryId:          number;
-  status:               "Pending" | "Confirmed" | "PaymentSent" | "Completed" | "Expired" | "Cancelled";
-  reservedAt:           string;
-  expiresAt:            string;
-  paymentSentAt:        string | null;
-  completedAt:          string | null;
-  customerNotes:        string | null;
-  squarePaymentLinkUrl: string | null;
-  amountCents:          number;
-  // Denormalized
-  itemName:     string | null;
-  itemSku:      string | null;
-  itemPublicId: string | null;
-  thumbnailUrl: string | null;
+  reservationId:  number;
+  customerId:     number;
+  inventoryId:    number;
+  status:         "Active" | "Expired";
+  reservedAt:     string;
+  expiresAt:      string;
+  customerNotes:  string | null;
+
+  // Inventory snapshot — denormalized for the basket UI
+  itemName:        string | null;
+  itemSku:         string | null;
+  itemPublicId:    string | null;
+  thumbnailUrl:    string | null;
+  unitPriceCents:  number;
+
+  // True only for Expired rows where the underlying piece is still
+  // purchasable AND nobody else has it on hold. Computed server-side so
+  // the "Try Again" button is honest about availability without the UI
+  // having to do its own check.
+  canReAdd:        boolean;
 };
+
+// ── Order ──────────────────────────────────────────────────────────────
+
+export type OrderStatus = "PaymentPending" | "Paid" | "Cancelled" | "Failed";
+
+export type OrderDto = {
+  orderId:                number;
+  customerId:             number;
+  status:                 OrderStatus;
+  amountCents:            number;
+  squarePaymentLinkUrl:   string | null;
+  squareOrderId:          string | null;
+
+  // Shipping snapshot at checkout time
+  shipLabel:    string | null;
+  shipStreet1:  string | null;
+  shipStreet2:  string | null;
+  shipCity:     string | null;
+  shipState:    string | null;
+  shipZip:      string | null;
+  shipCountry:  string | null;
+
+  customerNotes: string | null;
+  createdAt:     string;
+  paidAt:        string | null;
+  cancelledAt:   string | null;
+
+  items: OrderItemDto[];
+};
+
+export type OrderItemDto = {
+  orderItemId:    number;
+  orderId:        number;
+  reservationId:  number;
+  inventoryId:    number;
+  itemName:       string;
+  itemSku:        string | null;
+  unitPriceCents: number;
+  itemPublicId:   string | null;
+  thumbnailUrl:   string | null;
+};
+
+// ── Customer ─────────────────────────────────────────────────────────────
 
 export type CustomerDto = {
   customerId:      number;
@@ -50,10 +106,13 @@ export type CustomerPreferenceDto = {
   notifyOnNew:  boolean;
 };
 
+// ── Messages ────────────────────────────────────────────────────────────
+
 export type MessageDto = {
   messageId:     number;
   customerId:    number;
   reservationId: number | null;
+  orderId:       number | null;   // NEW: order-level anchors
   direction:     "Inbound" | "Outbound";
   body:          string;
   isRead:        boolean;
@@ -61,13 +120,13 @@ export type MessageDto = {
 };
 
 export type ConversationSummaryDto = {
-  firstName:          string;
-  lastName:           string;
-  email:              string;
-  customerId:         number;
-  totalMessages:      number;
-  unreadInboundCount: number;
-  lastMessageAt:      string | null;
+  firstName:            string;
+  lastName:             string;
+  email:                string;
+  customerId:           number;
+  totalMessages:        number;
+  unreadInboundCount:   number;
+  lastMessageAt:        string | null;
   lastMessageDirection: "Inbound" | "Outbound";
-  lastMessageBody:      string; 
-}
+  lastMessageBody:      string;
+};
