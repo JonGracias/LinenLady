@@ -2,12 +2,11 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
-import { useUser, useAuth } from "@clerk/nextjs";
 import type { InventoryItem, InventoryImage } from "@/types/inventory";
 import { useStorefrontContext } from "@/context/StorefrontContext";
-import { useCart } from "@/context/CartContext";
+import { useBasket } from "@/context/BasketContext";
 
 /* ─── helpers ─────────────────────────────────────────────────────────────── */
 
@@ -198,207 +197,6 @@ function MobileCarousel({ images }: { images: InventoryImage[] }) {
   );
 }
 
-/* ─── Reserve modal (API-driven) ──────────────────────────────────────────── */
-//
-// Replaces the previous mailto: implementation. Posts directly to
-// /api/reservations, which writes a reservation row AND a threaded message
-// in cust.Message — Noemi sees it in the admin inbox immediately.
-//
-// Sign-in required: the API gates this with the Customer policy. If the
-// user is unauthenticated, the modal funnels them through Clerk sign-in
-// with a redirect back to this page so they land where they started.
-
-function ReserveModal({
-  open,
-  onClose,
-  item,
-  onReserved,
-}: {
-  open: boolean;
-  onClose: () => void;
-  item: ItemDetail;
-  onReserved?: () => void;
-}) {
-  const { isSignedIn, isLoaded } = useUser();
-  const { getToken }             = useAuth();
-  const router                   = useRouter();
-
-  const [notes,    setNotes]    = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [error,    setError]    = useState<string | null>(null);
-
-  if (!open) return null;
-
-  const goSignIn = () => {
-    const here = typeof window !== "undefined"
-      ? window.location.pathname + window.location.search
-      : `/shop/${item.sku}`;
-    router.push(`/sign-in?redirect_url=${encodeURIComponent(here)}`);
-  };
-
-  const submit = async () => {
-    setSubmitting(true);
-    setError(null);
-    try {
-      const token = await getToken();
-      const res = await fetch("/api/reservations", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization:  `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          inventoryId:   item.inventoryId,
-          customerNotes: notes.trim() || null,
-        }),
-      });
-
-      // Success: send the customer to their reservation list. They'll see the
-      // newly-created reservation there with status, expiry, payment link
-      // (when Square is wired). The ?reserved=<id> query param lets the
-      // account page surface a one-time success banner.
-      if (res.ok) {
-        const created = await res.json().catch(() => null) as { reservationId?: number } | null;
-        const id = created?.reservationId;
-        onReserved?.();
-        router.push(`/account?tab=reservations${id ? `&reserved=${id}` : ""}`);
-        return;
-      }
-
-      // Structured 409: the customer already reserved this piece (likely a
-      // double-click or React StrictMode dev re-render). Send them to their
-      // reservation list instead of showing a confusing "reserved by another
-      // customer" error — the existing reservation IS theirs.
-      if (res.status === 409) {
-        const ct = res.headers.get("content-type") ?? "";
-        if (ct.includes("application/json")) {
-          const body = await res.json().catch(() => null) as
-            | { reason?: string; reservationId?: number; message?: string }
-            | null;
-          if (body?.reason === "already_reserved_by_you") {
-            onReserved?.();
-            router.push(
-              `/account?tab=reservations${body.reservationId ? `&reserved=${body.reservationId}` : ""}`
-            );
-            return;
-          }
-        }
-      }
-
-      // Anything else: surface the API's text/plain message.
-      const text = await res.text().catch(() => "");
-      setError(text || `Could not reserve (HTTP ${res.status}).`);
-      setSubmitting(false);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Network error.");
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-end md:items-center justify-center"
-      onClick={onClose}
-    >
-      {/* Backdrop */}
-      <div className="absolute inset-0" style={{ background: "rgba(30,27,26,0.5)", backdropFilter: "blur(4px)" }} />
-
-      {/* Modal */}
-      <div
-        className="relative w-full md:max-w-md mx-4 md:mx-auto p-8 md:p-10"
-        style={{
-          background: "var(--surface-bright)",
-          borderRadius: "0.5rem 0.5rem 0 0",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <p className="ll-label mb-1 text-[0.58rem] uppercase tracking-[0.2em]" style={{ color: "var(--primary)" }}>
-          Reserve This Piece
-        </p>
-        <h3 className="ll-display text-xl font-normal mb-2" style={{ color: "var(--on-surface)" }}>
-          {item.name}
-        </h3>
-
-        {!isLoaded ? (
-          /* ── Loading auth state ───────────────────────────────── */
-          <p className="ll-body text-sm italic" style={{ color: "var(--on-surface-variant)" }}>
-            Loading…
-          </p>
-        ) : !isSignedIn ? (
-          /* ── Unauthenticated — funnel to sign-in ──────────────── */
-          <>
-            <p className="ll-body text-sm font-light mb-6" style={{ color: "var(--on-surface-variant)" }}>
-              Reservations are tied to your account so Noemi can reach you and you can follow the conversation. Sign in or create an account to continue — it takes a moment.
-            </p>
-            <div className="flex flex-col gap-3">
-              <button
-                onClick={goSignIn}
-                className="btn-primary text-center text-[0.65rem] py-3.5"
-                style={{ display: "block" }}
-              >
-                Sign In to Reserve →
-              </button>
-              <button
-                onClick={onClose}
-                className="ll-label py-3 text-[0.62rem] uppercase tracking-[0.12em] transition-opacity hover:opacity-60"
-                style={{ color: "var(--on-surface-variant)" }}
-              >
-                Cancel
-              </button>
-            </div>
-          </>
-        ) : (
-          /* ── Signed in — show form ────────────────────────────── */
-          <>
-            <p className="ll-body text-sm font-light mb-5" style={{ color: "var(--on-surface-variant)" }}>
-              Add a note for Noemi if you&apos;d like — your reservation will hold this piece for 48 hours and start a thread you can follow under Messages.
-            </p>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-              placeholder="Optional — any details for Noemi (timing, fit, occasion…)"
-              className="ll-body mb-3 w-full resize-none border p-3 text-sm font-light outline-none placeholder:italic"
-              style={{
-                borderColor: "var(--outline)",
-                background: "var(--surface)",
-                color: "var(--on-surface)",
-              }}
-            />
-            {error && (
-              <p
-                className="ll-body mb-3 text-sm"
-                role="alert"
-                style={{ color: "#991b1b" }}
-              >
-                {error}
-              </p>
-            )}
-            <div className="flex flex-col gap-3">
-              <button
-                onClick={submit}
-                disabled={submitting}
-                className="btn-primary text-center text-[0.65rem] py-3.5 disabled:opacity-50"
-                style={{ display: "block" }}
-              >
-                {submitting ? "Reserving…" : "Reserve This Piece →"}
-              </button>
-              <button
-                onClick={onClose}
-                disabled={submitting}
-                className="ll-label py-3 text-[0.62rem] uppercase tracking-[0.12em] transition-opacity hover:opacity-60 disabled:opacity-30"
-                style={{ color: "var(--on-surface-variant)" }}
-              >
-                Cancel
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
 /* ─── Care instructions ───────────────────────────────────────────────────── */
 
 const CARE_STEPS = [
@@ -424,14 +222,19 @@ const CARE_STEPS = [
 export default function ItemDetailPage() {
   const { sku }  = useParams<{ sku: string }>();
   const { getThumbnailUrl, ensureThumbnail } = useStorefrontContext();
-  const { add, remove, has } = useCart();
+  const { add, remove, has } = useBasket();
 
   const [item,    setItem]    = useState<ItemDetail | null>(null);
   const [images,  setImages]  = useState<InventoryImage[]>([]);
   const [related, setRelated] = useState<ItemDetail[]>([]);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<string | null>(null);
-  const [reserveOpen, setReserveOpen] = useState(false);
+
+  // Basket toggle state — async add() can fail with a structured reason, so
+  // we surface a hint inline rather than a generic toast.
+  const [busy, setBusy] = useState(false);
+  const [hint, setHint] = useState<string | null>(null);
+  const inBasket = item ? has(item.inventoryId) : false;
 
   /* ── Fetch item by SKU ── */
   const fetchItem = useCallback(async () => {
@@ -469,6 +272,39 @@ export default function ItemDetailPage() {
   }, [sku]);
 
   useEffect(() => { fetchItem(); }, [fetchItem]);
+
+  /* ── Basket toggle — shared between desktop CTA and mobile sticky bar ── */
+  const toggleBasket = useCallback(async () => {
+    if (!item || busy) return;
+    setBusy(true);
+    setHint(null);
+    try {
+      if (inBasket) {
+        await remove(item.inventoryId);
+      } else {
+        // Use the primary image if available, fall back to the first.
+        const primary = images.find((i) => i.isPrimary) ?? images[0];
+        const result = await add({
+          inventoryId:    item.inventoryId,
+          sku:            item.sku,
+          name:           item.name,
+          unitPriceCents: item.unitPriceCents,
+          thumbnailUrl:   primary?.readUrl ?? null,
+        });
+        if (!result.ok) {
+          if (result.reason === "needs_email_verify") {
+            setHint("Please verify your email before adding pieces to your basket.");
+          } else if (result.reason === "held_by_other") {
+            setHint("Another customer just added this piece. Try refreshing the page.");
+          } else if (result.reason !== "already_in_basket") {
+            setHint(result.message || "Couldn't add that piece.");
+          }
+        }
+      }
+    } finally {
+      setBusy(false);
+    }
+  }, [item, busy, inBasket, add, remove, images]);
 
   /* ── Loading skeleton ── */
   if (loading) {
@@ -635,39 +471,37 @@ export default function ItemDetailPage() {
               );
             })()}
 
-            {/* Desktop CTAs */}
+            {/* Desktop CTAs — single primary action: add/remove from basket.
+                Reservation is implicit on add; checkout lives at /account. */}
             <div className="hidden md:flex flex-col gap-3">
               <button
-                onClick={() => setReserveOpen(true)}
-                className="btn-primary py-4 text-[0.68rem] tracking-[0.15em]"
+                onClick={toggleBasket}
+                disabled={busy}
+                className="btn-primary py-4 text-[0.68rem] tracking-[0.15em] disabled:opacity-50"
               >
-                Reserve This Piece →
+                {busy
+                  ? (inBasket ? "Removing…" : "Adding…")
+                  : inBasket ? "✓ In Basket" : "+ Add to Basket"}
               </button>
-              <button
-                onClick={() => {
-                  if (has(item.inventoryId)) {
-                    remove(item.inventoryId);
-                  } else {
-                    add({
-                      inventoryId:    item.inventoryId,
-                      sku:            item.sku,
-                      name:           item.name,
-                      unitPriceCents: item.unitPriceCents,
-                      thumbnailUrl:   images[0]?.readUrl ?? null,
-                    });
-                  }
-                }}
-                className="ll-label py-3.5 text-center text-[0.62rem] uppercase tracking-[0.15em] transition-all duration-300"
-                style={{
-                  background:   has(item.inventoryId) ? "var(--primary)" : "transparent",
-                  color:        has(item.inventoryId) ? "var(--on-primary)" : "var(--on-surface-variant)",
-                  border:       has(item.inventoryId) ? "1px solid var(--primary)" : "1px solid rgba(196,181,168,0.4)",
-                  borderRadius: "0.25rem",
-                  cursor:       "pointer",
-                }}
-              >
-                {has(item.inventoryId) ? "✓ Added to Reservation List" : "+ Add to Reservation List"}
-              </button>
+
+              {inBasket && (
+                <Link
+                  href="/account?tab=basket"
+                  className="ll-label py-3 text-center text-[0.62rem] uppercase tracking-[0.15em] underline"
+                  style={{
+                    color: "var(--primary)",
+                    textDecoration: "underline",
+                  }}
+                >
+                  View Basket → Check Out
+                </Link>
+              )}
+
+              {hint && (
+                <p className="ll-body mt-1 text-xs italic" style={{ color: "#991b1b" }}>
+                  {hint}
+                </p>
+              )}
             </div>
 
 
@@ -774,77 +608,71 @@ export default function ItemDetailPage() {
         </section>
 
       {/* ────────────────────────────────────────────────────────
-          Mobile sticky bottom bar — two equal buttons
+          Mobile sticky bottom bar — basket toggle + view-basket link.
+          Reserve is gone; adding IS reserving in the new model.
       ──────────────────────────────────────────────────────── */}
       <div
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 flex items-stretch gap-0 px-0"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 flex flex-col"
         style={{
           background:    "var(--surface-bright)",
           borderTop:     "1px solid rgba(196,181,168,0.2)",
           paddingBottom: "env(safe-area-inset-bottom, 0px)",
         }}
       >
-        {/* Add to List — left half */}
-        <button
-          onClick={() => {
-            if (has(item.inventoryId)) {
-              remove(item.inventoryId);
-            } else {
-              add({
-                inventoryId:    item.inventoryId,
-                sku:            item.sku,
-                name:           item.name,
-                unitPriceCents: item.unitPriceCents,
-                thumbnailUrl:   images[0]?.readUrl ?? null,
-              });
-            }
-          }}
-          className="ll-label flex-1 flex flex-col items-center justify-center gap-1.5 py-4 text-[0.58rem] uppercase tracking-[0.12em] transition-all duration-300"
-          style={{
-            background:  has(item.inventoryId) ? "var(--surface-container-low)" : "var(--surface-bright)",
-            color:       has(item.inventoryId) ? "var(--primary)"               : "var(--on-surface-variant)",
-            cursor:      "pointer",
-            border:      "none",
-            borderRight: "1px solid rgba(196,181,168,0.2)",
-          }}
-        >
-          <svg
-            width="18" height="18" viewBox="0 0 24 24"
-            fill={has(item.inventoryId) ? "currentColor" : "none"}
-            stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+        {/* Hint row — only renders when there's an error to surface */}
+        {hint && (
+          <p
+            className="ll-body px-4 pt-2 text-xs italic"
+            role="alert"
+            style={{ color: "#991b1b" }}
           >
-            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
-          </svg>
-          {has(item.inventoryId) ? "✓ In List" : "Add to List"}
-        </button>
+            {hint}
+          </p>
+        )}
 
-        {/* Reserve — right half */}
-        <button
-          onClick={() => setReserveOpen(true)}
-          className="ll-label flex-1 flex items-center justify-center py-4 text-[0.65rem] uppercase tracking-[0.15em] transition-all duration-300"
-          style={{
-            background: "var(--primary)",
-            color:      "var(--on-primary)",
-            cursor:     "pointer",
-            border:     "none",
-          }}
-        >
-          Reserve This Piece
-        </button>
+        <div className="flex items-stretch gap-0">
+          {/* When in basket: split bar — left half toggles off, right half goes to /account */}
+          {/* When not in basket: full-width add button */}
+          <button
+            onClick={toggleBasket}
+            disabled={busy}
+            className="ll-label flex-1 flex items-center justify-center gap-2 py-4 text-[0.65rem] uppercase tracking-[0.15em] transition-all duration-300 disabled:opacity-60"
+            style={{
+              background: inBasket ? "var(--surface-container-low)" : "var(--primary)",
+              color:      inBasket ? "var(--primary)"               : "var(--on-primary)",
+              cursor:     busy ? "wait" : "pointer",
+              border:     "none",
+              borderRight: inBasket ? "1px solid rgba(196,181,168,0.2)" : "none",
+            }}
+          >
+            <svg
+              width="18" height="18" viewBox="0 0 24 24"
+              fill={inBasket ? "currentColor" : "none"}
+              stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+            >
+              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+            </svg>
+            {busy
+              ? (inBasket ? "Removing…" : "Adding…")
+              : inBasket ? "✓ In Basket" : "+ Add to Basket"}
+          </button>
+
+          {inBasket && (
+            <Link
+              href="/account?tab=basket"
+              className="ll-label flex-1 flex items-center justify-center py-4 text-[0.65rem] uppercase tracking-[0.15em] transition-all duration-300"
+              style={{
+                background: "var(--primary)",
+                color:      "var(--on-primary)",
+                border:     "none",
+                textDecoration: "none",
+              }}
+            >
+              View Basket →
+            </Link>
+          )}
+        </div>
       </div>
-
-      {/* Reserve modal — keyed so each open resets internal form state
-          without an explicit useEffect cleanup. Cheaper than the reset effect
-          and dodges the React 19 "setState in effect" warning. */}
-      {reserveOpen && (
-        <ReserveModal
-          key={`reserve-${item.inventoryId}`}
-          open
-          onClose={() => setReserveOpen(false)}
-          item={item}
-          onReserved={fetchItem}
-        />
-      )}
     </>
   );
 }

@@ -1,0 +1,227 @@
+// =============================================================================
+// PATCH PASS 2 — call-site updates for the basket model
+// =============================================================================
+// Touches three existing files (Header, DesktopItemCard, shop/[sku] page,
+// ContextProvider) plus deletes two (cart/page.tsx, CartContext.tsx).
+//
+// DesktopItemCard.tsx is provided in full (alongside this file) because the
+// changes are dense enough that a patch would be confusing. The others are
+// surgical — patches below.
+// =============================================================================
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 1. DELETE these files entirely:
+// ─────────────────────────────────────────────────────────────────────────────
+//
+//   src/app/(store)/cart/page.tsx
+//   src/context/CartContext.tsx
+//
+// They have no remaining consumers after this patch lands.
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2. PATCH: src/context/ContextProvider.tsx
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Swap CartProvider for BasketProvider. Two-line change.
+
+// BEFORE:
+//   import { CartProvider } from "./CartContext";
+//   ...
+//   <CartProvider>{children}</CartProvider>
+
+// AFTER:
+import { BasketProvider } from "./BasketContext";
+//   ...
+//   <BasketProvider>{children}</BasketProvider>
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. PATCH: src/components/storefront/Header.tsx
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Three changes:
+//   (a) import switch to useBasket
+//   (b) basket icon link target /cart → /account?tab=basket
+//   (c) mobile nav link likewise
+
+// (a) Replace the import at the top:
+// BEFORE: import { useCart } from "@/context/CartContext";
+// AFTER:
+import { useBasket } from "@/context/BasketContext";
+
+// And the consumer line (~379):
+// BEFORE: const { count } = useCart();
+// AFTER:
+const { count } = useBasket();
+
+// (b) The basket icon link (line ~46):
+// BEFORE:
+//   <Link
+//     href="/cart"
+//     ...
+// AFTER:
+//   <Link
+//     href="/account?tab=basket"
+//     ...
+
+// (c) The mobile nav link (line ~486):
+// BEFORE:
+//   <Link href="/cart" onClick={closeMobile} className="nav-mobile-item">
+// AFTER:
+//   <Link href="/account?tab=basket" onClick={closeMobile} className="nav-mobile-item">
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 4. PATCH: src/app/(store)/shop/[sku]/page.tsx
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// The largest change here is conceptual: the page no longer has a separate
+// "Reserve" action distinct from "Add to Basket". In the new model, adding
+// is reserving, and checkout happens later from the basket. The ReserveModal
+// component goes away; the two cart toggle blocks become basket toggles.
+//
+// Steps:
+//   (a) Replace the useCart import with useBasket
+//   (b) Delete the ReserveModal component definition (lines 211–~350,
+//       wherever its closing brace is) — its sole call site goes away
+//   (c) Drop the reserveOpen state + the `{reserveOpen && <ReserveModal ...`
+//       block at the bottom of the JSX
+//   (d) Replace the two has/add/remove toggle blocks with basket toggles
+//   (e) Add a "Go to basket" call-to-action when the item is already in
+//       the basket, since checkout now lives there
+//
+// (a) Import swap at the top:
+// BEFORE: import { useCart } from "@/context/CartContext";
+// AFTER:
+import { useBasket } from "@/context/BasketContext";
+
+// And the consumer line (~427):
+// BEFORE: const { add, remove, has } = useCart();
+// AFTER:
+const { add, remove, has } = useBasket();
+const inBasket = has(item.inventoryId);
+const [busy, setBusy] = useState(false);
+const [hint, setHint] = useState<string | null>(null);
+
+// (b) DELETE the ReserveModal component entirely (function ReserveModal(...) { ... }
+//     starting around line 211).
+
+// (c) DELETE this state and JSX:
+//     const [reserveOpen, setReserveOpen] = useState(false);
+//     ...
+//     {reserveOpen && (
+//       <ReserveModal ... />
+//     )}
+
+// (d) Replace BOTH toggle blocks (around lines 645–670 and 785–820) with
+//     this same handler + button shape. The two old blocks differed only
+//     in styling (large hero CTA vs. the floating "Add to List" pill).
+//     Use the existing styles, just point onClick at the new handler:
+
+const toggleBasket = async () => {
+  if (busy) return;
+  setBusy(true);
+  setHint(null);
+  try {
+    if (inBasket) {
+      await remove(item.inventoryId);
+    } else {
+      const result = await add({
+        inventoryId:    item.inventoryId,
+        sku:            item.sku,
+        name:           item.name,
+        unitPriceCents: item.unitPriceCents,
+        thumbnailUrl:   /* the page's primary image url */ null, // see note below
+      });
+      if (!result.ok) {
+        if (result.reason === "needs_email_verify") {
+          setHint("Please verify your email before adding pieces to your basket.");
+        } else if (result.reason === "held_by_other") {
+          setHint("Another customer just added this piece. Try refreshing the page.");
+        } else if (result.reason !== "already_in_basket") {
+          setHint(result.message || "Couldn't add that piece.");
+        }
+      }
+    }
+  } finally {
+    setBusy(false);
+  }
+};
+
+// On the thumbnailUrl: the SKU page already has the primary image loaded as
+// part of the item.images array; pass `images.find(i => i.isPrimary)?.url ?? null`
+// (or whatever expression the file already uses to pick the hero image) into
+// the add() call. This matches the basket DTO's thumbnail field shape.
+
+// Then the hero CTA (around line 648). Replace:
+//   onClick={() => {
+//     if (has(item.inventoryId)) {
+//       remove(item.inventoryId);
+//     } else {
+//       add({...});
+//     }
+//   }}
+// WITH:
+//   onClick={toggleBasket}
+//   disabled={busy}
+//
+// And the label expression (around line 669):
+// BEFORE: {has(item.inventoryId) ? "✓ Added to Reservation List" : "+ Add to Reservation List"}
+// AFTER:
+//   {busy
+//     ? (inBasket ? "Removing…" : "Adding…")
+//     : inBasket ? "✓ In Basket" : "+ Add to Basket"}
+//
+// Same swaps for the secondary "Add to List" button around line 790/818.
+
+// (e) Add a "Go to basket" link below the primary CTA when inBasket is true.
+//     Anywhere in the action block makes sense; the simplest spot is right
+//     after the toggle button:
+
+{inBasket && (
+  <Link
+    href="/account?tab=basket"
+    className="ll-label mt-3 inline-block text-[0.6rem] uppercase tracking-[0.12em] underline"
+    style={{ color: "var(--primary)", textDecoration: "underline" }}
+  >
+    View Basket → Check Out
+  </Link>
+)}
+
+// And surface the `hint` string somewhere visible in the action block — same
+// pattern as DesktopItemCard.tsx:
+{hint && (
+  <p className="ll-body mt-2 text-xs italic" style={{ color: "#991b1b" }}>
+    {hint}
+  </p>
+)}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. Search-and-replace audit
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// After the patches above land, run these to confirm no stragglers:
+//
+//   git grep -n 'CartContext\|CartProvider\|useCart\|"/cart"' src/
+//
+// Expected output: empty. If anything matches, it's a missed call site.
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 6. Note on the messages tab and header badge polish (deferred to pass 3)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// The header `count` from useBasket() is now correct after every basket
+// mutation that goes through the context. But mutations that happen from
+// elsewhere — the BasketTab's remove button, the checkout flow — don't
+// share the BasketProvider's state. Two ways to keep them in sync:
+//
+//   (a) Have BasketTab and CheckoutHandler call useBasket().refresh() after
+//       their own mutations land. Simple, slight coupling.
+//   (b) Move the basket/orders state into a single provider that both the
+//       account tabs and the header read from. Cleaner, more refactor.
+//
+// (a) lands in pass 3 along with messages-grouping. (b) is overkill for now.

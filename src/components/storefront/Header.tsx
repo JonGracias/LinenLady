@@ -4,7 +4,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { SignInButton, SignOutButton, useUser } from "@clerk/nextjs";
-import { useCart } from "@/context/CartContext";
+import { useBasket } from "@/context/BasketContext";
 
 const STORE_NAME    = process.env.NEXT_PUBLIC_STORE_NAME    ?? "The Linen Lady";
 const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? "";
@@ -38,14 +38,14 @@ const WORDMARK_STYLE: React.CSSProperties = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CartIcon — extracted because it appears in two places and the SVG was noisy.
+// BasketIcon — extracted because it appears in two places and the SVG was noisy.
 // ─────────────────────────────────────────────────────────────────────────────
-function CartIcon({ count }: { count: number }) {
+function BasketIcon({ count }: { count: number }) {
   return (
     <Link
-      href="/cart"
+      href="/basket"
       className="nav-icon-button"
-      aria-label={`Cart — ${count} ${count === 1 ? "item" : "items"}`}
+      aria-label={`Basket — ${count} ${count === 1 ? "item" : "items"}`}
     >
       <svg
         width="18" height="18" viewBox="0 0 24 24" fill="none"
@@ -57,7 +57,7 @@ function CartIcon({ count }: { count: number }) {
         <path d="M16 10a4 4 0 0 1-8 0" />
       </svg>
       {count > 0 && (
-        <span className="nav-cart-badge" aria-hidden="true">
+        <span className="nav-basket-badge" aria-hidden="true">
           {count > 9 ? "9+" : count}
         </span>
       )}
@@ -111,7 +111,7 @@ function HelpDropdown() {
         <>
           {/* Backdrop catches outside clicks. z-index puts it under the
               dropdown panel but over the rest of the header — fixes the
-              previous bug where clicks on the cart/wordmark fired through. */}
+              previous bug where clicks on the basket/wordmark fired through. */}
           <div
             className="nav-dropdown-backdrop"
             onClick={() => setOpen(false)}
@@ -183,13 +183,13 @@ function HelpDropdown() {
 // AccountDropdown — visible at all breakpoints, icon-only trigger. Mirrors
 // HelpDropdown's open/close mechanics (outside-click backdrop, Escape
 // dismissal, ARIA shape) but trades the text+chevron pattern for the same
-// silent-icon affordance the cart uses. Contents switch on auth state:
+// silent-icon affordance the basket uses. Contents switch on auth state:
 //
 //   Signed out → "Sign In" item, opens Clerk's modal sign-in flow.
 //   Signed in  → "Account" link + "Sign Out" action, separated by a divider so
 //                the destructive action reads as distinct from navigation.
 //
-// Why no visible label: this lives next to the cart icon at all breakpoints
+// Why no visible label: this lives next to the basket icon at all breakpoints
 // and needs to read as a peer of it, not as a nav item. Aria-label carries the
 // accessibility load — sighted users get the icon; screen-reader users get
 // "Account menu — {name}" when signed in so they know whose account it is
@@ -255,7 +255,7 @@ function AccountDropdown() {
           </span>
         ) : (
           // Person silhouette — same stroke weight (1.5) and 18×18 size as the
-          // cart icon so the two read as a matched pair when anonymous.
+          // basket icon so the two read as a matched pair when anonymous.
           <svg
             width="18" height="18" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
@@ -376,7 +376,7 @@ function AccountDropdown() {
 export default function StorefrontHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { isSignedIn } = useUser();
-  const { count } = useCart();
+  const { count } = useBasket();
   const drawerId = useId();
 
   // Lock body scroll while mobile drawer is open.
@@ -443,14 +443,14 @@ export default function StorefrontHeader() {
         </div>
 
         {/* ── RIGHT COLUMN ───────────────────────────────────────────────── */}
-        {/* CartIcon and AccountDropdown stay visible at all breakpoints —
+        {/* BasketIcon and AccountDropdown stay visible at all breakpoints —
             both are icon-only and read as a matched pair. HelpDropdown is
             desktop-only (lg:); its mobile equivalents live inside the drawer
             below. The previous SignInButton / UserButton block was replaced
             by AccountDropdown — that menu now owns the sign-in trigger when
             anonymous and the account/sign-out actions when authenticated. */}
         <div className="flex items-center justify-end gap-4 min-w-0">
-          <CartIcon count={count} />
+          <BasketIcon count={count} />
           <HelpDropdown />
           <AccountDropdown />
         </div>
@@ -483,7 +483,7 @@ export default function StorefrontHeader() {
                 </Link>
               ))}
 
-              <Link href="/cart" onClick={closeMobile} className="nav-mobile-item">
+              <Link href="/basket" onClick={closeMobile} className="nav-mobile-item">
                 <span>Reservation List</span>
                 {count > 0 && (
                   <span
