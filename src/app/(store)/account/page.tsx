@@ -22,26 +22,23 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 }
 
-function BorderMotif() {
-  return (
-    <div className="h-3 w-full opacity-60" style={{ background: `repeating-linear-gradient(90deg,#b07878 0px,#b07878 8px,transparent 8px,transparent 16px,#8fad94 16px,#8fad94 24px,transparent 24px,transparent 32px,#ecdcdc 32px,#ecdcdc 40px,transparent 40px,transparent 48px)` }} />
-  );
-}
-
 /* ─────────────────────────────────────────────────────────────
    Tab types
+   ─────────────────────────────────────────────────────────────
+   "messages" was renamed to "contact" alongside the new /contact
+   page. The tab still shows the existing in-app message thread
+   (cust.Message rows) — we just relabeled it so all customer→Noemi
+   surfaces use a consistent verb. Old links / bookmarks pointing
+   to ?tab=messages are aliased below in the URL parser.
 ───────────────────────────────────────────────────────────── */
 
-type Tab = "basket" | "orders" | "address" | "preferences" | "messages";
+type Tab = "basket" | "orders" | "address" | "preferences" | "contact";
 
 /* ─────────────────────────────────────────────────────────────
    Account page
 ───────────────────────────────────────────────────────────── */
 
 export default function AccountPage() {
-  // useSearchParams forces a CSR bailout, which Next 16 requires us to opt
-  // into explicitly with a Suspense boundary at the page boundary. The inner
-  // component holds all the actual logic; this wrapper is purely structural.
   return (
     <React.Suspense fallback={null}>
       <AccountPageInner />
@@ -54,21 +51,18 @@ function AccountPageInner() {
   const { getToken }       = useAuth();
   const searchParams       = useSearchParams();
 
-  // Seed tab from `?tab=` so deep-links from elsewhere (header dropdown,
-  // checkout success redirect, etc) land on the right pane. Validated
-  // against the Tab union — anything else falls back to basket.
+  // Seed tab from `?tab=` so deep-links from elsewhere land on the right pane.
+  // Validated against the Tab union — anything else falls back to basket.
+  // Aliases: ?tab=reservations → basket (legacy basket link),
+  //          ?tab=messages     → contact (legacy messages link).
   const [tab, setTab] = useState<Tab>(() => {
     const t = searchParams?.get("tab");
-    // Accept "reservations" as an alias for "basket" so old bookmarks still
-    // land somewhere sensible — same with deep-links from the cart-redirect
-    // shim during the cutover. Drop the alias once the redirect is gone.
-    if (t === "reservations" || t === "basket") return "basket";
-    if (t === "orders" || t === "address" || t === "preferences" || t === "messages") return t;
+    if (t === "reservations" || t === "basket")          return "basket";
+    if (t === "messages"     || t === "contact")         return "contact";
+    if (t === "orders" || t === "address" || t === "preferences") return t;
     return "basket";
   });
 
-  // `?placed=<orderId>` after the checkout flow → highlight that order in
-  // the orders tab. Captured at mount; OrdersTab decides how to surface it.
   const placedOrderId = useMemo(() => {
     const r = searchParams?.get("placed");
     if (!r) return null;
@@ -86,7 +80,6 @@ function AccountPageInner() {
   const [msgDraft, setMsgDraft]         = useState("");
   const [msgSending, setMsgSending]     = useState(false);
 
-  // Address form
   const [addrForm, setAddrForm] = useState<Partial<CustomerAddressDto> | null>(null);
 
   const apiCall = useCallback(async (path: string, opts?: RequestInit) => {
@@ -103,12 +96,10 @@ function AccountPageInner() {
     });
   }, [getToken, user?.id]);
 
-  // Sync customer on mount, then load profile + basket + orders + messages
   useEffect(() => {
     if (!isLoaded || !user) return;
 
     const load = async () => {
-      // Sync customer (unchanged)
       await apiCall("/customers/sync", {
         method: "POST",
         body: JSON.stringify({
@@ -120,28 +111,19 @@ function AccountPageInner() {
         }),
       });
 
-      // Profile (addresses + preferences — reservations no longer comes from here)
       const profileRes = await apiCall("/customers/me");
       if (profileRes.ok) {
         const data = await profileRes.json();
         setAddresses(data.addresses ?? []);
         setPreferences((data.preferences ?? []).map((p: any) => p.Category));
-        // Note: data.reservations is the legacy field; we ignore it now and
-        // load /basket instead. The API still returns it for compat — the
-        // proxy hasn't changed shape on the customers/me endpoint. Once the
-        // cleanup migration drops the legacy reservation columns, the API
-        // can stop populating it too.
       }
 
-      // Basket — active + recently-expired in one payload
       const basketRes = await apiCall("/customers/me/basket");
       if (basketRes.ok) setReservations(await basketRes.json());
 
-      // Orders
       const ordersRes = await apiCall("/customers/me/orders");
       if (ordersRes.ok) setOrders(await ordersRes.json());
 
-      // Messages (unchanged)
       const msgRes = await apiCall("/customers/me/messages");
       if (msgRes.ok) setMessages(await msgRes.json());
 
@@ -208,7 +190,6 @@ function AccountPageInner() {
   return (
     <div className="ll-texture-overlay min-h-screen" style={{ backgroundColor: "var(--cream)", color: "var(--ink)" }}>
       <div className="ll-texture-overlay pointer-events-none fixed inset-0 z-0" />
-      <BorderMotif />
 
       {/* Header */}
       <div className="relative z-[1] border-b px-16 py-12" style={{ borderColor: "var(--linen)", background: "linear-gradient(135deg, var(--cream) 0%, var(--cream-dark) 100%)" }}>
@@ -227,7 +208,7 @@ function AccountPageInner() {
           { id: "orders",      label: "Orders"      },
           { id: "address",     label: "Addresses"   },
           { id: "preferences", label: "Preferences" },
-          { id: "messages",    label: "Messages"    },
+          { id: "contact",     label: "Contact"     },   // was "messages" / "Messages"
         ] as { id: Tab; label: string }[]).map(({ id, label }) => (
           <button
             key={id}
@@ -302,7 +283,6 @@ function AccountPageInner() {
               ))}
             </div>
 
-            {/* Address form */}
             {addrForm !== null && (
               <div className="mt-6 border p-6" style={{ borderColor: "var(--linen)", background: "var(--cream-dark)" }}>
                 <h3 className="ll-display mb-5 text-lg font-normal italic" style={{ color: "var(--ink)" }}>
@@ -378,17 +358,30 @@ function AccountPageInner() {
           </div>
         )}
 
-        {/* ── Messages ── */}
-        {tab === "messages" && (
+        {/* ── Contact (was Messages) ──
+            This tab still shows the in-app message thread (cust.Message rows).
+            We just relabeled it. New inquiries — especially from anonymous
+            visitors — go through /contact, which uses the public Resend-backed
+            endpoint. The link below routes signed-in users there too if they'd
+            rather start a fresh thread that gets logged on the contact-form
+            audit trail. */}
+        {tab === "contact" && (
           <div className="max-w-2xl">
-            <h2 className="ll-display mb-8 text-xl font-normal" style={{ color: "var(--ink)" }}>
-              Messages to <em className="italic" style={{ color: "var(--rose-deep)" }}>Noemi</em>
+            <h2 className="ll-display mb-2 text-xl font-normal" style={{ color: "var(--ink)" }}>
+              Your Conversation with <em className="italic" style={{ color: "var(--rose-deep)" }}>Noemi</em>
             </h2>
+            <p className="ll-body mb-8 text-sm font-light" style={{ color: "var(--ink-soft)" }}>
+              Have a new question?{" "}
+              <Link href="/contact" style={{ color: "var(--rose-deep)", textDecoration: "underline" }}>
+                Visit the contact page
+              </Link>
+              {" "}— it&apos;ll send Noemi a fresh email she can reply to directly.
+            </p>
 
             {/* Thread */}
             <div className="mb-6 flex max-h-[480px] flex-col gap-3 overflow-y-auto pr-2">
               {messages.length === 0 && (
-                <p className="ll-body italic text-base" style={{ color: "var(--brown-light)" }}>No messages yet. Say hello!</p>
+                <p className="ll-body italic text-base" style={{ color: "var(--brown-light)" }}>No messages yet.</p>
               )}
               {messages.map((m) => {
                 const isOutbound = m.direction === "Outbound";
@@ -411,14 +404,14 @@ function AccountPageInner() {
               })}
             </div>
 
-            {/* Compose */}
+            {/* Compose — kept for replying within an existing thread */}
             <div className="flex gap-3 border-t pt-4" style={{ borderColor: "var(--linen)" }}>
               <textarea
                 value={msgDraft}
                 onChange={(e) => setMsgDraft(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }}}
                 rows={3}
-                placeholder="Write a message to Noemi…"
+                placeholder="Reply to Noemi…"
                 className="ll-body flex-1 resize-none border p-3 text-sm font-light outline-none placeholder:italic"
                 style={{ borderColor: "var(--linen)", background: "var(--cream-dark)", color: "var(--ink)" }}
               />
@@ -431,8 +424,6 @@ function AccountPageInner() {
           </div>
         )}
       </div>
-
-      <BorderMotif />
 
       <footer className="relative z-[1] px-16 pb-8 pt-12" style={{ background: "var(--ink)", color: "var(--cream-dark)" }}>
         <div className="ll-label flex flex-wrap items-center justify-between gap-2 text-[0.6rem] uppercase tracking-[0.1em]" style={{ color: "rgba(255,255,255,0.25)" }}>

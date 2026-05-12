@@ -10,25 +10,23 @@ const STORE_NAME    = process.env.NEXT_PUBLIC_STORE_NAME    ?? "The Linen Lady";
 const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? "";
 
 const NAV_LINKS = [
-  { href: "/shop",      label: "Collection" },
-  { href: "/about",     label: "Heritage"   },
-  { href: "/#schedule", label: "Atelier"    },
-  { href: "/#contact",  label: "Inquire"    },
+  { href: "/shop",      label: "Collections" },
+  { href: "/about",     label: "About Us"   },
+  { href: "/#schedule", label: "Join Us at the Market"    },
+  { href: "/contact",   label: "Contact"    },   // was "/#contact" — now points at the contact page
 ];
 
 const HELP_LINKS = [
-  { href: "/account?tab=orders",   label: "Order History",      desc: "View your past and active orders"          },
-  { href: "/account?tab=orders",   label: "Where's My Order",   desc: "Check your order or payment status"        },
-  { href: "/terms",                label: "Shipping & Returns", desc: "Policies on shipping and all sales final"  },
-  ...(CONTACT_EMAIL ? [{ href: `mailto:${CONTACT_EMAIL}`, label: "Email Us", desc: "Get in touch with Noemi directly" }] : []),
+  { href: "/account?tab=orders",  label: "Order History",      desc: "View your past and active orders"          },
+  { href: "/account?tab=orders",  label: "Where's My Order",   desc: "Check your order or payment status"        },
+  { href: "/terms",               label: "Shipping & Returns", desc: "Policies on shipping and all sales final"  },
+  { href: "/contact",             label: "Contact Noemi",      desc: "Send a question or inquiry"                },
 ];
 
 function isExternalHref(href: string) {
   return href.startsWith("mailto:") || href.startsWith("http");
 }
 
-// Shared classes for the wordmark — defined once, used in both mobile and
-// desktop slots. Keeps the two renders visually identical.
 const WORDMARK_CLASSES =
   "ll-display text-base font-normal italic tracking-wide";
 const WORDMARK_STYLE: React.CSSProperties = {
@@ -38,9 +36,7 @@ const WORDMARK_STYLE: React.CSSProperties = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BasketIcon — extracted because it appears in two places and the SVG was
-// noisy. (Was CartIcon — renamed alongside the cart→basket model migration;
-// the bag/basket SVG was kept since it still reads as a shopping container.)
+// BasketIcon
 // ─────────────────────────────────────────────────────────────────────────────
 function BasketIcon({ count }: { count: number }) {
   return (
@@ -68,15 +64,13 @@ function BasketIcon({ count }: { count: number }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// HelpDropdown — desktop-only. Encapsulates the open/close state, outside-click
-// dismissal, and Escape-key dismissal.
+// HelpDropdown — desktop-only.
 // ─────────────────────────────────────────────────────────────────────────────
 function HelpDropdown() {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuId = useId();
 
-  // Close on Escape, restoring focus to the toggle.
   useEffect(() => {
     if (!open) return;
     function onKeyDown(e: KeyboardEvent) {
@@ -111,9 +105,6 @@ function HelpDropdown() {
 
       {open && (
         <>
-          {/* Backdrop catches outside clicks. z-index puts it under the
-              dropdown panel but over the rest of the header — fixes the
-              previous bug where clicks on the cart/wordmark fired through. */}
           <div
             className="nav-dropdown-backdrop"
             onClick={() => setOpen(false)}
@@ -164,6 +155,8 @@ function HelpDropdown() {
               })}
             </div>
 
+            {/* Footer mailto stays as the escape hatch — for desktop users who'd
+                rather skip the form and use their own mail app directly. */}
             {CONTACT_EMAIL && (
               <div className="border-t px-5 py-3" style={{ borderColor: "rgba(196,181,168,0.2)" }}>
                 <p className="ll-body text-xs font-light italic" style={{ color: "var(--on-surface-variant)" }}>
@@ -182,20 +175,7 @@ function HelpDropdown() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// AccountDropdown — visible at all breakpoints, icon-only trigger. Mirrors
-// HelpDropdown's open/close mechanics (outside-click backdrop, Escape
-// dismissal, ARIA shape) but trades the text+chevron pattern for the same
-// silent-icon affordance the basket uses. Contents switch on auth state:
-//
-//   Signed out → "Sign In" item, opens Clerk's modal sign-in flow.
-//   Signed in  → "Account" link + "Sign Out" action, separated by a divider so
-//                the destructive action reads as distinct from navigation.
-//
-// Why no visible label: this lives next to the basket icon at all breakpoints
-// and needs to read as a peer of it, not as a nav item. Aria-label carries the
-// accessibility load — sighted users get the icon; screen-reader users get
-// "Account menu — {name}" when signed in so they know whose account it is
-// before opening the menu.
+// AccountDropdown
 // ─────────────────────────────────────────────────────────────────────────────
 function AccountDropdown() {
   const [open, setOpen] = useState(false);
@@ -203,7 +183,6 @@ function AccountDropdown() {
   const menuId = useId();
   const { isSignedIn, user } = useUser();
 
-  // Close on Escape, restoring focus to the toggle. Identical to HelpDropdown.
   useEffect(() => {
     if (!open) return;
     function onKeyDown(e: KeyboardEvent) {
@@ -233,11 +212,6 @@ function AccountDropdown() {
         aria-label={accessibleName}
       >
         {isSignedIn ? (
-          // Initial-in-circle, mirroring Clerk's UserButton avatar fallback.
-          // 28px circle keeps the trigger's tap target close to the silhouette
-          // version's visual weight. Initial sourced from firstName → username
-          // → email, so something always renders even before Clerk hydrates a
-          // full user object.
           <span
             className="ll-label inline-flex items-center justify-center text-[0.7rem] font-medium uppercase"
             style={{
@@ -256,8 +230,6 @@ function AccountDropdown() {
               ?? "?").toUpperCase()}
           </span>
         ) : (
-          // Person silhouette — same stroke weight (1.5) and 18×18 size as the
-          // basket icon so the two read as a matched pair when anonymous.
           <svg
             width="18" height="18" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
@@ -285,13 +257,6 @@ function AccountDropdown() {
             </div>
 
             {!isSignedIn ? (
-              // ── Signed-out menu ─────────────────────────────────────────
-              // SignInButton wraps a child it renders as the trigger. We give
-              // it a div that visually matches a nav-dropdown-item so the
-              // dropdown reads as a single coherent menu rather than a
-              // dropdown-with-an-embedded-button. onClick on the wrapping div
-              // closes the dropdown; SignInButton intercepts the underlying
-              // click to open Clerk's modal.
               <div className="flex flex-col pb-3">
                 <SignInButton mode="modal">
                   <div
@@ -313,7 +278,6 @@ function AccountDropdown() {
                 </SignInButton>
               </div>
             ) : (
-              // ── Signed-in menu ──────────────────────────────────────────
               <div className="flex flex-col pb-3">
                 <Link
                   href="/account"
@@ -329,8 +293,6 @@ function AccountDropdown() {
                   </span>
                 </Link>
 
-                {/* Divider separates navigation from the destructive action.
-                    Same border treatment as HelpDropdown's footer. */}
                 <div
                   className="border-t mx-5 my-2"
                   style={{ borderColor: "rgba(196,181,168,0.2)" }}
@@ -366,14 +328,6 @@ function AccountDropdown() {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main header
-//
-// Layout: a 3-column CSS grid (left | center | right). This replaces the
-// previous absolute-positioning approach where the wordmark and the nav both
-// targeted `left: 50%` and competed for the same horizontal slot. With the
-// grid, each region owns its column and physically cannot overlap the others.
-//
-// Mobile  : [hamburger] [wordmark]  [actions]
-// Desktop : [wordmark]  [nav]       [actions + help + account]
 // ─────────────────────────────────────────────────────────────────────────────
 export default function StorefrontHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -381,7 +335,6 @@ export default function StorefrontHeader() {
   const { count } = useBasket();
   const drawerId = useId();
 
-  // Lock body scroll while mobile drawer is open.
   useEffect(() => {
     if (!mobileOpen) return;
     const prev = document.body.style.overflow;
@@ -399,8 +352,6 @@ export default function StorefrontHeader() {
     >
       <div className="mx-auto grid h-16 max-w-[1800px] grid-cols-3 items-center gap-6 px-6 md:px-12">
 
-        {/* ── LEFT COLUMN ────────────────────────────────────────────────── */}
-        {/* Mobile: hamburger.  Desktop: wordmark.                            */}
         <div className="flex items-center justify-start min-w-0">
           <button
             type="button"
@@ -424,8 +375,6 @@ export default function StorefrontHeader() {
           </Link>
         </div>
 
-        {/* ── CENTER COLUMN ──────────────────────────────────────────────── */}
-        {/* Mobile: wordmark.  Desktop: primary nav.                          */}
         <div className="flex items-center justify-center min-w-0">
           <Link
             href="/"
@@ -444,13 +393,6 @@ export default function StorefrontHeader() {
           </nav>
         </div>
 
-        {/* ── RIGHT COLUMN ───────────────────────────────────────────────── */}
-        {/* BasketIcon and AccountDropdown stay visible at all breakpoints —
-            both are icon-only and read as a matched pair. HelpDropdown is
-            desktop-only (lg:); its mobile equivalents live inside the drawer
-            below. The previous SignInButton / UserButton block was replaced
-            by AccountDropdown — that menu now owns the sign-in trigger when
-            anonymous and the account/sign-out actions when authenticated. */}
         <div className="flex items-center justify-end gap-4 min-w-0">
           <BasketIcon count={count} />
           <HelpDropdown />
@@ -461,7 +403,6 @@ export default function StorefrontHeader() {
       {/* ── Mobile drawer ─────────────────────────────────────────────────── */}
       {mobileOpen && (
         <>
-          {/* Backdrop dims page and catches outside clicks. */}
           <div
             className="lg:hidden fixed inset-x-0 bottom-0 top-16 z-40 bg-black/20"
             onClick={closeMobile}
@@ -520,9 +461,6 @@ export default function StorefrontHeader() {
                 )
               )}
 
-              {/* Mobile auth section — drawer-equivalent of AccountDropdown.
-                  Kept simple here because the drawer is already a full menu;
-                  no nested dropdown needed. */}
               {!isSignedIn ? (
                 <SignInButton mode="modal">
                   <button

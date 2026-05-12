@@ -1,4 +1,20 @@
 // src/app/(store)/account/_components/BasketTab.tsx
+//
+// Orchestrator for the basket tab. Owns network calls, basket state, and
+// provider sync — delegates rendering to ActiveReservations (in-basket)
+// and ExpiredReservations (recently expired), with CheckoutPanel pinned
+// as the right rail.
+//
+// Layout: a small inline tab switch (ACTIVE / EXPIRED) flips between the
+// two list views. The EXPIRED tab is only shown when there's something
+// to put in it; otherwise the switch hides and the active view fills the
+// column unaccompanied.
+//
+// What lives here vs. children: the children are dumb — they get already-
+// bound callbacks and display data. All async, all error/submit state,
+// all useBasket() coordination stays in the parent so the children are
+// trivially testable and the data flow is one-way.
+
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -6,34 +22,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ReservationDto, CustomerAddressDto } from "@/types/customer";
 import { useBasket } from "@/context/BasketContext";
-
-/* ─────────────────────────────────────────────────────────────
-   Helpers
-───────────────────────────────────────────────────────────── */
-
-function formatPrice(cents: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-  }).format(cents / 100);
-}
-
-function timeLeft(expiresAt: string) {
-  const diff = new Date(expiresAt).getTime() - Date.now();
-  if (diff <= 0) return "Expired";
-  const h = Math.floor(diff / 3600000);
-  const m = Math.floor((diff % 3600000) / 60000);
-  if (h >= 24) {
-    const d = Math.floor(h / 24);
-    return `${d}d ${h % 24}h remaining`;
-  }
-  return `${h}h ${m}m remaining`;
-}
-
-/* ─────────────────────────────────────────────────────────────
-   Props
-───────────────────────────────────────────────────────────── */
+import ActiveReservations from "./basket/ActiveReservations";
+import ExpiredReservations from "./basket/ExpiredReservations";
+import CheckoutPanel from "./basket/CheckoutPanel";
 
 type BasketTabProps = {
   reservations: ReservationDto[];
@@ -43,9 +34,7 @@ type BasketTabProps = {
   onAddressTab: () => void;                              // jump to addresses tab
 };
 
-/* ─────────────────────────────────────────────────────────────
-   Tab body
-───────────────────────────────────────────────────────────── */
+type View = "active" | "expired";
 
 export default function BasketTab({
   reservations,
@@ -68,9 +57,28 @@ export default function BasketTab({
 
   // Split active / recently-expired from the unified list. The server returns
   // both kinds in a single basket payload — simpler than two endpoints — and
-  // the UI splits them into two visual sections.
+  // the UI flips between them with a tab switch.
   const active  = useMemo(() => reservations.filter(r => r.status === "Active"),  [reservations]);
   const expired = useMemo(() => reservations.filter(r => r.status === "Expired"), [reservations]);
+
+  // Set of inventory ids the customer currently holds an Active reservation
+  // on. ExpiredReservations consumes this to distinguish "back in your
+  // basket" (re-added via Try Again, or claimed some other way) from
+  // "no longer available" (someone else has it / it sold). Both are
+  // !canReAdd; only the customer-side context tells them apart, and that
+  // context is already in the basket payload so we compute it on the FE.
+  const inActiveBasketByInventoryId = useMemo(
+    () => new Set(active.map(r => r.inventoryId)),
+    [active]
+  );
+
+  // Which list is showing. Defaults to active. If expired empties out
+  // while the customer is on it (last item re-added or filtered away),
+  // bounce back to active so they don't see an empty column.
+  const [view, setView] = useState<View>("active");
+  useEffect(() => {
+    if (view === "expired" && expired.length === 0) setView("active");
+  }, [view, expired.length]);
 
   // Per-item checkbox state. Defaults to all-checked when items first arrive
   // — the typical user came here to check out, not curate.
@@ -99,9 +107,9 @@ export default function BasketTab({
   }, [defaultAddress, addressId]);
 
   // Action state — checkout, per-item remove, per-item re-add.
-  const [submitting, setSubmitting]     = useState(false);
-  const [globalError, setGlobalError]   = useState<string | null>(null);
-  const [busyId, setBusyId]             = useState<number | null>(null);
+  const [submitting, setSubmitting]   = useState(false);
+  const [globalError, setGlobalError] = useState<string | null>(null);
+  const [busyId, setBusyId]           = useState<number | null>(null);
 
   /* ── Remove ── */
   const removeItem = async (id: number) => {
@@ -136,30 +144,15 @@ export default function BasketTab({
         throw new Error(text || `HTTP ${res.status}`);
       }
       const created: ReservationDto = await res.json();
-      // The expired row stays (audit), the new active row is appended.
+      // The expired row stays in the list as audit history. Once `created`
+      // is appended, ExpiredReservations sees the matching inventoryId in
+      // the active set and re-renders the old row as "Back in your basket"
+      // automatically — no need to filter or modify the expired entry.
       onChange([...reservations, created]);
       // New active reservation → bump the badge.
       refreshBasket().catch(() => { /* see removeItem note */ });
     } catch (e) {
       setGlobalError(e instanceof Error ? e.message : "Couldn't add that piece back.");
-    } finally {
-      setBusyId(null);
-    }
-  };
-
-  /* ── Ask Noemi ── */
-  const askNoemi = async (reservationId: number) => {
-    setBusyId(reservationId);
-    setGlobalError(null);
-    try {
-      const res = await apiCall("/customers/me/ask-noemi", {
-        method: "POST",
-        body:   JSON.stringify({ reservationId, openingQuestion: null }),
-      });
-      if (!res.ok) throw new Error(await res.text() || `HTTP ${res.status}`);
-      router.push("/account?tab=messages");
-    } catch (e) {
-      setGlobalError(e instanceof Error ? e.message : "Couldn't open a message thread.");
     } finally {
       setBusyId(null);
     }
@@ -234,253 +227,101 @@ export default function BasketTab({
     );
   }
 
+  /* ── Layout: list on the left, sticky checkout panel on the right ── */
   return (
-    <div className="grid gap-12 md:grid-cols-[1fr_360px] md:items-start">
-
-      {/* ── Active items (the basket proper) ───────────────────── */}
+    <div className="grid gap-12 md:grid-rows-[1fr_360px] md:items-start">
       <div>
-        <div className="mb-4 flex items-baseline justify-between">
-          <h2 className="ll-display text-xl font-normal" style={{ color: "var(--ink)" }}>
-            In your <em className="italic" style={{ color: "var(--rose-deep)" }}>basket</em>
-          </h2>
-          <p className="ll-label text-[0.62rem] uppercase tracking-[0.2em]" style={{ color: "var(--ink-soft)" }}>
-            {active.length} {active.length === 1 ? "piece" : "pieces"}
-          </p>
-        </div>
-
-        {active.length === 0 ? (
-          <p className="ll-body py-8 text-sm italic" style={{ color: "var(--ink-soft)" }}>
-            Nothing currently held — see your recently-expired pieces below.
-          </p>
-        ) : (
-          <ul className="flex flex-col" style={{ borderTop: "1px solid var(--linen)" }}>
-            {active.map(r => (
-              <li
-                key={r.reservationId}
-                className="flex items-center gap-4 py-5"
-                style={{ borderBottom: "1px solid var(--linen)" }}
-              >
-                {/* Checkbox */}
-                <input
-                  type="checkbox"
-                  checked={checked[r.reservationId] ?? false}
-                  onChange={(e) => setChecked(c => ({ ...c, [r.reservationId]: e.target.checked }))}
-                  disabled={submitting}
-                  className="h-5 w-5 shrink-0 cursor-pointer accent-[color:var(--rose-deep)]"
-                  aria-label={`Include ${r.itemName ?? "item"} in checkout`}
-                />
-
-                {/* Thumb */}
-                <div
-                  className="shrink-0 overflow-hidden"
-                  style={{ width: 64, height: 64, borderRadius: "0.2rem", background: "var(--cream-dark)" }}
-                >
-                  {r.thumbnailUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={r.thumbnailUrl} alt={r.itemName ?? ""} className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center ll-display text-[0.5rem] italic"
-                         style={{ color: "var(--ink-soft)" }}>LL</div>
-                  )}
-                </div>
-
-                {/* Body */}
-                <div className="flex-1 min-w-0">
-                  <Link
-                    href={`/shop/${r.itemSku ?? ""}`}
-                    className="ll-display text-sm font-normal leading-snug line-clamp-2 hover:opacity-60"
-                    style={{ color: "var(--ink)", textDecoration: "none" }}
-                  >
-                    {r.itemName ?? "Linen Lady piece"}
-                  </Link>
-                  <p className="ll-label mt-1 text-[0.55rem] uppercase tracking-[0.12em]" style={{ color: "var(--ink-soft)" }}>
-                    {timeLeft(r.expiresAt)}
-                  </p>
-                </div>
-
-                {/* Price + actions */}
-                <div className="flex flex-col items-end gap-1.5 shrink-0">
-                  <span className="ll-display text-sm font-normal" style={{ color: "var(--rose-deep)" }}>
-                    {formatPrice(r.unitPriceCents)}
-                  </span>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => askNoemi(r.reservationId)}
-                      disabled={busyId === r.reservationId || submitting}
-                      className="ll-label text-[0.55rem] uppercase tracking-[0.1em] hover:opacity-60 disabled:opacity-30"
-                      style={{ color: "var(--sage-deep)", background: "none", border: "none", cursor: "pointer" }}
-                    >
-                      Ask Noemi
-                    </button>
-                    <button
-                      onClick={() => removeItem(r.reservationId)}
-                      disabled={busyId === r.reservationId || submitting}
-                      className="ll-label text-[0.55rem] uppercase tracking-[0.1em] hover:opacity-60 disabled:opacity-30"
-                      style={{ color: "var(--ink-soft)", background: "none", border: "none", cursor: "pointer" }}
-                      aria-label={`Remove ${r.itemName ?? "item"}`}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
+        {/* ── View switch — only render when there's an expired list to
+              switch to. With nothing expired, the active view stands alone
+              and the tab control would be visual noise. ─────────────── */}
+        {expired.length > 0 && (
+          <div className="mb-6 flex gap-6" style={{ borderBottom: "1px solid var(--linen)" }}>
+            <ViewTab
+              label="Active"
+              count={active.length}
+              selected={view === "active"}
+              onClick={() => setView("active")}
+            />
+            <ViewTab
+              label="Expired"
+              count={expired.length}
+              selected={view === "expired"}
+              onClick={() => setView("expired")}
+            />
+          </div>
         )}
 
-        {/* ── Recently expired ─────────────────────────────────── */}
-        {expired.length > 0 && (
-          <div className="mt-12">
-            <h3 className="ll-label mb-4 text-[0.62rem] uppercase tracking-[0.2em]" style={{ color: "var(--ink-soft)" }}>
-              Recently expired
-            </h3>
-            <ul className="flex flex-col" style={{ borderTop: "1px solid var(--linen)" }}>
-              {expired.map(r => (
-                <li
-                  key={r.reservationId}
-                  className="flex items-center gap-4 py-4 opacity-70"
-                  style={{ borderBottom: "1px solid var(--linen)" }}
-                >
-                  <div
-                    className="shrink-0 overflow-hidden"
-                    style={{ width: 48, height: 48, borderRadius: "0.2rem", background: "var(--cream-dark)" }}
-                  >
-                    {r.thumbnailUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={r.thumbnailUrl} alt={r.itemName ?? ""} className="h-full w-full object-cover" />
-                    ) : null}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="ll-display text-sm font-normal" style={{ color: "var(--ink)" }}>
-                      {r.itemName ?? "Linen Lady piece"}
-                    </p>
-                    <p className="ll-label mt-1 text-[0.55rem] uppercase tracking-[0.12em]" style={{ color: "var(--ink-soft)" }}>
-                      {r.canReAdd ? "Still available" : "No longer available"}
-                    </p>
-                  </div>
-                  <span className="ll-display text-xs" style={{ color: "var(--ink-soft)" }}>
-                    {formatPrice(r.unitPriceCents)}
-                  </span>
-                  <button
-                    onClick={() => reAddItem(r.reservationId)}
-                    disabled={!r.canReAdd || busyId === r.reservationId}
-                    className="ll-label text-[0.6rem] uppercase tracking-[0.1em] hover:opacity-60 disabled:opacity-30"
-                    style={{ color: "var(--sage-deep)", background: "none", border: "none", cursor: r.canReAdd ? "pointer" : "not-allowed" }}
-                  >
-                    Try Again
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
+        {view === "active" ? (
+          <ActiveReservations
+            active={active}
+            checked={checked}
+            busyId={busyId}
+            submitting={submitting}
+            onCheckChange={(id, val) => setChecked(c => ({ ...c, [id]: val }))}
+            onRemove={removeItem}
+          />
+        ) : (
+          <ExpiredReservations
+            expired={expired}
+            inActiveBasket={inActiveBasketByInventoryId}
+            busyId={busyId}
+            onReAdd={reAddItem}
+          />
         )}
       </div>
 
-      {/* ── Summary + checkout panel (sticky) ──────────────────── */}
+      {/* Checkout panel only matters when there's something to check out.
+          Hidden when active is empty — even if the customer is browsing
+          the EXPIRED tab, an empty basket means nothing to send to Square. */}
       {active.length > 0 && (
-        <div
-          className="sticky top-6 p-6"
-          style={{
-            background:   "var(--cream-dark)",
-            borderRadius: "0.25rem",
-            outline:      "1px solid var(--linen)",
-          }}
-        >
-          <p className="ll-label mb-4 text-[0.6rem] uppercase tracking-[0.2em]" style={{ color: "var(--ink-soft)" }}>
-            Summary
-          </p>
-
-          {/* Selected items */}
-          <div className="mb-5 flex flex-col gap-2">
-            {checkedItems.length === 0 ? (
-              <p className="ll-body text-xs italic" style={{ color: "var(--ink-soft)" }}>
-                No pieces selected yet.
-              </p>
-            ) : checkedItems.map(r => (
-              <div key={r.reservationId} className="flex items-baseline justify-between gap-4">
-                <span className="ll-body truncate text-xs font-light" style={{ color: "var(--ink-soft)" }}>
-                  {r.itemName}
-                </span>
-                <span className="ll-label shrink-0 text-[0.62rem]" style={{ color: "var(--ink)" }}>
-                  {formatPrice(r.unitPriceCents)}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          {/* Total */}
-          <div className="mb-5 flex items-baseline justify-between pt-4" style={{ borderTop: "1px solid var(--linen)" }}>
-            <span className="ll-label text-[0.62rem] uppercase tracking-[0.12em]" style={{ color: "var(--ink-soft)" }}>
-              Total
-            </span>
-            <span className="ll-display text-lg" style={{ color: "var(--rose-deep)" }}>
-              {formatPrice(totalCents)}
-            </span>
-          </div>
-
-          {/* Address picker — falls back to a "set one" prompt when empty */}
-          <div className="mb-5">
-            <label className="ll-label mb-2 block text-[0.6rem] uppercase tracking-[0.12em]" style={{ color: "var(--ink-soft)" }}>
-              Ship to
-            </label>
-            {addresses.length === 0 ? (
-              <button
-                onClick={onAddressTab}
-                className="ll-body w-full p-3 text-left text-xs italic"
-                style={{
-                  background:  "var(--cream)",
-                  border:      "1px dashed var(--linen)",
-                  color:       "var(--rose-deep)",
-                  cursor:      "pointer",
-                }}
-              >
-                + Add a shipping address
-              </button>
-            ) : (
-              <select
-                value={addressId ?? ""}
-                onChange={(e) => setAddressId(Number(e.target.value))}
-                disabled={submitting}
-                className="ll-body w-full p-2 text-xs"
-                style={{ background: "var(--cream)", border: "1px solid var(--linen)", color: "var(--ink)" }}
-              >
-                {addresses.map(a => (
-                  <option key={a.addressId} value={a.addressId}>
-                    {a.label} — {a.street1}, {a.city} {a.state}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-
-          {globalError && (
-            <p role="alert" className="ll-body mb-3 text-xs" style={{ color: "#991b1b" }}>
-              {globalError}
-            </p>
-          )}
-
-          <button
-            onClick={checkout}
-            disabled={submitting || checkedItems.length === 0 || addresses.length === 0}
-            className="btn-primary block w-full py-4 text-center text-[0.65rem] tracking-[0.15em] disabled:opacity-50"
-            style={{ border: "none", cursor: submitting ? "wait" : "pointer" }}
-          >
-            {submitting
-              ? "Sending to Square…"
-              : checkedItems.length === 0
-              ? "Select pieces to check out"
-              : checkedItems.length === 1
-              ? `Check Out — ${formatPrice(totalCents)} →`
-              : `Check Out ${checkedItems.length} Pieces — ${formatPrice(totalCents)} →`}
-          </button>
-
-          <p className="ll-body mt-3 text-[0.65rem] italic leading-relaxed" style={{ color: "var(--ink-soft)" }}>
-            You&apos;ll be sent to Square to complete payment. Items remain
-            held until checkout completes; if you abandon the form, they&apos;ll
-            return to your basket within a day.
-          </p>
-        </div>
+        <CheckoutPanel
+          checkedItems={checkedItems}
+          totalCents={totalCents}
+          addresses={addresses}
+          addressId={addressId}
+          onAddressChange={setAddressId}
+          onAddressTab={onAddressTab}
+          submitting={submitting}
+          globalError={globalError}
+          onCheckout={checkout}
+        />
       )}
     </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Inline tab control. Small enough to keep co-located — pulling
+   it into its own file would cost more than it saves. Visual
+   parity with the rest of the account tab strip (bottom border
+   on the selected one, label uppercase, count in parens).
+───────────────────────────────────────────────────────────── */
+function ViewTab({
+  label,
+  count,
+  selected,
+  onClick,
+}: {
+  label:    string;
+  count:    number;
+  selected: boolean;
+  onClick:  () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="ll-label py-3 text-[0.62rem] uppercase tracking-[0.18em]"
+      style={{
+        color:        selected ? "var(--rose-deep)" : "var(--ink-soft)",
+        background:   "none",
+        border:       "none",
+        borderBottom: selected ? "2px solid var(--rose-deep)" : "2px solid transparent",
+        cursor:       "pointer",
+        marginBottom: "-1px", // overlap the parent borderBottom for a clean join
+      }}
+      aria-pressed={selected}
+    >
+      {label} <span style={{ opacity: 0.6 }}>({count})</span>
+    </button>
   );
 }

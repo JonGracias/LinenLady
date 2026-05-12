@@ -161,7 +161,8 @@ export default function HomePage() {
 
             <p className="ll-body mt-6 text-sm font-light italic" style={{ color: "var(--outline)" }}>
               Hours subject to market schedule.{" "}
-              <a href="#contact" style={{ color: "var(--primary)" }}>Send a message</a>{" "}
+              {/* Send a message — uses Next Link to /contact instead of the in-page hash anchor */}
+              <Link href="/contact" style={{ color: "var(--primary)" }}>Send a message</Link>{" "}
               before making a special trip.
             </p>
           </div>
@@ -187,8 +188,9 @@ export default function HomePage() {
               Every item is one of a kind. Reach out to ask about availability, reserve something, or describe what you&apos;re looking for.
             </p>
           </div>
+          {/* Get in Touch — now points at the contact page (was /account?tab=messages) */}
           <Link
-            href="/account?tab=messages"
+            href="/contact"
             className="ll-label mt-8 md:mt-0 inline-block whitespace-nowrap px-10 py-4 text-[0.72rem] font-medium uppercase tracking-[0.15em] transition-all duration-400"
             style={{ background: "var(--on-primary)", color: "var(--primary)", borderRadius: "0.375rem" }}
             onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = "var(--primary-container)")}

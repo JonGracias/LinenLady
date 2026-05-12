@@ -9,14 +9,13 @@ export default function StorefrontLayout({ children }: { children: React.ReactNo
 
       {/* ── Sticky top ── */}
       <div className="shrink-0">
-        <BorderMotif />
         <Header />
+        <BorderMotif />
       </div>
 
       {/* ── Scrollable content ── */}
       <main className="flex-1 overflow-y-auto custom-scrollbar">
         {children}
-        <BorderMotif />
         <Footer />
       </main>
 
