@@ -1,3 +1,4 @@
+// src/context/StorefrontContext.tsx
 "use client";
 
 import React, {
@@ -9,17 +10,35 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { useAuth, useUser } from "@clerk/nextjs";
 import type {
   Category,
   GetItemsResponse,
   InventoryImage,
   InventoryItem,
 } from "@/types/inventory";
+import type {
+  AvailabilityEntry,
+  AvailabilityResponse,
+  AvailabilityState,
+} from "@/types/inventory";
+import { isHardHidden } from "@/types/inventory";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
+/**
+ * InventoryItem augmented with the optional availability state. When `state`
+ * is undefined the item is available (the endpoint contract: only blocked
+ * items appear in the response). Sold/Inactive items are filtered out
+ * upstream so consumers never see them.
+ */
+export type StorefrontItem = InventoryItem & {
+  state?:              AvailabilityState;
+  blockingCustomerId?: number | null;
+};
+
 export type StorefrontContextValue = {
-  items:      InventoryItem[];
+  items:      StorefrontItem[];
   loading:    boolean;
   error:      string | null;
 
@@ -45,6 +64,31 @@ export type StorefrontContextValue = {
   refreshImages: (id: number, ttlMinutes?: number) => Promise<InventoryImage[]>;
 
   reloadItems: () => void;
+
+  // availability ─── new ─────────────────────────────────────────────────
+  /**
+   * Look up the cached state for a single inventoryId. Returns null when
+   * we don't have an entry yet (treat as "available" only if the id is in
+   * `items`, otherwise as "unknown"). Used by the SKU detail page so a
+   * direct-link landing renders the right state without firing an extra
+   * request when the storefront cache already has the answer.
+   */
+  getAvailabilityState: (id: number) => AvailabilityState | null;
+
+  /**
+   * One-shot availability check. Useful for the SKU detail page (which
+   * may be deep-linked from outside the grid) and for the pre-flight
+   * check inside `toggleBasket`. Bypasses the cache so we get an
+   * up-to-the-moment answer — that's the whole point in those cases.
+   */
+  checkAvailability: (ids: number[]) => Promise<AvailabilityEntry[]>;
+
+  /**
+   * Force-refresh the availability map for the items currently in state.
+   * Cheap (a single GET) and exposed so the SKU page / basket tab can
+   * trigger it after mutations that may have freed a piece up.
+   */
+  refreshAvailability: () => Promise<void>;
 };
 
 // ── Context ──────────────────────────────────────────────────────────────────
@@ -63,6 +107,18 @@ type CacheEntry = { items: InventoryItem[]; totalCount: number; timestamp: numbe
 type CacheKey   = string; // "category:page:pageSize"
 const CACHE_TTL = 5 * 60 * 1000;
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Build the comma-separated ids string for the availability endpoint.
+ * Caps at 200 (server limit). For the storefront grid (pageSize ≤ ~24)
+ * this is never hit, but the SKU detail page calling `checkAvailability`
+ * with a related-items list could conceivably go higher.
+ */
+function idsParam(ids: number[]): string {
+  return ids.slice(0, 200).join(",");
+}
+
 // ── Provider ─────────────────────────────────────────────────────────────────
 
 export function StorefrontProvider({ children }: { children: React.ReactNode }) {
@@ -70,9 +126,18 @@ export function StorefrontProvider({ children }: { children: React.ReactNode }) 
   const imagesInFlight = useRef<Set<number>>(new Set());
   const cacheRef       = useRef<Map<CacheKey, CacheEntry>>(new Map());
 
+  const { isLoaded: authLoaded, isSignedIn } = useUser();
+  const { getToken } = useAuth();
+
   const [images, setImages] = useState<Record<number, InventoryImage[]>>({});
   const [thumbs, setThumbs] = useState<Record<number, string | null>>({});
-  const [items,  setItems]  = useState<InventoryItem[]>([]);
+
+  // `items` here holds the *post-availability* list — Sold/Inactive removed,
+  // blocked items annotated with `state`. The pre-availability list lives
+  // in `rawItemsRef` so a sign-in/sign-out toggle can re-merge without
+  // re-fetching the items API.
+  const [items, setItems]    = useState<StorefrontItem[]>([]);
+  const rawItemsRef          = useRef<InventoryItem[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState<string | null>(null);
@@ -96,16 +161,107 @@ export function StorefrontProvider({ children }: { children: React.ReactNode }) 
   // Reset to page 1 on category / pageSize changes
   useEffect(() => { setPage(1); }, [category, pageSize]);
 
+  // ── Availability ────────────────────────────────────────────────────────
+  //
+  // We mint a fresh Clerk token per call so an anonymous→signed-in transition
+  // immediately produces YourBasket / YourPendingPayment states without a
+  // page reload. The endpoint is anonymous-friendly so missing tokens are
+  // fine.
+
+  const fetchAvailability = useCallback(
+    async (ids: number[]): Promise<AvailabilityEntry[]> => {
+      if (ids.length === 0) return [];
+
+      const token = isSignedIn ? await getToken().catch(() => null) : null;
+
+      try {
+        const res = await fetch(
+          `/api/items/availability?ids=${encodeURIComponent(idsParam(ids))}`,
+          {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            cache:   "no-store",
+          }
+        );
+        if (!res.ok) return [];
+        const data = (await res.json()) as AvailabilityResponse;
+        return Array.isArray(data?.items) ? data.items : [];
+      } catch {
+        // Network or parse failure → treat everything as available rather
+        // than blocking the entire grid. The server still enforces on add().
+        return [];
+      }
+    },
+    [isSignedIn, getToken]
+  );
+
+  /**
+   * Merge a raw items list with availability entries:
+   *   • Sold / Inactive → dropped entirely
+   *   • InBasket / PendingPayment / YourBasket / YourPendingPayment →
+   *       kept, with `state` and `blockingCustomerId` attached
+   *   • Available (no entry) → kept as-is
+   */
+  const mergeAvailability = useCallback(
+    (raw: InventoryItem[], entries: AvailabilityEntry[]): StorefrontItem[] => {
+      if (entries.length === 0) return raw.slice();
+
+      const byId = new Map<number, AvailabilityEntry>();
+      for (const e of entries) byId.set(e.inventoryId, e);
+
+      const out: StorefrontItem[] = [];
+      for (const item of raw) {
+        const entry = byId.get(item.inventoryId);
+        if (!entry) {
+          out.push(item);
+          continue;
+        }
+        if (isHardHidden(entry.state)) continue;
+        out.push({
+          ...item,
+          state:              entry.state,
+          blockingCustomerId: entry.blockingCustomerId,
+        });
+      }
+      return out;
+    },
+    []
+  );
+
+  const applyAvailability = useCallback(
+    async (raw: InventoryItem[]) => {
+      // Optimistic: render the raw list immediately so users aren't staring
+      // at a spinner waiting on availability. The merge replaces it once
+      // the availability call resolves (usually <100ms).
+      setItems(raw.slice());
+
+      const ids     = raw.map((i) => i.inventoryId);
+      const entries = await fetchAvailability(ids);
+
+      // Guard against a race where the user paged forward while the call
+      // was in flight. We only apply the merge if the raw list is still
+      // the current one.
+      if (rawItemsRef.current !== raw) return;
+
+      setItems(mergeAvailability(raw, entries));
+    },
+    [fetchAvailability, mergeAvailability]
+  );
+
+  // ── Items ───────────────────────────────────────────────────────────────
+
   const loadItems = useCallback(async (skipCache = false) => {
     const cacheKey = getCacheKey(category, page, pageSize);
 
     if (!skipCache) {
       const cached = cacheRef.current.get(cacheKey);
       if (cached && isCacheValid(cached)) {
-        setItems(cached.items);
+        rawItemsRef.current = cached.items;
         setTotalCount(cached.totalCount);
         setLoading(false);
         setError(null);
+        // Always re-check availability even on a cache hit — the items
+        // metadata is cacheable, the basket/order state is not.
+        void applyAvailability(cached.items);
         return;
       }
     }
@@ -130,7 +286,8 @@ export function StorefrontProvider({ children }: { children: React.ReactNode }) 
       if (typeof (data as any).Page === "number" && (data as any).Page !== page) {
         setPage((data as any).Page);
       }
-      setItems(fetchedItems);
+
+      rawItemsRef.current = fetchedItems;
       setTotalCount(fetchedTotalCount);
       cacheRef.current.set(cacheKey, {
         items:      fetchedItems,
@@ -141,23 +298,36 @@ export function StorefrontProvider({ children }: { children: React.ReactNode }) 
       if (typeof (data as any).page === "number" && (data as any).page !== page) {
         setPage((data as any).page);
       }
+
+      await applyAvailability(fetchedItems);
     } catch (e: any) {
+      rawItemsRef.current = [];
       setItems([]);
       setTotalCount(0);
       setError(e?.message ?? "Failed to load collection");
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, category]);
+  }, [page, pageSize, category, applyAvailability]);
 
   const reloadItems = useCallback(() => loadItems(true), [loadItems]);
 
   useEffect(() => { void loadItems(); }, [loadItems]);
 
-  // ── Thumbnails ──────────────────────────────────────────────────────────────
+  // Sign-in / sign-out → re-run availability on the current items so the
+  // YourBasket / YourPendingPayment states light up (or clear) without a
+  // full page reload.
+  useEffect(() => {
+    if (!authLoaded)               return;
+    if (rawItemsRef.current.length === 0) return;
+    void applyAvailability(rawItemsRef.current);
+  }, [authLoaded, isSignedIn, applyAvailability]);
+
+  // ── Thumbnails ──────────────────────────────────────────────────────────
   // Auto-fetch thumbnails whenever items change
   useEffect(() => {
     items.forEach((item) => ensureThumbnail(item.inventoryId));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items]);
 
   const getThumbnailUrl = useCallback(
@@ -172,7 +342,6 @@ export function StorefrontProvider({ children }: { children: React.ReactNode }) 
         console.warn("ensureThumbnail: bad id", id, new Error().stack);
         return;
       }
-      if (Object.prototype.hasOwnProperty.call(thumbs, id)) return;
       if (Object.prototype.hasOwnProperty.call(thumbs, id)) return;
       if (inFlight.current.has(id)) return;
       inFlight.current.add(id);
@@ -193,7 +362,7 @@ export function StorefrontProvider({ children }: { children: React.ReactNode }) 
     [thumbs]
   );
 
-  // ── Images ──────────────────────────────────────────────────────────────────
+  // ── Images ──────────────────────────────────────────────────────────────
 
   const getImages = useCallback(
     (id: number): InventoryImage[] | null =>
@@ -204,8 +373,8 @@ export function StorefrontProvider({ children }: { children: React.ReactNode }) 
   const ensureImages = useCallback(
     (id: number, ttlMinutes = 60) => {
       if (typeof id !== "number" || !Number.isFinite(id)) {
-      console.warn("ensureImages: bad id", id, new Error().stack);
-      return;
+        console.warn("ensureImages: bad id", id, new Error().stack);
+        return;
       }
 
       if (Object.prototype.hasOwnProperty.call(images, id)) return;
@@ -242,6 +411,28 @@ export function StorefrontProvider({ children }: { children: React.ReactNode }) 
     }
   }, []);
 
+  // ── Availability accessors exposed on the context ───────────────────────
+
+  const getAvailabilityState = useCallback(
+    (id: number): AvailabilityState | null => {
+      const found = items.find((i) => i.inventoryId === id);
+      return found?.state ?? null;
+    },
+    [items]
+  );
+
+  const checkAvailability = useCallback(
+    (ids: number[]): Promise<AvailabilityEntry[]> => fetchAvailability(ids),
+    [fetchAvailability]
+  );
+
+  const refreshAvailability = useCallback(async () => {
+    if (rawItemsRef.current.length === 0) return;
+    await applyAvailability(rawItemsRef.current);
+  }, [applyAvailability]);
+
+  // ── Provider value ──────────────────────────────────────────────────────
+
   const value: StorefrontContextValue = {
     items,
     loading,
@@ -260,6 +451,9 @@ export function StorefrontProvider({ children }: { children: React.ReactNode }) 
     ensureImages,
     refreshImages,
     reloadItems,
+    getAvailabilityState,
+    checkAvailability,
+    refreshAvailability,
   };
 
   return (

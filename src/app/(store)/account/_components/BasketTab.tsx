@@ -1,59 +1,83 @@
 // src/app/(store)/account/_components/BasketTab.tsx
 //
-// Orchestrator for the basket tab. Owns network calls, basket state, and
-// provider sync — delegates rendering to ActiveReservations (in-basket)
-// and ExpiredReservations (recently expired), with CheckoutPanel pinned
-// as the right rail.
+// Orchestrator for the basket UI. Used by /basket (standalone page,
+// reachable signed-out) AND historically by /account?tab=basket — the
+// latter no longer renders this in Phase 1 but the component is kept
+// at this path because the dumb children (ActiveReservations, etc.)
+// live in the same directory.
 //
-// Layout: a small inline tab switch (ACTIVE / EXPIRED) flips between the
-// two list views. The EXPIRED tab is only shown when there's something
-// to put in it; otherwise the switch hides and the active view fills the
-// column unaccompanied.
+// What changed in the Phase 1 lift:
+//   - All data + mutations now come from useCustomerSession(). The old
+//     prop-drilled `reservations` / `addresses` / `apiCall` / `onChange`
+//     are gone.
+//   - Anonymous-mode rendering added. When signed-out, the user sees their
+//     localStorage-held items as a simplified list (no Expired tab, no
+//     server-side reservation ids) and a "Sign in to Check Out" CTA that
+//     bounces them through Clerk and back to /basket.
+//   - Customers without a saved address no longer get bounced to
+//     /account?tab=address at checkout time. CheckoutPanel handles address
+//     creation inline via InlineAddressForm; the onAddressTab prop is
+//     gone. /account is still the home for editing/deleting addresses,
+//     just not for creating one mid-checkout.
 //
-// What lives here vs. children: the children are dumb — they get already-
-// bound callbacks and display data. All async, all error/submit state,
-// all useBasket() coordination stays in the parent so the children are
-// trivially testable and the data flow is one-way.
+// Layout note (changed): the two-row grid below used to be
+// `md:grid-rows-[1fr_360px]`. The hard 360px on the second row — the one
+// holding CheckoutPanel — meant that when InlineAddressForm expanded, the
+// panel's content grew past the track and overflowed it; the footer, as
+// the next thing in document flow, painted right at the 360px line and
+// the form appeared to slide "under" it. Changed to `1fr_auto` so the
+// row sizes to its content and the page grows normally when the form
+// opens. Applied to AnonymousBasket too, to keep the two layouts in sync.
 
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import type { ReservationDto, CustomerAddressDto } from "@/types/customer";
-import { useBasket } from "@/context/BasketContext";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
+import { useCustomerSession } from "@/context/CustomerSessionContext";
 import ActiveReservations from "./basket/ActiveReservations";
 import ExpiredReservations from "./basket/ExpiredReservations";
 import CheckoutPanel from "./basket/CheckoutPanel";
+import OrdersTab from "./OrdersTab";
 
-type BasketTabProps = {
-  reservations: ReservationDto[];
-  addresses:    CustomerAddressDto[];
-  apiCall:      (path: string, opts?: RequestInit) => Promise<Response>;
-  onChange:     (next: ReservationDto[]) => void;       // parent stays in sync
-  onAddressTab: () => void;                              // jump to addresses tab
-};
+type View = "active" | "expired" | "orders";
 
-type View = "active" | "expired";
+/* ─────────────────────────────────────────────────────────────────────────
+   Helpers
+───────────────────────────────────────────────────────────────────────── */
 
-export default function BasketTab({
-  reservations,
-  addresses,
-  apiCall,
-  onChange,
-  onAddressTab,
-}: BasketTabProps) {
-  const router = useRouter();
+function formatPrice(cents: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 0,
+  }).format(cents / 100);
+}
 
-  // BasketProvider keeps its own copy of the basket (for the header badge,
-  // shop "in basket" indicators, etc). Mutations here go through apiCall
-  // rather than provider.add/remove, so the provider is blind to them
-  // unless we tell it. refresh() is a cheap GET that re-syncs.
-  //
-  // Sync points: after every successful remove, re-add, and checkout.
-  // Checkout is the most important — it empties the basket, and the badge
-  // would otherwise still show items that are now in the orders tab.
-  const { refresh: refreshBasket } = useBasket();
+/* ─────────────────────────────────────────────────────────────────────────
+   Component
+───────────────────────────────────────────────────────────────────────── */
+
+export default function BasketTab() {
+  const router       = useRouter();
+  const pathname     = usePathname();
+  const searchParams = useSearchParams();
+  const { isSignedIn, isLoaded: authLoaded } = useUser();
+
+  const {
+    reservations,
+    addresses,
+    orders,
+    items: pendingItems,          // for anonymous mode rendering
+    removeReservation,
+    reAddReservation,
+    checkout: doCheckout,
+    notesDraft,
+    remove: removeAnonymous,
+  } = useCustomerSession();
+
+  /* ── Signed-in derived state ─────────────────────────────────────── */
 
   // Split active / recently-expired from the unified list. The server returns
   // both kinds in a single basket payload — simpler than two endpoints — and
@@ -63,22 +87,94 @@ export default function BasketTab({
 
   // Set of inventory ids the customer currently holds an Active reservation
   // on. ExpiredReservations consumes this to distinguish "back in your
-  // basket" (re-added via Try Again, or claimed some other way) from
-  // "no longer available" (someone else has it / it sold). Both are
-  // !canReAdd; only the customer-side context tells them apart, and that
-  // context is already in the basket payload so we compute it on the FE.
+  // basket" from "no longer available".
   const inActiveBasketByInventoryId = useMemo(
     () => new Set(active.map(r => r.inventoryId)),
     [active]
   );
 
-  // Which list is showing. Defaults to active. If expired empties out
-  // while the customer is on it (last item re-added or filtered away),
-  // bounce back to active so they don't see an empty column.
-  const [view, setView] = useState<View>("active");
+  // Set of inventory ids the customer has tied up in their own
+  // PaymentPending orders. When the customer starts checkout but doesn't
+  // finish, the reservation row gets flipped to Expired AND an OrderItem
+  // is created against a PaymentPending Order — so the piece appears
+  // both in the Expired list (with canReAdd: true from the server's
+  // perspective, since the inventory IS available) AND in the customer's
+  // own pending order. Without this awareness the Expired row labels it
+  // "Still available" and the TRY AGAIN button silently 409s because
+  // the server refuses to issue a second hold on the same item to the
+  // same customer.
+  const inPendingPaymentByInventoryId = useMemo(() => {
+    const s = new Set<number>();
+    for (const o of orders) {
+      if (o.status !== "PaymentPending") continue;
+      for (const i of o.items) s.add(i.inventoryId);
+    }
+    return s;
+  }, [orders]);
+
+  // Which sub-view is showing. URL-DRIVEN — derived fresh from searchParams
+  // every render rather than held in useState.
+  //
+  // Why: a local useState gets reset to its initial value whenever
+  // BasketTab unmounts and remounts. Next.js's RSC cache can invalidate
+  // independently of any user action (e.g. on Clerk auth-refresh events
+  // that trigger a server-component re-render), so even though the URL
+  // hasn't changed the component can remount. With state-driven view,
+  // that remount snapped the customer back to the Active tab even if
+  // they were reading Expired or Orders. URL-driven view survives
+  // remounts because the URL is the source of truth.
+  //
+  // (The same remount problem is why the inline-address-form draft now
+  // lives in CustomerSessionContext rather than in CheckoutPanel /
+  // InlineAddressForm local state — see those files' headers.)
+  //
+  // For unknown/missing tab values we default to "active" — most common
+  // landing intent (customer clicked the basket icon, wanting to check out).
+  const view: View = (() => {
+    const t = searchParams?.get("tab");
+    if (t === "expired" || t === "orders") return t;
+    return "active";
+  })();
+
+  // URL-write helper for tab clicks. Uses replace (not push) so the
+  // browser back button still does what the customer expects: takes them
+  // back to wherever they came from, not through every tab they clicked.
+  // scroll: false keeps the page from jumping to top on tab change.
+  const setView = (next: View) => {
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+    if (next === "active") {
+      params.delete("tab"); // canonical URL for the default tab
+    } else {
+      params.set("tab", next);
+    }
+    const qs = params.toString();
+    router.replace(qs ? `/basket?${qs}` : "/basket", { scroll: false });
+  };
+
+  // Bounce away from "expired" if it empties out (the only sub-view that
+  // can become empty while the customer is on it). Orders doesn't auto-
+  // bounce — an empty Orders list is a meaningful state ("you've never
+  // placed an order") and we render an empty-state inside OrdersTab.
   useEffect(() => {
-    if (view === "expired" && expired.length === 0) setView("active");
+    if (view === "expired" && expired.length === 0) {
+      setView("active");
+    }
+    // setView is stable (it closes over router + searchParams, both stable
+    // references from Next.js's navigation hooks for the lifetime of the
+    // page). Excluding it from deps is intentional — including it would
+    // require useCallback which is overkill for a derived helper.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, expired.length]);
+
+  // Highlighted order id for the OrdersTab sub-view. Comes from the
+  // post-checkout redirect (?placed=N) and feeds OrdersTab's existing
+  // `highlight` prop, which expands that row by default.
+  const placedOrderId = useMemo(() => {
+    const r = searchParams?.get("placed");
+    if (!r) return null;
+    const n = Number.parseInt(r, 10);
+    return Number.isFinite(n) ? n : null;
+  }, [searchParams]);
 
   // Per-item checkbox state. Defaults to all-checked when items first arrive
   // — the typical user came here to check out, not curate.
@@ -94,9 +190,8 @@ export default function BasketTab({
   const checkedItems = active.filter(r => checked[r.reservationId]);
   const totalCents   = checkedItems.reduce((s, r) => s + r.unitPriceCents, 0);
 
-  // Default address for the address picker. If the customer hasn't set one
-  // explicitly, use the first one in the list. Empty addresses → null,
-  // checkout button shows "Add an address" instead.
+  // Default address for the picker. If none exists yet, the checkout button
+  // shows "Add an address" instead and routes to /account?tab=address.
   const defaultAddress = useMemo(
     () => addresses.find(a => a.isDefault) ?? addresses[0] ?? null,
     [addresses]
@@ -111,20 +206,14 @@ export default function BasketTab({
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [busyId, setBusyId]           = useState<number | null>(null);
 
-  /* ── Remove ── */
+  /* ── Signed-in mutations (delegate to session context) ───────────── */
+
   const removeItem = async (id: number) => {
     setBusyId(id);
     setGlobalError(null);
     try {
-      const res = await apiCall(`/customers/me/basket/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error(await res.text() || `HTTP ${res.status}`);
-      const updated: ReservationDto = await res.json();
-      // Replace the row in-place so it transitions from active → expired
-      // without a refetch. Server is the source of truth on canReAdd.
-      onChange(reservations.map(r => r.reservationId === id ? updated : r));
-      // Tell the provider — header badge would otherwise still count this item.
-      // Fire-and-forget; the badge is allowed to lag a heartbeat behind.
-      refreshBasket().catch(() => { /* badge stays stale until next nav; not fatal */ });
+      const updated = await removeReservation(id);
+      if (!updated) throw new Error("Couldn't remove that item.");
     } catch (e) {
       setGlobalError(e instanceof Error ? e.message : "Couldn't remove that item.");
     } finally {
@@ -132,25 +221,17 @@ export default function BasketTab({
     }
   };
 
-  /* ── Re-add ── */
   const reAddItem = async (id: number) => {
     setBusyId(id);
     setGlobalError(null);
     try {
-      const res = await apiCall(`/customers/me/basket/${id}/re-add`, { method: "POST" });
-      if (!res.ok) {
-        // 409 → someone else has it now, or it sold. Surface the message.
-        const text = await res.text().catch(() => "");
-        throw new Error(text || `HTTP ${res.status}`);
+      const created = await reAddReservation(id);
+      if (!created) {
+        throw new Error(
+          "This piece is no longer available — it may have sold or " +
+          "been added to someone else's basket."
+        );
       }
-      const created: ReservationDto = await res.json();
-      // The expired row stays in the list as audit history. Once `created`
-      // is appended, ExpiredReservations sees the matching inventoryId in
-      // the active set and re-renders the old row as "Back in your basket"
-      // automatically — no need to filter or modify the expired entry.
-      onChange([...reservations, created]);
-      // New active reservation → bump the badge.
-      refreshBasket().catch(() => { /* see removeItem note */ });
     } catch (e) {
       setGlobalError(e instanceof Error ? e.message : "Couldn't add that piece back.");
     } finally {
@@ -158,7 +239,6 @@ export default function BasketTab({
     }
   };
 
-  /* ── Checkout ── */
   const checkout = async () => {
     setGlobalError(null);
 
@@ -167,43 +247,37 @@ export default function BasketTab({
       return;
     }
     if (addressId === null) {
+      // Defense-in-depth: with the new inline-address-form in CheckoutPanel
+      // this case shouldn't be reachable (the Check Out button disables
+      // when no address is available). Surfacing the error and bailing
+      // covers any race where the panel's state machine got into a weird
+      // gap. No more redirect to /account — the panel handles address
+      // creation inline now.
       setGlobalError("Add a shipping address before checking out.");
-      onAddressTab();
       return;
     }
 
     setSubmitting(true);
     try {
-      const res = await apiCall("/checkout", {
-        method: "POST",
-        body:   JSON.stringify({
-          reservationIds: checkedItems.map(r => r.reservationId),
-          addressId,
-          customerNotes:  null,
-        }),
+      const trimmedNotes = notesDraft.notes.trim();
+      const result = await doCheckout({
+        reservationIds: checkedItems.map(r => r.reservationId),
+        addressId,
+        customerNotes:  trimmedNotes.length > 0 ? trimmedNotes : null,
       });
 
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(text || `HTTP ${res.status}`);
+      if (!result.ok) {
+        throw new Error(result.message || "Checkout failed. Try again in a moment.");
       }
-
-      const order = await res.json() as { orderId: number; squarePaymentLinkUrl: string | null };
-
-      // Checkout converts active reservations into an order — the basket
-      // is now (largely) empty server-side. Refresh BEFORE navigating so
-      // the header badge updates before the page changes; await it so the
-      // Square redirect doesn't race past the GET.
-      await refreshBasket().catch(() => { /* see removeItem note */ });
 
       // Square payment link lives on the order. Route the customer to
       // Square if we have one; if the link generation failed (handler
       // logged a non-fatal warning) the orders tab still shows the
       // PaymentPending state and the customer can retry from there.
-      if (order.squarePaymentLinkUrl) {
-        window.location.href = order.squarePaymentLinkUrl;
+      if (result.order.squarePaymentLinkUrl) {
+        window.location.href = result.order.squarePaymentLinkUrl;
       } else {
-        router.push(`/account?tab=orders&placed=${order.orderId}`);
+        router.push(`/basket?tab=orders&placed=${result.order.orderId}`);
       }
     } catch (e) {
       setGlobalError(e instanceof Error ? e.message : "Checkout failed. Try again in a moment.");
@@ -212,8 +286,46 @@ export default function BasketTab({
     }
   };
 
-  /* ── Empty state ── */
-  if (active.length === 0 && expired.length === 0) {
+  /* ── Anonymous mode rendering ────────────────────────────────────── */
+  //
+  // Signed-out customers don't have server reservations, expired rows,
+  // addresses, or checkbox state — and they can't check out. We show a
+  // simplified list and route them through Clerk when they hit "Sign in
+  // to Check Out". The redirect_url ensures they come back to wherever
+  // they were (this component renders at /basket; in principle it could
+  // also be embedded elsewhere, so we use the current pathname rather
+  // than hard-coding /basket).
+
+  if (authLoaded && !isSignedIn) {
+    if (pendingItems.length === 0) {
+      // Empty anonymous basket — same shape as the signed-in empty state.
+      return (
+        <div className="py-16 text-center">
+          <p className="ll-display text-2xl italic mb-3" style={{ color: "var(--ink-soft)" }}>
+            Your basket is empty
+          </p>
+          <p className="ll-body mb-6 text-sm font-light" style={{ color: "var(--ink-soft)" }}>
+            Browse the collection and add pieces you&apos;d like to consider.
+          </p>
+          <Link href="/shop" className="btn-primary">Browse the Collection →</Link>
+        </div>
+      );
+    }
+
+    return <AnonymousBasket
+      items={pendingItems}
+      onRemove={(inventoryId) => { void removeAnonymous(inventoryId); }}
+      currentPath={pathname || "/basket"}
+    />;
+  }
+
+  /* ── Signed-in rendering ─────────────────────────────────────────── */
+
+  /* ── Fully-empty state ──
+     A new customer with no basket items, no expired rows, and no orders
+     has nothing to do on this page. Show the welcome-to-the-collection
+     prompt instead of an empty tab bar. */
+  if (active.length === 0 && expired.length === 0 && orders.length === 0) {
     return (
       <div className="py-16 text-center">
         <p className="ll-display text-2xl italic mb-3" style={{ color: "var(--ink-soft)" }}>
@@ -227,29 +339,47 @@ export default function BasketTab({
     );
   }
 
-  /* ── Layout: list on the left, sticky checkout panel on the right ── */
+  /* ── Layout: list on the left, sticky checkout panel on the right ──
+     The checkout panel only renders on the Active sub-view when there
+     are items in the basket. Expired and Orders sub-views collapse to
+     a single-column layout (CSS Grid handles this automatically when
+     the second child is absent).
+
+     Row sizing: `md:grid-rows-[1fr_auto]`. The second row (CheckoutPanel)
+     is `auto`, not a fixed height — so when InlineAddressForm expands
+     inside the panel, the row grows with it and the page gets taller
+     normally. A previous fixed `360px` here let the form overflow the
+     track and slide visually under the footer. */
   return (
-    <div className="grid gap-12 md:grid-rows-[1fr_360px] md:items-start">
+    <div className="grid gap-12 md:grid-rows-[1fr_auto] md:items-start">
       <div>
-        {/* ── View switch — only render when there's an expired list to
-              switch to. With nothing expired, the active view stands alone
-              and the tab control would be visual noise. ─────────────── */}
-        {expired.length > 0 && (
-          <div className="mb-6 flex gap-6" style={{ borderBottom: "1px solid var(--linen)" }}>
-            <ViewTab
-              label="Active"
-              count={active.length}
-              selected={view === "active"}
-              onClick={() => setView("active")}
-            />
+        {/* ── Sub-view tab bar — always rendered for signed-in customers,
+            so Orders is always reachable. The Expired tab hides when
+            empty (rare, transient state); Active and Orders are always
+            visible because they represent the customer's primary
+            engagement modes. */}
+        <div className="mb-6 flex gap-6" style={{ borderBottom: "1px solid var(--linen)" }}>
+          <ViewTab
+            label="Active"
+            count={active.length}
+            selected={view === "active"}
+            onClick={() => setView("active")}
+          />
+          {expired.length > 0 && (
             <ViewTab
               label="Expired"
               count={expired.length}
               selected={view === "expired"}
               onClick={() => setView("expired")}
             />
-          </div>
-        )}
+          )}
+          <ViewTab
+            label="Orders"
+            count={orders.length}
+            selected={view === "orders"}
+            onClick={() => setView("orders")}
+          />
+        </div>
 
         {view === "active" ? (
           <ActiveReservations
@@ -260,27 +390,32 @@ export default function BasketTab({
             onCheckChange={(id, val) => setChecked(c => ({ ...c, [id]: val }))}
             onRemove={removeItem}
           />
-        ) : (
+        ) : view === "expired" ? (
           <ExpiredReservations
             expired={expired}
             inActiveBasket={inActiveBasketByInventoryId}
+            inPendingPayment={inPendingPaymentByInventoryId}
             busyId={busyId}
             onReAdd={reAddItem}
+          />
+        ) : (
+          /* Orders sub-view. Reuses the existing OrdersTab component
+             unchanged — it already handles the highlight-row-from-?placed
+             flow, the per-status pills, the expand-on-click rows. */
+          <OrdersTab
+            orders={orders}
+            highlight={placedOrderId}
           />
         )}
       </div>
 
-      {/* Checkout panel only matters when there's something to check out.
-          Hidden when active is empty — even if the customer is browsing
-          the EXPIRED tab, an empty basket means nothing to send to Square. */}
-      {active.length > 0 && (
+      {view === "active" && active.length > 0 && (
         <CheckoutPanel
           checkedItems={checkedItems}
           totalCents={totalCents}
           addresses={addresses}
           addressId={addressId}
           onAddressChange={setAddressId}
-          onAddressTab={onAddressTab}
           submitting={submitting}
           globalError={globalError}
           onCheckout={checkout}
@@ -291,10 +426,174 @@ export default function BasketTab({
 }
 
 /* ─────────────────────────────────────────────────────────────
-   Inline tab control. Small enough to keep co-located — pulling
-   it into its own file would cost more than it saves. Visual
-   parity with the rest of the account tab strip (bottom border
-   on the selected one, label uppercase, count in parens).
+   Anonymous-mode basket view.
+   
+   Renders the localStorage items as a simple list with remove buttons
+   and a "Sign in to Check Out" CTA. No server-side concerns — no
+   reservations, no addresses, no checkboxes. The sign-in flow's
+   redirect_url brings the customer back here, at which point the
+   session context's auth-transition effect replays their items into
+   server-held reservations and the page re-renders in signed-in mode.
+───────────────────────────────────────────────────────────── */
+function AnonymousBasket({
+  items,
+  onRemove,
+  currentPath,
+}: {
+  items:        { inventoryId: number; sku: string; name: string; unitPriceCents: number; thumbnailUrl: string | null }[];
+  onRemove:     (inventoryId: number) => void;
+  currentPath:  string;
+}) {
+  const totalCents = items.reduce((s, i) => s + i.unitPriceCents, 0);
+  const signInHref = `/sign-in?redirect_url=${encodeURIComponent(currentPath)}`;
+  const signUpHref = `/sign-up?redirect_url=${encodeURIComponent(currentPath)}`;
+
+  return (
+    // Same `md:grid-rows-[1fr_auto]` as the signed-in layout. This panel
+    // can't expand a form today, but keeping the two layouts identical
+    // means a future addition here won't silently reintroduce the
+    // fixed-height overflow bug.
+    <div className="grid gap-12 md:grid-rows-[1fr_auto] md:items-start">
+      {/* ── Item list ── */}
+      <div>
+        <div className="mb-4 flex items-baseline justify-between">
+          <h2 className="ll-display text-xl font-normal" style={{ color: "var(--ink)" }}>
+            In your <em className="italic" style={{ color: "var(--rose-deep)" }}>basket</em>
+          </h2>
+          <p className="ll-label text-[0.62rem] uppercase tracking-[0.2em]" style={{ color: "var(--ink-soft)" }}>
+            {items.length} {items.length === 1 ? "piece" : "pieces"}
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          {items.map((item) => (
+            <div
+              key={item.inventoryId}
+              className="flex items-center gap-4 border p-4"
+              style={{ borderColor: "var(--linen)", background: "var(--cream-dark)" }}
+            >
+              {/* Thumbnail */}
+              <div
+                className="shrink-0 overflow-hidden"
+                style={{
+                  width: 72,
+                  height: 72,
+                  borderRadius: "0.2rem",
+                  background: "var(--linen)",
+                }}
+              >
+                {item.thumbnailUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={item.thumbnailUrl}
+                    alt={item.name}
+                    className="h-full w-full object-cover"
+                  />
+                ) : null}
+              </div>
+
+              {/* Title + price */}
+              <div className="flex-1 min-w-0">
+                <Link
+                  href={`/shop/${item.sku}`}
+                  className="ll-display block text-base font-normal truncate"
+                  style={{ color: "var(--ink)", textDecoration: "none" }}
+                >
+                  {item.name}
+                </Link>
+                <p
+                  className="ll-label text-[0.62rem] uppercase tracking-[0.12em] mt-1"
+                  style={{ color: "var(--rose-deep)" }}
+                >
+                  {formatPrice(item.unitPriceCents)}
+                </p>
+              </div>
+
+              {/* Remove button */}
+              <button
+                onClick={() => onRemove(item.inventoryId)}
+                className="ll-label text-[0.6rem] uppercase tracking-[0.12em] underline"
+                style={{
+                  color: "var(--ink-soft)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                }}
+                aria-label={`Remove ${item.name} from basket`}
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Sign-in CTA panel ── */}
+      <div
+        className="sticky top-6 p-6"
+        style={{
+          background:   "var(--cream-dark)",
+          borderRadius: "0.25rem",
+          outline:      "1px solid var(--linen)",
+        }}
+      >
+        <p
+          className="ll-label mb-4 text-[0.6rem] uppercase tracking-[0.2em]"
+          style={{ color: "var(--ink-soft)" }}
+        >
+          Summary
+        </p>
+
+        <div className="flex items-baseline justify-between mb-6">
+          <span className="ll-body text-sm font-light" style={{ color: "var(--ink-soft)" }}>
+            Subtotal
+          </span>
+          <span className="ll-display text-lg font-normal" style={{ color: "var(--ink)" }}>
+            {formatPrice(totalCents)}
+          </span>
+        </div>
+
+        <p
+          className="ll-body mb-5 text-xs font-light leading-relaxed"
+          style={{ color: "var(--ink-soft)" }}
+        >
+          Sign in or create an account to reserve these pieces and check out.
+          Heritage linens are one of a kind — signing in places a hold so
+          another customer doesn&apos;t take a piece while you decide.
+        </p>
+
+        <Link
+          href={signInHref}
+          className="ll-label block w-full py-3 text-center text-[0.65rem] font-medium uppercase tracking-[0.15em] text-white"
+          style={{
+            background:     "var(--rose-deep)",
+            border:         "none",
+            cursor:         "pointer",
+            textDecoration: "none",
+          }}
+        >
+          Sign in to Check Out
+        </Link>
+
+        <Link
+          href={signUpHref}
+          className="ll-label block w-full py-3 mt-2 text-center text-[0.6rem] uppercase tracking-[0.12em]"
+          style={{
+            background:     "none",
+            border:         "1px solid var(--linen)",
+            color:          "var(--ink-soft)",
+            textDecoration: "none",
+          }}
+        >
+          Create an Account
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Inline tab control — same as before.
 ───────────────────────────────────────────────────────────── */
 function ViewTab({
   label,
@@ -317,7 +616,7 @@ function ViewTab({
         border:       "none",
         borderBottom: selected ? "2px solid var(--rose-deep)" : "2px solid transparent",
         cursor:       "pointer",
-        marginBottom: "-1px", // overlap the parent borderBottom for a clean join
+        marginBottom: "-1px",
       }}
       aria-pressed={selected}
     >

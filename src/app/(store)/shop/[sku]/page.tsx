@@ -4,9 +4,13 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import type { InventoryItem, InventoryImage } from "@/types/inventory";
+import type {
+  AvailabilityState,
+  InventoryItem,
+  InventoryImage,
+} from "@/types/inventory";
 import { useStorefrontContext } from "@/context/StorefrontContext";
-import { useBasket } from "@/context/BasketContext";
+import { useCustomerSession } from "@/context/CustomerSessionContext";
 
 /* ─── helpers ─────────────────────────────────────────────────────────────── */
 
@@ -221,8 +225,13 @@ const CARE_STEPS = [
 
 export default function ItemDetailPage() {
   const { sku }  = useParams<{ sku: string }>();
-  const { getThumbnailUrl, ensureThumbnail } = useStorefrontContext();
-  const { add, remove, has } = useBasket();
+  const {
+    getThumbnailUrl,
+    ensureThumbnail,
+    getAvailabilityState,
+    checkAvailability,
+  } = useStorefrontContext();
+  const { add, remove, has } = useCustomerSession();
 
   const [item,    setItem]    = useState<ItemDetail | null>(null);
   const [images,  setImages]  = useState<InventoryImage[]>([]);
@@ -230,13 +239,31 @@ export default function ItemDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<string | null>(null);
 
+  // Availability state for *this* SKU. Independently tracked from the
+  // storefront context because the page may have been deep-linked, in
+  // which case the context's list doesn't include this item.
+  //
+  //   undefined → not checked yet (treat as loading)
+  //   null      → checked, item is available
+  //   string    → checked, item is in a blocked state
+  const [availState, setAvailState] = useState<AvailabilityState | null | undefined>(undefined);
+
   // Basket toggle state — async add() can fail with a structured reason, so
   // we surface a hint inline rather than a generic toast.
   const [busy, setBusy] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
   const inBasket = item ? has(item.inventoryId) : false;
 
-  /* ── Fetch item by SKU ── */
+  // Derived flags — recomputed cheaply from availState. The "yours" states
+  // get distinct routing; the "locked by other" states block the action.
+  const isLockedByOther =
+    availState === "InBasket" || availState === "PendingPayment";
+  const isYourBasket          = availState === "YourBasket";
+  const isYourPendingPayment  = availState === "YourPendingPayment";
+  const isYours               = isYourBasket || isYourPendingPayment;
+  const isGone                = availState === "Sold" || availState === "Inactive";
+
+  /* ── Fetch item by SKU, then check availability ── */
   const fetchItem = useCallback(async () => {
     if (!sku) return;
     setLoading(true);
@@ -247,6 +274,18 @@ export default function ItemDetailPage() {
       if (!res.ok) throw new Error("fetch failed");
       const data: ItemDetail = await res.json();
       setItem(data);
+
+      /* ── Availability check.
+         Reuse the storefront-cached value if we have one (came in from
+         the grid), otherwise fire a one-off check for just this id. */
+      const cached = getAvailabilityState(data.inventoryId);
+      if (cached !== null) {
+        setAvailState(cached);
+      } else {
+        const entries = await checkAvailability([data.inventoryId]);
+        const entry   = entries.find((e) => e.inventoryId === data.inventoryId);
+        setAvailState(entry ? entry.state : null);
+      }
 
       /* ── Fetch images ── */
       const imgRes = await fetch(`/api/items/${data.inventoryId}/images`);
@@ -269,42 +308,93 @@ export default function ItemDetailPage() {
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sku]);
 
   useEffect(() => { fetchItem(); }, [fetchItem]);
 
-  /* ── Basket toggle — shared between desktop CTA and mobile sticky bar ── */
+  /* ── Basket toggle — shared between desktop CTA and mobile sticky bar.
+       Pre-flight: re-check availability immediately before calling add().
+       The customer may have been on this page for minutes before clicking,
+       and the storefront cache could be stale. This narrows the race
+       window from "page load → click" to "pre-flight → server insert"
+       which is single-digit milliseconds. The server still wins ties via
+       the unique index on the basket table — this is belt-and-suspenders. ── */
   const toggleBasket = useCallback(async () => {
     if (!item || busy) return;
+
+    // State-based short-circuits, no network needed.
+    if (isLockedByOther) {
+      setHint(availState === "PendingPayment"
+        ? "This piece is awaiting payment from another customer."
+        : "Another customer is holding this piece right now.");
+      return;
+    }
+
     setBusy(true);
     setHint(null);
     try {
       if (inBasket) {
         await remove(item.inventoryId);
-      } else {
-        // Use the primary image if available, fall back to the first.
-        const primary = images.find((i) => i.isPrimary) ?? images[0];
-        const result = await add({
-          inventoryId:    item.inventoryId,
-          sku:            item.sku,
-          name:           item.name,
-          unitPriceCents: item.unitPriceCents,
-          thumbnailUrl:   primary?.readUrl ?? null,
-        });
-        if (!result.ok) {
-          if (result.reason === "needs_email_verify") {
-            setHint("Please verify your email before adding pieces to your basket.");
-          } else if (result.reason === "held_by_other") {
-            setHint("Another customer just added this piece. Try refreshing the page.");
-          } else if (result.reason !== "already_in_basket") {
-            setHint(result.message || "Couldn't add that piece.");
-          }
+        // After removal we no longer have it — re-check to update the pill.
+        const entries = await checkAvailability([item.inventoryId]);
+        const entry   = entries.find((e) => e.inventoryId === item.inventoryId);
+        setAvailState(entry ? entry.state : null);
+        return;
+      }
+
+      // Pre-flight check — narrows the race window before the actual POST.
+      const entries = await checkAvailability([item.inventoryId]);
+      const entry   = entries.find((e) => e.inventoryId === item.inventoryId);
+      if (entry) {
+        setAvailState(entry.state);
+        if (entry.state === "InBasket" || entry.state === "PendingPayment") {
+          setHint(entry.state === "PendingPayment"
+            ? "This piece was just claimed for payment. Please refresh to see other pieces."
+            : "Another customer just added this piece to their basket.");
+          return;
         }
+        if (entry.state === "Sold" || entry.state === "Inactive") {
+          setHint("This piece is no longer available.");
+          return;
+        }
+        // YourBasket / YourPendingPayment — fall through to the add() call,
+        // which will return already_in_basket and we'll handle it normally.
+      }
+
+      // Use the primary image if available, fall back to the first.
+      const primary = images.find((i) => i.isPrimary) ?? images[0];
+      const result = await add({
+        inventoryId:    item.inventoryId,
+        sku:            item.sku,
+        name:           item.name,
+        unitPriceCents: item.unitPriceCents,
+        thumbnailUrl:   primary?.readUrl ?? null,
+      });
+
+      if (!result.ok) {
+        if (result.reason === "needs_email_verify") {
+          setHint("Please verify your email before adding pieces to your basket.");
+        } else if (result.reason === "held_by_other") {
+          // Lost the race even after the pre-flight — re-sync state so the
+          // pill updates and the button disables.
+          setHint("Another customer just added this piece. Try refreshing the page.");
+          const re = await checkAvailability([item.inventoryId]);
+          const reEntry = re.find((e) => e.inventoryId === item.inventoryId);
+          setAvailState(reEntry ? reEntry.state : null);
+        } else if (result.reason !== "already_in_basket") {
+          setHint(result.message || "Couldn't add that piece.");
+        }
+      } else {
+        // Successful add → re-sync state so the page shows "YourBasket".
+        const re = await checkAvailability([item.inventoryId]);
+        const reEntry = re.find((e) => e.inventoryId === item.inventoryId);
+        setAvailState(reEntry ? reEntry.state : null);
       }
     } finally {
       setBusy(false);
     }
-  }, [item, busy, inBasket, add, remove, images]);
+  }, [item, busy, inBasket, isLockedByOther, availState, add, remove, images, checkAvailability]);
 
   /* ── Loading skeleton ── */
   if (loading) {
@@ -323,15 +413,17 @@ export default function ItemDetailPage() {
     );
   }
 
-  /* ── Not found ── */
-  if (error === "not_found" || (!loading && !item)) {
+  /* ── Not found (404 from items API, or Sold/Inactive — both mean "gone") ── */
+  if (error === "not_found" || (!loading && !item) || isGone) {
     return (
       <div className="flex flex-col items-center justify-center py-32 px-6 text-center">
         <p className="ll-display text-3xl italic mb-4" style={{ color: "var(--on-surface-variant)" }}>
-          Piece Not Found
+          {isGone ? "No Longer Available" : "Piece Not Found"}
         </p>
         <p className="ll-body text-base font-light mb-8" style={{ color: "var(--outline)" }}>
-          This item may have been sold or removed from the collection.
+          {isGone
+            ? "This piece has found its home. Browse other one-of-a-kind heritage linens."
+            : "This item may have been sold or removed from the collection."}
         </p>
         <Link href="/shop" className="btn-primary">Browse the Collection →</Link>
       </div>
@@ -348,6 +440,20 @@ export default function ItemDetailPage() {
       </div>
     );
   }
+
+  /* ── Button label + styling, computed once for use in both desktop CTA
+       and mobile sticky bar so they always agree on what the state means. ── */
+  const ctaLabel: string = (() => {
+    if (busy)                   return inBasket ? "Removing…" : "Adding…";
+    if (isYourPendingPayment)   return "Complete Payment →";
+    if (isYourBasket || inBasket) return "✓ In Basket";
+    if (availState === "InBasket")       return "In Someone's Basket";
+    if (availState === "PendingPayment") return "Awaiting Payment";
+    return "+ Add to Basket";
+  })();
+
+  // Disabled when blocked-by-other, or while the basket call is in flight.
+  const ctaDisabled = busy || isLockedByOther;
 
   /* ── Full page ── */
   return (
@@ -393,6 +499,33 @@ export default function ItemDetailPage() {
                 >
                   One of a Kind
                 </span>
+
+                {/* Availability badge — visible alongside the One of a Kind
+                    label so it's contextual to the piece's status. */}
+                {availState === "InBasket" && (
+                  <span
+                    className="ll-label px-2.5 py-1 text-[0.5rem] font-medium uppercase tracking-[0.15em]"
+                    style={{ background: "rgba(30,27,26,0.78)", color: "rgba(253,250,246,0.92)", borderRadius: "0.2rem" }}
+                  >
+                    In Someone's Basket
+                  </span>
+                )}
+                {availState === "PendingPayment" && (
+                  <span
+                    className="ll-label px-2.5 py-1 text-[0.5rem] font-medium uppercase tracking-[0.15em]"
+                    style={{ background: "rgba(176,120,120,0.92)", color: "#ffffff", borderRadius: "0.2rem" }}
+                  >
+                    Awaiting Payment
+                  </span>
+                )}
+                {(availState === "YourBasket" || isYourPendingPayment) && (
+                  <span
+                    className="ll-label px-2.5 py-1 text-[0.5rem] font-medium uppercase tracking-[0.15em]"
+                    style={{ background: "var(--primary)", color: "var(--on-primary)", borderRadius: "0.2rem" }}
+                  >
+                    {isYourPendingPayment ? "Your Pending Payment" : "In Your Basket"}
+                  </span>
+                )}
               </div>
               <span
                 className="ll-label text-[0.55rem] uppercase tracking-[0.12em]"
@@ -471,22 +604,39 @@ export default function ItemDetailPage() {
               );
             })()}
 
-            {/* Desktop CTAs — single primary action: add/remove from basket.
-                Reservation is implicit on add; checkout lives at /account. */}
+            {/* Desktop CTAs — single primary action: add/remove from basket,
+                OR route to checkout-resume for YourPendingPayment, OR show
+                disabled "held by other" state. */}
             <div className="hidden md:flex flex-col gap-3">
-              <button
-                onClick={toggleBasket}
-                disabled={busy}
-                className="btn-primary py-4 text-[0.68rem] tracking-[0.15em] disabled:opacity-50"
-              >
-                {busy
-                  ? (inBasket ? "Removing…" : "Adding…")
-                  : inBasket ? "✓ In Basket" : "+ Add to Basket"}
-              </button>
-
-              {inBasket && (
+              {isYourPendingPayment ? (
+                // The customer has a Square checkout pending — send them
+                // to /basket?tab=orders where they can resume payment in
+                // the Orders sub-view.
                 <Link
-                  href="/account?tab=basket"
+                  href="/basket?tab=orders"
+                  className="btn-primary py-4 text-center text-[0.68rem] tracking-[0.15em]"
+                >
+                  Complete Payment →
+                </Link>
+              ) : (
+                <button
+                  onClick={toggleBasket}
+                  disabled={ctaDisabled}
+                  className="btn-primary py-4 text-[0.68rem] tracking-[0.15em] disabled:opacity-50"
+                  style={{
+                    cursor: isLockedByOther ? "not-allowed" : (busy ? "wait" : "pointer"),
+                  }}
+                >
+                  {ctaLabel}
+                </button>
+              )}
+
+              {/* "View Basket" secondary link when the piece is in the
+                  customer's basket — survives the rename from inBasket
+                  to availState since YourBasket implies a server-side hold. */}
+              {(inBasket || isYourBasket) && !isYourPendingPayment && (
+                <Link
+                  href="/basket"
                   className="ll-label py-3 text-center text-[0.62rem] uppercase tracking-[0.15em] underline"
                   style={{
                     color: "var(--primary)",
@@ -608,8 +758,9 @@ export default function ItemDetailPage() {
         </section>
 
       {/* ────────────────────────────────────────────────────────
-          Mobile sticky bottom bar — basket toggle + view-basket link.
-          Reserve is gone; adding IS reserving in the new model.
+          Mobile sticky bottom bar — basket toggle + view-basket link,
+          OR resume-payment link for YourPendingPayment, OR disabled
+          state for locked-by-other.
       ──────────────────────────────────────────────────────── */}
       <div
         className="md:hidden fixed bottom-0 left-0 right-0 z-40 flex flex-col"
@@ -631,45 +782,70 @@ export default function ItemDetailPage() {
         )}
 
         <div className="flex items-stretch gap-0">
-          {/* When in basket: split bar — left half toggles off, right half goes to /account */}
-          {/* When not in basket: full-width add button */}
-          <button
-            onClick={toggleBasket}
-            disabled={busy}
-            className="ll-label flex-1 flex items-center justify-center gap-2 py-4 text-[0.65rem] uppercase tracking-[0.15em] transition-all duration-300 disabled:opacity-60"
-            style={{
-              background: inBasket ? "var(--surface-container-low)" : "var(--primary)",
-              color:      inBasket ? "var(--primary)"               : "var(--on-primary)",
-              cursor:     busy ? "wait" : "pointer",
-              border:     "none",
-              borderRight: inBasket ? "1px solid rgba(196,181,168,0.2)" : "none",
-            }}
-          >
-            <svg
-              width="18" height="18" viewBox="0 0 24 24"
-              fill={inBasket ? "currentColor" : "none"}
-              stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
-            >
-              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
-            </svg>
-            {busy
-              ? (inBasket ? "Removing…" : "Adding…")
-              : inBasket ? "✓ In Basket" : "+ Add to Basket"}
-          </button>
-
-          {inBasket && (
+          {isYourPendingPayment ? (
+            // Full-width "Complete Payment" link, routes to /basket?tab=orders
             <Link
-              href="/account?tab=basket"
-              className="ll-label flex-1 flex items-center justify-center py-4 text-[0.65rem] uppercase tracking-[0.15em] transition-all duration-300"
+              href="/basket?tab=orders"
+              className="ll-label flex-1 flex items-center justify-center gap-2 py-4 text-[0.65rem] uppercase tracking-[0.15em]"
               style={{
-                background: "var(--primary)",
-                color:      "var(--on-primary)",
-                border:     "none",
+                background:    "var(--primary)",
+                color:         "var(--on-primary)",
+                border:        "none",
                 textDecoration: "none",
               }}
             >
-              View Basket →
+              Complete Payment →
             </Link>
+          ) : (
+            <>
+              {/* When in basket: split bar — left half toggles off, right half goes to /account */}
+              {/* When not in basket: full-width add button */}
+              {/* When locked-by-other: full-width disabled button */}
+              <button
+                onClick={toggleBasket}
+                disabled={ctaDisabled}
+                className="ll-label flex-1 flex items-center justify-center gap-2 py-4 text-[0.65rem] uppercase tracking-[0.15em] transition-all duration-300 disabled:opacity-60"
+                style={{
+                  background: isLockedByOther
+                    ? "var(--surface-container)"
+                    : (inBasket || isYourBasket)
+                      ? "var(--surface-container-low)"
+                      : "var(--primary)",
+                  color: isLockedByOther
+                    ? "var(--on-surface-variant)"
+                    : (inBasket || isYourBasket)
+                      ? "var(--primary)"
+                      : "var(--on-primary)",
+                  cursor: isLockedByOther ? "not-allowed" : (busy ? "wait" : "pointer"),
+                  border:  "none",
+                  borderRight: (inBasket || isYourBasket) ? "1px solid rgba(196,181,168,0.2)" : "none",
+                }}
+              >
+                <svg
+                  width="18" height="18" viewBox="0 0 24 24"
+                  fill={(inBasket || isYourBasket) ? "currentColor" : "none"}
+                  stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+                >
+                  <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+                </svg>
+                {ctaLabel}
+              </button>
+
+              {(inBasket || isYourBasket) && !isLockedByOther && (
+                <Link
+                  href="/basket"
+                  className="ll-label flex-1 flex items-center justify-center py-4 text-[0.65rem] uppercase tracking-[0.15em] transition-all duration-300"
+                  style={{
+                    background: "var(--primary)",
+                    color:      "var(--on-primary)",
+                    border:     "none",
+                    textDecoration: "none",
+                  }}
+                >
+                  View Basket →
+                </Link>
+              )}
+            </>
           )}
         </div>
       </div>

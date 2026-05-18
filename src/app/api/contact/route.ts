@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   // req.ip, but on Vercel/App Service the chain matters — prefer the leftmost
   // entry of x-forwarded-for if present, since that's the original client.
   const xff      = req.headers.get("x-forwarded-for");
-  const clientIp = xff?.split(",")[0]?.trim() || req.ip || "";
+  const clientIp = xff?.split(",")[0]?.trim() || "";
   const ua       = req.headers.get("user-agent") || "";
 
   let upstream: Response;

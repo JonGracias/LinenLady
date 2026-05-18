@@ -1,38 +1,26 @@
 "use client";
 
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useUser, useAuth, SignOutButton } from "@clerk/nextjs";
-import type { ReservationDto, CustomerAddressDto, CustomerPreferenceDto, MessageDto } from "@/types/customer";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useUser, SignOutButton } from "@clerk/nextjs";
+import type { MessageDto } from "@/types/customer";
 import { CATEGORY_OPTIONS } from "@/types/inventory";
-import BasketTab from "./_components/BasketTab";
-import OrdersTab from "./_components/OrdersTab";
-import type { OrderDto } from "@/types/customer";
-
-/* ─────────────────────────────────────────────────────────────
-   Helpers
-───────────────────────────────────────────────────────────── */
-
-function formatPrice(cents: number) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 }).format(cents / 100);
-}
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
-}
+import { useCustomerSession } from "@/context/CustomerSessionContext";
 
 /* ─────────────────────────────────────────────────────────────
    Tab types
    ─────────────────────────────────────────────────────────────
-   "messages" was renamed to "contact" alongside the new /contact
-   page. The tab still shows the existing in-app message thread
-   (cust.Message rows) — we just relabeled it so all customer→Noemi
-   surfaces use a consistent verb. Old links / bookmarks pointing
-   to ?tab=messages are aliased below in the URL parser.
+   Phase 1 progression:
+     - "basket" left earlier — lives at /basket.
+     - "orders" leaves now — folded into /basket as a sub-view.
+
+   The remaining tabs are profile-shaped: addresses, preferences,
+   contact. Legacy URL aliases for basket/reservations/orders are
+   redirected to /basket on mount, preserving deep-link bookmarks.
 ───────────────────────────────────────────────────────────── */
 
-type Tab = "basket" | "orders" | "address" | "preferences" | "contact";
+type Tab = "address" | "preferences" | "contact";
 
 /* ─────────────────────────────────────────────────────────────
    Account page
@@ -48,81 +36,81 @@ export default function AccountPage() {
 
 function AccountPageInner() {
   const { user, isLoaded } = useUser();
-  const { getToken }       = useAuth();
-  const searchParams       = useSearchParams();
+  const router       = useRouter();
+  const searchParams = useSearchParams();
 
-  // Seed tab from `?tab=` so deep-links from elsewhere land on the right pane.
-  // Validated against the Tab union — anything else falls back to basket.
-  // Aliases: ?tab=reservations → basket (legacy basket link),
-  //          ?tab=messages     → contact (legacy messages link).
+  // Read the tab from the URL. Legacy basket/reservations/orders values
+  // redirect to /basket. Unknown values fall back to "address" — the new
+  // default since orders has moved out.
+  const requestedTab = searchParams?.get("tab");
+
+  // Side-effect: legacy tab values redirect to /basket. We preserve the
+  // ?placed= param if it was present on a ?tab=orders URL so the post-
+  // checkout deep-link still highlights the right order.
+  useEffect(() => {
+    if (requestedTab === "basket" || requestedTab === "reservations") {
+      router.replace("/basket");
+    } else if (requestedTab === "orders") {
+      const placed = searchParams?.get("placed");
+      router.replace(placed
+        ? `/basket?tab=orders&placed=${placed}`
+        : "/basket?tab=orders"
+      );
+    }
+  }, [requestedTab, router, searchParams]);
+
   const [tab, setTab] = useState<Tab>(() => {
-    const t = searchParams?.get("tab");
-    if (t === "reservations" || t === "basket")          return "basket";
-    if (t === "messages"     || t === "contact")         return "contact";
-    if (t === "orders" || t === "address" || t === "preferences") return t;
-    return "basket";
+    if (requestedTab === "messages" || requestedTab === "contact") return "contact";
+    if (requestedTab === "address" || requestedTab === "preferences") {
+      return requestedTab as Tab;
+    }
+    // "orders" / "basket" / "reservations" / unknown → default while the
+    // redirect effect fires. They never see this tab render because the
+    // effect replaces the route on the same tick.
+    return "address";
   });
 
-  const placedOrderId = useMemo(() => {
-    const r = searchParams?.get("placed");
-    if (!r) return null;
-    const n = Number.parseInt(r, 10);
-    return Number.isFinite(n) ? n : null;
-  }, [searchParams]);
+  // Session-context data: addresses + apiCall come from the context now;
+  // preferences / messages are still owned by this page since they're
+  // account-only (no cross-page consumers).
+  const {
+    addresses,
+    apiCall,
+    refreshAddresses,
+  } = useCustomerSession();
 
-  const [loading, setLoading]   = useState(true);
+  const [loading,     setLoading]     = useState(true);
+  const [preferences, setPreferences] = useState<string[]>([]);
+  const [messages,    setMessages]    = useState<MessageDto[]>([]);
+  const [msgDraft,    setMsgDraft]    = useState("");
+  const [msgSending,  setMsgSending]  = useState(false);
 
-  const [reservations, setReservations] = useState<ReservationDto[]>([]);
-  const [orders, setOrders]             = useState<OrderDto[]>([]);
-  const [addresses, setAddresses]       = useState<CustomerAddressDto[]>([]);
-  const [preferences, setPreferences]   = useState<string[]>([]);
-  const [messages, setMessages]         = useState<MessageDto[]>([]);
-  const [msgDraft, setMsgDraft]         = useState("");
-  const [msgSending, setMsgSending]     = useState(false);
+  const [addrForm, setAddrForm] = useState<Partial<{
+    addressId: number;
+    label:     string;
+    street1:   string;
+    street2:   string;
+    city:      string;
+    state:     string;
+    zip:       string;
+    isDefault: boolean;
+  }> | null>(null);
 
-  const [addrForm, setAddrForm] = useState<Partial<CustomerAddressDto> | null>(null);
-
-  const apiCall = useCallback(async (path: string, opts?: RequestInit) => {
-    const token = await getToken();
-    const clerkId = user?.id ?? "";
-    return fetch(`/api${path}`, {
-      ...opts,
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`,
-        "X-Clerk-User-Id": clerkId,
-        ...(opts?.headers ?? {}),
-      },
-    });
-  }, [getToken, user?.id]);
-
+  // Load account-only data. The customer-sync POST that used to live here
+  // is now handled by CustomerSessionContext at the auth boundary — see
+  // its useEffect for the auth-transition sequence. Addresses AND orders
+  // are also owned by the session context — addresses for the basket
+  // page's checkout panel, orders for the new /basket?tab=orders sub-view.
   useEffect(() => {
     if (!isLoaded || !user) return;
 
     const load = async () => {
-      await apiCall("/customers/sync", {
-        method: "POST",
-        body: JSON.stringify({
-          clerkUserId:     user.id,
-          email:           user.primaryEmailAddress?.emailAddress ?? "",
-          firstName:       user.firstName ?? "",
-          lastName:        user.lastName  ?? "",
-          isEmailVerified: user.primaryEmailAddress?.verification?.status === "verified",
-        }),
-      });
-
+      // Preferences ride along on the /customers/me profile payload.
       const profileRes = await apiCall("/customers/me");
       if (profileRes.ok) {
         const data = await profileRes.json();
-        setAddresses(data.addresses ?? []);
-        setPreferences((data.preferences ?? []).map((p: any) => p.Category));
+        setPreferences((data.preferences ?? []).map((p: any) => p.Category ?? p.category));
       }
-
-      const basketRes = await apiCall("/customers/me/basket");
-      if (basketRes.ok) setReservations(await basketRes.json());
-
-      const ordersRes = await apiCall("/customers/me/orders");
-      if (ordersRes.ok) setOrders(await ordersRes.json());
 
       const msgRes = await apiCall("/customers/me/messages");
       if (msgRes.ok) setMessages(await msgRes.json());
@@ -131,7 +119,7 @@ function AccountPageInner() {
     };
 
     load();
-  }, [isLoaded, user]);
+  }, [isLoaded, user, apiCall]);
 
   const sendMessage = async () => {
     if (!msgDraft.trim()) return;
@@ -163,12 +151,11 @@ function AccountPageInner() {
       { method: addrForm.addressId ? "PUT" : "POST", body: JSON.stringify(addrForm) }
     );
     if (res.ok) {
-      const saved = await res.json();
-      setAddresses((a) =>
-        addrForm.addressId
-          ? a.map((x) => x.addressId === saved.AddressId ? saved : x)
-          : [...a, saved]
-      );
+      // Re-fetch addresses via the session context so the basket page's
+      // checkout panel also sees the change. Drops the optimistic-update
+      // pattern from the old version — slower by one round-trip, but
+      // keeps both surfaces in sync without an event bus.
+      await refreshAddresses();
       setAddrForm(null);
     }
   };
@@ -176,7 +163,7 @@ function AccountPageInner() {
   const deleteAddress = async (id: number) => {
     if (!confirm("Remove this address?")) return;
     await apiCall(`/customers/me/addresses/${id}`, { method: "DELETE" });
-    setAddresses((a) => a.filter((x) => x.addressId !== id));
+    await refreshAddresses();
   };
 
   if (!isLoaded || loading) {
@@ -201,14 +188,14 @@ function AccountPageInner() {
         <p className="ll-body mt-2 text-sm font-light" style={{ color: "var(--ink-soft)" }}>{user?.primaryEmailAddress?.emailAddress}</p>
       </div>
 
-      {/* Tab bar */}
-      <div className="relative z-[1] flex border-b" style={{ borderColor: "var(--linen)", background: "var(--cream)" }}>
+      {/* Tab bar — basket tab removed; basket now lives at /basket. A small
+          link in the header points there so the customer doesn't have to
+          go back to the storefront to find it. */}
+      <div className="relative z-[1] flex items-center border-b" style={{ borderColor: "var(--linen)", background: "var(--cream)" }}>
         {([
-          { id: "basket",      label: "Basket"      },
-          { id: "orders",      label: "Orders"      },
           { id: "address",     label: "Addresses"   },
           { id: "preferences", label: "Preferences" },
-          { id: "contact",     label: "Contact"     },   // was "messages" / "Messages"
+          // { id: "contact",     label: "Contact"     },
         ] as { id: Tab; label: string }[]).map(({ id, label }) => (
           <button
             key={id}
@@ -223,29 +210,32 @@ function AccountPageInner() {
             {label}
           </button>
         ))}
+
+        {/* Spacer + basket link, right-aligned so it doesn't pretend to
+            be one of the tabs. Visible affordance for customers who land
+            on /account looking for their basket or orders — both live
+            at /basket now. */}
+        <div className="ml-auto mr-8 flex items-center gap-4">
+          <Link
+            href="/basket"
+            className="ll-label text-[0.62rem] uppercase tracking-[0.15em] underline"
+            style={{ color: "var(--sage-deep)" }}
+          >
+            Basket &amp; Orders →
+          </Link>
+          <SignOutButton>
+            <button
+              className="ll-label text-[0.62rem] uppercase tracking-[0.15em] underline"
+              style={{ color: "var(--ink-soft)", background: "none", border: "none", cursor: "pointer" }}
+            >
+              Sign Out
+            </button>
+          </SignOutButton>
+        </div>
       </div>
 
       {/* Content */}
       <div className="relative z-[1] px-16 py-12">
-
-        {/* ── Basket ── */}
-        {tab === "basket" && (
-          <BasketTab
-            reservations={reservations}
-            addresses={addresses}
-            apiCall={apiCall}
-            onChange={setReservations}
-            onAddressTab={() => setTab("address")}
-          />
-        )}
-
-        {/* ── Orders ── */}
-        {tab === "orders" && (
-          <OrdersTab
-            orders={orders}
-            highlight={placedOrderId}
-          />
-        )}
 
         {/* ── Addresses ── */}
         {tab === "address" && (
@@ -276,7 +266,16 @@ function AccountPageInner() {
                     {a.street1}{a.street2 && `, ${a.street2}`}<br />{a.city}, {a.state} {a.zip}
                   </address>
                   <div className="mt-3 flex gap-3">
-                    <button onClick={() => setAddrForm(a)} className="ll-label text-[0.6rem] uppercase tracking-[0.12em] underline" style={{ color: "var(--sage-deep)", background: "none", border: "none", cursor: "pointer" }}>Edit</button>
+                    <button onClick={() => setAddrForm({
+                      addressId: a.addressId,
+                      label:     a.label,
+                      street1:   a.street1,
+                      street2:   a.street2 ?? "",
+                      city:      a.city,
+                      state:     a.state,
+                      zip:       a.zip,
+                      isDefault: a.isDefault,
+                    })} className="ll-label text-[0.6rem] uppercase tracking-[0.12em] underline" style={{ color: "var(--sage-deep)", background: "none", border: "none", cursor: "pointer" }}>Edit</button>
                     <button onClick={() => deleteAddress(a.addressId)} className="ll-label text-[0.6rem] uppercase tracking-[0.12em] underline" style={{ color: "var(--rose-deep)", background: "none", border: "none", cursor: "pointer" }}>Remove</button>
                   </div>
                 </div>
@@ -289,13 +288,17 @@ function AccountPageInner() {
                   {addrForm.addressId ? "Edit Address" : "New Address"}
                 </h3>
                 <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                  {/* Form fields. Keys are camelCase to match the C# DTO's
+                      JSON property names as deserialized by the API. The
+                      legacy version mixed PascalCase here, which silently
+                      broke the address-update path; this version normalizes. */}
                   {[
-                    { key: "Label",   label: "Label",    full: false },
-                    { key: "Street1", label: "Street",   full: true  },
-                    { key: "Street2", label: "Apt/Suite",full: true  },
-                    { key: "City",    label: "City",     full: false },
-                    { key: "State",   label: "State",    full: false },
-                    { key: "Zip",     label: "ZIP",      full: false },
+                    { key: "label",   label: "Label",    full: false },
+                    { key: "street1", label: "Street",   full: true  },
+                    { key: "street2", label: "Apt/Suite",full: true  },
+                    { key: "city",    label: "City",     full: false },
+                    { key: "state",   label: "State",    full: false },
+                    { key: "zip",     label: "ZIP",      full: false },
                   ].map(({ key, label, full }) => (
                     <div key={key} style={{ gridColumn: full ? "1 / -1" : "auto" }}>
                       <label className="ll-label mb-1 block text-[0.6rem] uppercase tracking-[0.12em]" style={{ color: "var(--ink-soft)" }}>{label}</label>
@@ -310,7 +313,7 @@ function AccountPageInner() {
                   <div style={{ gridColumn: "1 / -1" }}>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={!!addrForm.isDefault}
-                        onChange={(e) => setAddrForm((f) => ({ ...f, IsDefault: e.target.checked }))} />
+                        onChange={(e) => setAddrForm((f) => ({ ...f, isDefault: e.target.checked }))} />
                       <span className="ll-label text-[0.62rem] uppercase tracking-[0.12em]" style={{ color: "var(--ink-soft)" }}>Set as default address</span>
                     </label>
                   </div>
@@ -331,7 +334,7 @@ function AccountPageInner() {
               New Arrival <em className="italic" style={{ color: "var(--rose-deep)" }}>Alerts</em>
             </h2>
             <p className="ll-body mb-8 text-base font-light leading-relaxed" style={{ color: "var(--ink-soft)" }}>
-              Choose the categories you'd like to be notified about when new pieces arrive.
+              Choose the categories you&apos;d like to be notified about when new pieces arrive.
             </p>
             <div className="flex flex-col gap-3">
               {CATEGORY_OPTIONS.map(({ value, label }) => {
@@ -354,72 +357,6 @@ function AccountPageInner() {
                   </label>
                 );
               })}
-            </div>
-          </div>
-        )}
-
-        {/* ── Contact (was Messages) ──
-            This tab still shows the in-app message thread (cust.Message rows).
-            We just relabeled it. New inquiries — especially from anonymous
-            visitors — go through /contact, which uses the public Resend-backed
-            endpoint. The link below routes signed-in users there too if they'd
-            rather start a fresh thread that gets logged on the contact-form
-            audit trail. */}
-        {tab === "contact" && (
-          <div className="max-w-2xl">
-            <h2 className="ll-display mb-2 text-xl font-normal" style={{ color: "var(--ink)" }}>
-              Your Conversation with <em className="italic" style={{ color: "var(--rose-deep)" }}>Noemi</em>
-            </h2>
-            <p className="ll-body mb-8 text-sm font-light" style={{ color: "var(--ink-soft)" }}>
-              Have a new question?{" "}
-              <Link href="/contact" style={{ color: "var(--rose-deep)", textDecoration: "underline" }}>
-                Visit the contact page
-              </Link>
-              {" "}— it&apos;ll send Noemi a fresh email she can reply to directly.
-            </p>
-
-            {/* Thread */}
-            <div className="mb-6 flex max-h-[480px] flex-col gap-3 overflow-y-auto pr-2">
-              {messages.length === 0 && (
-                <p className="ll-body italic text-base" style={{ color: "var(--brown-light)" }}>No messages yet.</p>
-              )}
-              {messages.map((m) => {
-                const isOutbound = m.direction === "Outbound";
-                return (
-                  <div key={m.messageId} className={`flex ${isOutbound ? "justify-start" : "justify-end"}`}>
-                    <div className="max-w-[75%] px-4 py-3"
-                      style={{
-                        background: isOutbound ? "var(--cream-dark)" : "var(--rose-deep)",
-                        color: isOutbound ? "var(--ink)" : "#fff",
-                        border: isOutbound ? "1px solid var(--linen)" : "none",
-                      }}>
-                      <p className="ll-body text-sm font-light leading-relaxed">{m.body}</p>
-                      <div className={`ll-label mt-1 text-[0.55rem] uppercase tracking-[0.1em] ${isOutbound ? "" : "text-right"}`}
-                        style={{ color: isOutbound ? "var(--ink-soft)" : "rgba(255,255,255,0.65)" }}>
-                        {isOutbound ? "Noemi" : "You"} · {new Date(m.sentAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Compose — kept for replying within an existing thread */}
-            <div className="flex gap-3 border-t pt-4" style={{ borderColor: "var(--linen)" }}>
-              <textarea
-                value={msgDraft}
-                onChange={(e) => setMsgDraft(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }}}
-                rows={3}
-                placeholder="Reply to Noemi…"
-                className="ll-body flex-1 resize-none border p-3 text-sm font-light outline-none placeholder:italic"
-                style={{ borderColor: "var(--linen)", background: "var(--cream-dark)", color: "var(--ink)" }}
-              />
-              <button onClick={sendMessage} disabled={msgSending || !msgDraft.trim()}
-                className="ll-label self-end px-6 py-3 text-[0.65rem] font-medium uppercase tracking-[0.15em] text-white transition-all disabled:opacity-40"
-                style={{ background: "var(--rose-deep)", border: "none", cursor: "pointer" }}>
-                Send
-              </button>
             </div>
           </div>
         )}

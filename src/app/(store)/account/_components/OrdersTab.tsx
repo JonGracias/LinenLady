@@ -1,9 +1,10 @@
 // src/app/(store)/account/_components/OrdersTab.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { OrderDto, OrderStatus } from "@/types/customer";
+import { useCustomerSession } from "@/context/CustomerSessionContext";
 
 /* ─────────────────────────────────────────────────────────────
    Helpers
@@ -45,6 +46,101 @@ function StatusPill({ status }: { status: OrderStatus }) {
 }
 
 /* ─────────────────────────────────────────────────────────────
+   CancelOrderButton — two-step inline confirm.
+
+   First click: button label changes to "Are you sure? Tap again to cancel"
+   and the styling shifts to a warning treatment. A 5-second timer
+   auto-reverts to the initial state if the customer doesn't tap again,
+   which keeps the surface low-commitment (no modal, no scary dialog,
+   just a brief pause for second thoughts).
+
+   Second click within the window: fires the cancel via session.cancelOrder
+   and feeds any error message into the parent's error state. The button
+   disables and shows "Cancelling…" while the request is in flight.
+
+   Rendered only for PaymentPending orders (and Failed, since the customer
+   may want to clean those up too); see the caller's status check.
+───────────────────────────────────────────────────────────── */
+function CancelOrderButton({
+  orderId,
+  onResult,
+}: {
+  orderId:  number;
+  onResult: (msg: string | null) => void;
+}) {
+  const { cancelOrder } = useCustomerSession();
+  const [stage, setStage] = useState<"idle" | "confirm" | "busy">("idle");
+  const revertTimer = useRef<number | null>(null);
+
+  // Clear pending revert on unmount so we don't setState on an unmounted
+  // component if the customer navigates away mid-confirm.
+  useEffect(() => {
+    return () => {
+      if (revertTimer.current !== null) {
+        window.clearTimeout(revertTimer.current);
+      }
+    };
+  }, []);
+
+  const click = async () => {
+    // Block clicks while a request is in flight.
+    if (stage === "busy") return;
+
+    if (stage === "idle") {
+      // First click — arm the confirm and start the 5s auto-revert.
+      setStage("confirm");
+      onResult(null);
+      revertTimer.current = window.setTimeout(() => {
+        setStage("idle");
+        revertTimer.current = null;
+      }, 5000);
+      return;
+    }
+
+    // Second click within the window — fire the cancel.
+    if (revertTimer.current !== null) {
+      window.clearTimeout(revertTimer.current);
+      revertTimer.current = null;
+    }
+    setStage("busy");
+    const result = await cancelOrder(orderId);
+    if (result.ok) {
+      // Success: orders array was refreshed in the context, this row will
+      // re-render with status=Cancelled and our component unmounts (since
+      // it only renders for cancellable statuses). Nothing to do here.
+      onResult(null);
+    } else {
+      // Surface the message verbatim to the parent. The parent decides
+      // whether to route to the message-Noemi flow based on `reason`.
+      onResult(result.message);
+      setStage("idle");
+    }
+  };
+
+  const label = stage === "busy"    ? "Cancelling…"
+              : stage === "confirm" ? "Are you sure? Tap again to confirm"
+              :                       "Cancel This Order";
+
+  return (
+    <button
+      onClick={click}
+      disabled={stage === "busy"}
+      className="ll-label text-[0.6rem] uppercase tracking-[0.12em] px-4 py-2 transition-all disabled:opacity-60"
+      style={{
+        background:   stage === "confirm" ? "rgba(153,27,27,0.08)" : "transparent",
+        color:        stage === "confirm" ? "#991b1b"               : "var(--ink-soft)",
+        border:       "1px solid",
+        borderColor:  stage === "confirm" ? "rgba(153,27,27,0.4)"  : "var(--linen)",
+        borderRadius: "0.2rem",
+        cursor:       stage === "busy"    ? "wait" : "pointer",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
    Tab body
 ───────────────────────────────────────────────────────────── */
 
@@ -62,6 +158,11 @@ export default function OrdersTab({ orders, highlight }: OrdersTabProps) {
     if (highlight && orders.some(o => o.orderId === highlight)) return highlight;
     return orders[0]?.orderId ?? null;
   });
+
+  // Cancel error state, keyed by orderId so a failure on one order's
+  // cancel doesn't taint the UI of another. Cleared on the next attempt
+  // or when the customer collapses+reopens the row.
+  const [cancelErrors, setCancelErrors] = useState<Record<number, string | null>>({});
 
   if (orders.length === 0) {
     return (
@@ -110,6 +211,15 @@ export default function OrdersTab({ orders, highlight }: OrdersTabProps) {
         {orders.map(order => {
           const isOpen = openId === order.orderId;
           const itemCount = order.items.length;
+          const cancelError = cancelErrors[order.orderId] ?? null;
+
+          // The cancel button shows on PaymentPending (the obvious case)
+          // and on Failed (customer should be able to dismiss those so
+          // they stop seeing the red banner on their orders list). Paid
+          // and Cancelled rows don't show it.
+          const canCancel = order.status === "PaymentPending"
+                         || order.status === "Failed";
+
           return (
             <li
               key={order.orderId}
@@ -199,37 +309,78 @@ export default function OrdersTab({ orders, highlight }: OrdersTabProps) {
                     </div>
                   )}
 
-                  {/* Payment link — only useful while PaymentPending */}
-                  {order.status === "PaymentPending" && order.squarePaymentLinkUrl && (
-                    <a
-                      href={order.squarePaymentLinkUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn-primary inline-block px-5 py-2.5 text-[0.62rem] tracking-[0.12em]"
-                      style={{ textDecoration: "none" }}
-                    >
-                      Complete Payment in Square →
-                    </a>
+                  {/* Action row — Pay button + Cancel button arranged so the
+                      primary action (paying) gets the prominent treatment
+                      and the secondary (cancelling) reads as a quieter
+                      escape hatch. Cancel is a sibling, not a competitor. */}
+                  {(order.status === "PaymentPending" && order.squarePaymentLinkUrl) || canCancel ? (
+                    <div className="flex flex-wrap items-center gap-3">
+                      {order.status === "PaymentPending" && order.squarePaymentLinkUrl && (
+                        <a
+                          href={order.squarePaymentLinkUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn-primary inline-block px-5 py-2.5 text-[0.62rem] tracking-[0.12em]"
+                          style={{ textDecoration: "none" }}
+                        >
+                          Complete Payment in Square →
+                        </a>
+                      )}
+                      {canCancel && (
+                        <CancelOrderButton
+                          orderId={order.orderId}
+                          onResult={(msg) => setCancelErrors(prev => ({ ...prev, [order.orderId]: msg }))}
+                        />
+                      )}
+                    </div>
+                  ) : null}
+
+                  {/* Inline cancel error — surfaced just below the action
+                      row. For the most common failure mode ("the payment
+                      went through, message Noemi") we render a contact
+                      link inline rather than just dumping the error text. */}
+                  {cancelError && (
+                    <p className="ll-body mt-3 text-xs italic" style={{ color: "#991b1b" }}>
+                      {cancelError}
+                      {/* If the error message hints at a paid order, surface
+                          a contact link. Cheap heuristic — matches the
+                          backend's OrderNotCancellableException message
+                          patterns. */}
+                      {cancelError.toLowerCase().includes("paid") && (
+                        <>
+                          {" "}
+                          <Link
+                            href={`/account?tab=contact&order=${order.orderId}`}
+                            style={{ color: "var(--rose-deep)", textDecoration: "underline" }}
+                          >
+                            Message Noemi about this order
+                          </Link>
+                          .
+                        </>
+                      )}
+                    </p>
                   )}
 
                   {/* Cancelled-by-timeout messaging — explain what happened.
-                      "Cancelled" with no PaidAt always means the sweeper
-                      hit it (we don't expose a manual cancel UI). */}
+                      "Cancelled" with no PaidAt always means either the
+                      sweeper or a customer-initiated cancel hit it. */}
                   {order.status === "Cancelled" && !order.paidAt && (
-                    <p className="ll-body text-xs italic" style={{ color: "var(--ink-soft)" }}>
-                      This order timed out before payment completed. Available
-                      pieces have been returned to your basket.
+                    <p className="ll-body text-xs italic mt-3" style={{ color: "var(--ink-soft)" }}>
+                      Available pieces have been returned to your basket.
                     </p>
                   )}
 
                   {/* Failed — Square reported a payment failure.
-                      Distinct from Cancelled — items aren't returned because
-                      the customer engaged with Square but the charge bounced.
-                      They can re-add from the basket's expired section. */}
-                  {order.status === "Failed" && (
-                    <p className="ll-body text-xs italic" style={{ color: "#991b1b" }}>
-                      Square reported a payment failure. You can try the pieces
-                      again from your basket if they&apos;re still available.
+                      Distinct from Cancelled — items aren't automatically
+                      returned because the customer engaged with Square
+                      but the charge bounced. They can re-add from the
+                      basket's expired section, or cancel the order
+                      outright via the button above. */}
+                  {order.status === "Failed" && !cancelError && (
+                    <p className="ll-body text-xs italic mt-3" style={{ color: "#991b1b" }}>
+                      Square reported a payment failure. You can cancel this
+                      order, or try the pieces again from your basket if
+                      they&apos;re still available.
                     </p>
                   )}
                 </div>

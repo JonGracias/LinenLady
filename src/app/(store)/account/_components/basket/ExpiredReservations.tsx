@@ -1,26 +1,38 @@
 // src/app/(store)/account/_components/basket/ExpiredReservations.tsx
 //
 // The "Recently expired" view — historical reservations the customer no
-// longer holds. Each row reads in one of three states:
+// longer holds. Each row reads in one of FOUR states:
 //
-//   1. canReAdd: the item is purchasable and nobody else holds it.
-//      Render at full opacity with an enabled TRY AGAIN button.
+//   1. reAddable:           the item is purchasable and nobody else holds
+//                           it. Render at full opacity with TRY AGAIN.
 //
-//   2. !canReAdd, but the customer already has an Active reservation on
-//      the same inventory item — meaning they already clicked Try Again
-//      and got it back, OR they re-added the same piece some other way.
-//      Render grayed with a "Back in your basket" label, no button.
-//      This is the post-Try-Again state without filtering the row out:
-//      the customer can still see what they almost lost.
+//   2. reAdded:             the customer already has an Active reservation
+//                           on the same inventory item — clicked Try Again
+//                           already, or re-added through another route.
+//                           Render grayed with "Back in your basket".
 //
-//   3. !canReAdd, and no active reservation: someone else has it, or it
-//      sold. Render grayed with "No longer available," no button.
+//   3. inPendingPayment:    the customer has this item tied up in a
+//                           PaymentPending order — they started checkout
+//                           but didn't finish. Render grayed with "Awaiting
+//                           your payment" and a direct link to the orders
+//                           sub-view so they can resume. This is the case
+//                           that previously showed "Still available" and
+//                           silently 409'd on TRY AGAIN — the row truthfully
+//                           told the customer the piece was available, but
+//                           the server couldn't issue a new reservation
+//                           because the customer's own order already held
+//                           the inventory hostage.
 //
-// The distinction between 2 and 3 is computed client-side from the
-// already-loaded basket payload — no extra round-trip, no DTO change.
+//   4. !any of the above:   someone else has it, or it sold. Grayed with
+//                           "No longer available", no action.
+//
+// The classification is computed client-side from data already loaded into
+// the session context (reservations + orders), no extra round-trip and
+// no DTO changes.
 
 "use client";
 
+import Link from "next/link";
 import type { ReservationDto } from "@/types/customer";
 import { formatPrice } from "./_utils";
 
@@ -28,6 +40,12 @@ type Props = {
   expired:           ReservationDto[];
   /** Inventory ids this customer currently has an Active reservation on. */
   inActiveBasket:    Set<number>;
+  /** Inventory ids this customer has in a PaymentPending order — they
+      started checkout but haven't completed payment. The server WILL
+      refuse a re-add because the existing order row already holds the
+      inventory; surfacing this state instead of letting the customer
+      click TRY AGAIN avoids the silent 409. */
+  inPendingPayment:  Set<number>;
   busyId:            number | null;
   onReAdd:           (reservationId: number) => void;
 };
@@ -35,6 +53,7 @@ type Props = {
 export default function ExpiredReservations({
   expired,
   inActiveBasket,
+  inPendingPayment,
   busyId,
   onReAdd,
 }: Props) {
@@ -59,20 +78,38 @@ export default function ExpiredReservations({
 
       <ul className="flex flex-col" style={{ borderTop: "1px solid var(--linen)" }}>
         {expired.map(r => {
-          // Three-state classification — the only computed bit we need.
-          // Three states in priority order:
-          //   reAdded     — customer currently holds an Active reservation
-          //                 on this inventory id (most likely from a just-
-          //                 completed Try Again on this very row). Wins
-          //                 over canReAdd because canReAdd is a snapshot
-          //                 from fetch time and is now stale; without this
-          //                 precedence the row would still offer a Try
-          //                 Again button that the server would 409.
-          //   reAddable   — canReAdd is true and the customer doesn't hold
-          //                 it. Show TRY AGAIN.
-          //   (else)      — neither. Someone else has it, or it sold.
-          const reAdded   = inActiveBasket.has(r.inventoryId);
-          const reAddable = !reAdded && r.canReAdd;
+          // Four-state classification in priority order. Each state is
+          // exclusive — the cascade returns the first match.
+          //
+          //   reAdded         — customer holds an Active reservation on
+          //                     this inventory id. Wins over canReAdd
+          //                     because canReAdd is a snapshot from fetch
+          //                     time and the customer just got it back.
+          //   pendingPayment  — customer has it locked in their own
+          //                     PaymentPending order. Wins over canReAdd
+          //                     for the same reason: canReAdd is stale,
+          //                     and the server WILL 409 the re-add
+          //                     because the customer's existing order
+          //                     row holds the inventory. Surface the
+          //                     state honestly with a path back to
+          //                     completing the payment.
+          //   reAddable       — canReAdd is true AND customer doesn't
+          //                     hold it in either form. Show TRY AGAIN.
+          //   (else)          — gone. Sold or someone else has it.
+          const reAdded         = inActiveBasket.has(r.inventoryId);
+          const pendingPayment  = !reAdded && inPendingPayment.has(r.inventoryId);
+          const reAddable       = !reAdded && !pendingPayment && r.canReAdd;
+
+          // Visual: grayed for every state except the actionable
+          // "still available" case. Pending-payment stays grayed (the
+          // customer can't act on the row HERE — they have to act on
+          // the orders sub-view) but gets a sage-tinted opacity rather
+          // than the dull no-longer-available shade. The hue difference
+          // is subtle but communicates "this is a path forward, not
+          // a dead end."
+          const opacity = reAddable ? 1
+                        : pendingPayment ? 0.85
+                        : 0.55;
 
           return (
             <li
@@ -80,7 +117,7 @@ export default function ExpiredReservations({
               className="flex items-center gap-4 py-4"
               style={{
                 borderBottom: "1px solid var(--linen)",
-                opacity:      reAddable ? 1 : 0.55,
+                opacity,
               }}
             >
               {/* Thumb */}
@@ -99,12 +136,16 @@ export default function ExpiredReservations({
                 <p className="ll-display text-sm font-normal" style={{ color: "var(--ink)" }}>
                   {r.itemName ?? "Linen Lady piece"}
                 </p>
-                <p className="ll-label mt-1 text-[0.55rem] uppercase tracking-[0.12em]" style={{ color: "var(--ink-soft)" }}>
-                  {reAddable
-                    ? "Still available"
-                    : reAdded
-                    ? "Back in your basket"
-                    : "No longer available"}
+                <p
+                  className="ll-label mt-1 text-[0.55rem] uppercase tracking-[0.12em]"
+                  style={{
+                    color: pendingPayment ? "var(--rose-deep)" : "var(--ink-soft)",
+                  }}
+                >
+                  {reAddable        ? "Still available"
+                    : reAdded         ? "Back in your basket"
+                    : pendingPayment  ? "Awaiting your payment"
+                    :                   "No longer available"}
                 </p>
               </div>
 
@@ -113,10 +154,11 @@ export default function ExpiredReservations({
                 {formatPrice(r.unitPriceCents)}
               </span>
 
-              {/* Action — only shown when re-add is genuinely possible.
-                  reAddable already excludes the case where the customer
-                  already holds the item; the grayed states deliberately
-                  have no button since the label explains why. */}
+              {/* Action slot — depends on state.
+                  reAddable        → TRY AGAIN button (the existing path)
+                  pendingPayment   → COMPLETE PAYMENT link to /basket?tab=orders
+                                     (anchor, not button — it's pure navigation)
+                  others           → invisible spacer to keep row alignment */}
               {reAddable ? (
                 <button
                   onClick={() => onReAdd(r.reservationId)}
@@ -126,6 +168,19 @@ export default function ExpiredReservations({
                 >
                   Try Again
                 </button>
+              ) : pendingPayment ? (
+                <Link
+                  href="/basket?tab=orders"
+                  className="ll-label text-[0.6rem] uppercase tracking-[0.1em] hover:opacity-60"
+                  style={{
+                    color:           "var(--rose-deep)",
+                    textDecoration:  "none",
+                    width:           "5rem",
+                    textAlign:       "right",
+                  }}
+                >
+                  Complete →
+                </Link>
               ) : (
                 // Reserve the same horizontal slot so the rows align.
                 <span aria-hidden className="block" style={{ width: "5rem" }} />

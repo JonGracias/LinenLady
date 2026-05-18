@@ -82,11 +82,27 @@
   border: none;
   cursor: pointer;
 }
-@media (min-width: 1024px) {
-  .nav-hamburger {
-    display: none;
-  }
+
+.nav-drawer {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 0.75rem;
+  z-index: 50;
+  width: 20rem;
+  max-width: calc(100vw - 1.5rem);
+  max-height: calc(100vh - 5rem);
+  overflow-y: auto;
+  background: var(--surface-bright);
+  border: 1px solid rgba(196, 181, 168, 0.3);
+  border-radius: 0.5rem;
+  box-shadow: 0 16px 64px 0 rgba(30, 27, 26, 0.08);
+  animation: fadeIn 200ms ease forwards;
 }
+
+@media (min-width: 768px) {
+  .nav-drawer { left: 3rem; }
+}
+
 .nav-hamburger-line {
   display: block;
   width: 18px;

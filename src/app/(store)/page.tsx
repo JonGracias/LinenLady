@@ -44,8 +44,12 @@ function SectionTitle({
 }
 
 export default function HomePage() {
-  const { items: _items } = useStorefrontContext();
+  const { items: _items, reloadItems  } = useStorefrontContext();
   const [bannerSlides, setBannerSlides] = useState<BannerSlide[]>([]);
+
+    useEffect(() => {
+      reloadItems();
+    }, [reloadItems]);
 
   useEffect(() => {
     fetch("/api/site/hero")
