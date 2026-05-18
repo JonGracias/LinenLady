@@ -1,0 +1,14 @@
+# ─────────────────────────────────────────────────────────────────────────
+# Frontend env vars for the Contact feature
+# ─────────────────────────────────────────────────────────────────────────
+# Add to .env.local (dev) and to Azure Static Web App / Vercel project settings (prod).
+
+# Where Next.js server-side proxy routes find LinenLady.API.
+# Local dev:    http://localhost:5152
+# Production:   https://<your-app-service>.azurewebsites.net
+LINENLADY_API_BASE_URL=http://localhost:5152
+
+# Recipient address shown to the user in the success state and used as the
+# "to" for the secondary mailto fallback. The actual API send target lives
+# in the backend's Contact:RecipientEmail config — keep them in sync.
+NEXT_PUBLIC_CONTACT_EMAIL=noemi@linenlady.net

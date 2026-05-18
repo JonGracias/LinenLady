@@ -207,3 +207,52 @@ export type SimilarItem = {
   isDraft: boolean;
   score: number;
 };
+
+// ─── Availability ──────────────────────────────────────────────────────────
+//
+// Mirrors the C# response from GET /api/items/availability?ids=…
+//
+// Contract: items NOT in the response are available. Only blocked items
+// appear. So a response of [] when you asked about 50 ids means all 50
+// are available.
+ 
+export type AvailabilityState =
+  | "InBasket"             // someone else's basket, 2-day timer
+  | "PendingPayment"       // someone else mid-Square-checkout
+  | "Sold"                 // already purchased, never returns
+  | "Inactive"             // IsDeleted / IsDraft / IsActive=0, defensive
+  | "YourBasket"           // *the caller* is holding it (JWT required)
+  | "YourPendingPayment";  // *the caller* has a pending Square payment
+ 
+export type AvailabilityEntry = {
+  inventoryId:        number;
+  state:              AvailabilityState;
+  blockingCustomerId: number | null;
+};
+ 
+export type AvailabilityResponse = {
+  items: AvailabilityEntry[];
+};
+ 
+ 
+// Convenience: items the customer can act on. Sold/Inactive are pruned
+// before they ever reach the storefront (see StorefrontContext); the rest
+// either show normally (no entry = available) or render a state pill.
+export type BlockedShownState =
+  | "InBasket"
+  | "PendingPayment"
+  | "YourBasket"
+  | "YourPendingPayment";
+ 
+export function isShownBlockedState(s: AvailabilityState): s is BlockedShownState {
+  return s === "InBasket"
+      || s === "PendingPayment"
+      || s === "YourBasket"
+      || s === "YourPendingPayment";
+}
+ 
+export function isHardHidden(s: AvailabilityState): boolean {
+  // Sold and Inactive should never render. Filter them out of the list
+  // entirely rather than rendering a disabled card.
+  return s === "Sold" || s === "Inactive";
+}

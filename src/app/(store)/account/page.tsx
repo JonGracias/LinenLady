@@ -1,61 +1,32 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useUser, useAuth, SignOutButton } from "@clerk/nextjs";
-import type { ReservationDto, CustomerAddressDto, CustomerPreferenceDto, MessageDto } from "@/types/customer";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useUser, SignOutButton } from "@clerk/nextjs";
+import type { MessageDto } from "@/types/customer";
 import { CATEGORY_OPTIONS } from "@/types/inventory";
-
-/* ─────────────────────────────────────────────────────────────
-   Helpers
-───────────────────────────────────────────────────────────── */
-
-function formatPrice(cents: number) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 }).format(cents / 100);
-}
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
-}
-
-function timeLeft(expiresAt: string) {
-  const diff = new Date(expiresAt).getTime() - Date.now();
-  if (diff <= 0) return "Expired";
-  const h = Math.floor(diff / 3600000);
-  const m = Math.floor((diff % 3600000) / 60000);
-  return `${h}h ${m}m remaining`;
-}
-
-function BorderMotif() {
-  return (
-    <div className="h-3 w-full opacity-60" style={{ background: `repeating-linear-gradient(90deg,#b07878 0px,#b07878 8px,transparent 8px,transparent 16px,#8fad94 16px,#8fad94 24px,transparent 24px,transparent 32px,#ecdcdc 32px,#ecdcdc 40px,transparent 40px,transparent 48px)` }} />
-  );
-}
-
-const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
-  Pending:     { bg: "#fef3c7", color: "#92400e" },
-  Confirmed:   { bg: "#d1fae5", color: "#065f46" },
-  PaymentSent: { bg: "#dbeafe", color: "#1e40af" },
-  Completed:   { bg: "#f0fdf4", color: "#166534" },
-  Expired:     { bg: "#f3f4f6", color: "#6b7280" },
-  Cancelled:   { bg: "#fee2e2", color: "#991b1b" },
-};
+import { useCustomerSession } from "@/context/CustomerSessionContext";
 
 /* ─────────────────────────────────────────────────────────────
    Tab types
+   ─────────────────────────────────────────────────────────────
+   Phase 1 progression:
+     - "basket" left earlier — lives at /basket.
+     - "orders" leaves now — folded into /basket as a sub-view.
+
+   The remaining tabs are profile-shaped: addresses, preferences,
+   contact. Legacy URL aliases for basket/reservations/orders are
+   redirected to /basket on mount, preserving deep-link bookmarks.
 ───────────────────────────────────────────────────────────── */
 
-type Tab = "reservations" | "address" | "preferences" | "messages";
+type Tab = "address" | "preferences" | "contact";
 
 /* ─────────────────────────────────────────────────────────────
    Account page
 ───────────────────────────────────────────────────────────── */
 
 export default function AccountPage() {
-  // useSearchParams forces a CSR bailout, which Next 16 requires us to opt
-  // into explicitly with a Suspense boundary at the page boundary. The inner
-  // component holds all the actual logic; this wrapper is purely structural.
   return (
     <React.Suspense fallback={null}>
       <AccountPageInner />
@@ -65,83 +36,82 @@ export default function AccountPage() {
 
 function AccountPageInner() {
   const { user, isLoaded } = useUser();
-  const { getToken }       = useAuth();
-  const searchParams       = useSearchParams();
+  const router       = useRouter();
+  const searchParams = useSearchParams();
 
-  // Seed tab from `?tab=` so deep-links from elsewhere (header dropdown,
-  // reservation success redirect, etc) land on the right pane. Validated
-  // against the Tab union — anything else falls back to reservations.
+  // Read the tab from the URL. Legacy basket/reservations/orders values
+  // redirect to /basket. Unknown values fall back to "address" — the new
+  // default since orders has moved out.
+  const requestedTab = searchParams?.get("tab");
+
+  // Side-effect: legacy tab values redirect to /basket. We preserve the
+  // ?placed= param if it was present on a ?tab=orders URL so the post-
+  // checkout deep-link still highlights the right order.
+  useEffect(() => {
+    if (requestedTab === "basket" || requestedTab === "reservations") {
+      router.replace("/basket");
+    } else if (requestedTab === "orders") {
+      const placed = searchParams?.get("placed");
+      router.replace(placed
+        ? `/basket?tab=orders&placed=${placed}`
+        : "/basket?tab=orders"
+      );
+    }
+  }, [requestedTab, router, searchParams]);
+
   const [tab, setTab] = useState<Tab>(() => {
-    const t = searchParams?.get("tab");
-    return t === "address" || t === "preferences" || t === "messages" || t === "reservations"
-      ? t
-      : "reservations";
-  });
-  // `?reserved=<id>` (or `?reserved=cart`) after the reserve flow → show a
-  // one-time success banner. We capture the value at mount and surface it;
-  // a Dismiss button or the next navigation clears it.
-  type ReservedBanner = { kind: "single"; id: number } | { kind: "cart" } | null;
-  const [justReserved, setJustReserved] = useState<ReservedBanner>(() => {
-    const r = searchParams?.get("reserved");
-    if (!r) return null;
-    if (r === "cart") return { kind: "cart" };
-    const n = Number.parseInt(r, 10);
-    return Number.isFinite(n) ? { kind: "single", id: n } : null;
+    if (requestedTab === "messages" || requestedTab === "contact") return "contact";
+    if (requestedTab === "address" || requestedTab === "preferences") {
+      return requestedTab as Tab;
+    }
+    // "orders" / "basket" / "reservations" / unknown → default while the
+    // redirect effect fires. They never see this tab render because the
+    // effect replaces the route on the same tick.
+    return "address";
   });
 
-  const [loading, setLoading]   = useState(true);
+  // Session-context data: addresses + apiCall come from the context now;
+  // preferences / messages are still owned by this page since they're
+  // account-only (no cross-page consumers).
+  const {
+    addresses,
+    apiCall,
+    refreshAddresses,
+  } = useCustomerSession();
 
-  const [reservations, setReservations] = useState<ReservationDto[]>([]);
-  const [addresses, setAddresses]       = useState<CustomerAddressDto[]>([]);
-  const [preferences, setPreferences]   = useState<string[]>([]);
-  const [messages, setMessages]         = useState<MessageDto[]>([]);
-  const [msgDraft, setMsgDraft]         = useState("");
-  const [msgSending, setMsgSending]     = useState(false);
+  const [loading,     setLoading]     = useState(true);
+  const [preferences, setPreferences] = useState<string[]>([]);
+  const [messages,    setMessages]    = useState<MessageDto[]>([]);
+  const [msgDraft,    setMsgDraft]    = useState("");
+  const [msgSending,  setMsgSending]  = useState(false);
 
-  // Address form
-  const [addrForm, setAddrForm] = useState<Partial<CustomerAddressDto> | null>(null);
+  const [addrForm, setAddrForm] = useState<Partial<{
+    addressId: number;
+    label:     string;
+    street1:   string;
+    street2:   string;
+    city:      string;
+    state:     string;
+    zip:       string;
+    isDefault: boolean;
+  }> | null>(null);
 
-  const apiCall = useCallback(async (path: string, opts?: RequestInit) => {
-    const token = await getToken();
-    const clerkId = user?.id ?? "";
-    return fetch(`/api${path}`, {
-      ...opts,
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`,
-        "X-Clerk-User-Id": clerkId,
-        ...(opts?.headers ?? {}),
-      },
-    });
-  }, [getToken, user?.id]);
-
-  // Sync customer on mount, then load profile
+  // Load account-only data. The customer-sync POST that used to live here
+  // is now handled by CustomerSessionContext at the auth boundary — see
+  // its useEffect for the auth-transition sequence. Addresses AND orders
+  // are also owned by the session context — addresses for the basket
+  // page's checkout panel, orders for the new /basket?tab=orders sub-view.
   useEffect(() => {
     if (!isLoaded || !user) return;
 
     const load = async () => {
-      // Upsert customer record
-      await apiCall("/customers/sync", {
-        method: "POST",
-        body: JSON.stringify({
-          clerkUserId:     user.id,
-          email:           user.primaryEmailAddress?.emailAddress ?? "",
-          firstName:       user.firstName ?? "",
-          lastName:        user.lastName  ?? "",
-          isEmailVerified: user.primaryEmailAddress?.verification?.status === "verified",
-        }),
-      });
-
-      // Load full profile
-      const res = await apiCall("/customers/me");
-      if (res.ok) {
-        const data = await res.json();
-        setReservations(data.reservations ?? []);
-        setAddresses(data.addresses ?? []);
-        setPreferences((data.preferences ?? []).map((p: any) => p.Category));
+      // Preferences ride along on the /customers/me profile payload.
+      const profileRes = await apiCall("/customers/me");
+      if (profileRes.ok) {
+        const data = await profileRes.json();
+        setPreferences((data.preferences ?? []).map((p: any) => p.Category ?? p.category));
       }
 
-      // Load messages
       const msgRes = await apiCall("/customers/me/messages");
       if (msgRes.ok) setMessages(await msgRes.json());
 
@@ -149,7 +119,7 @@ function AccountPageInner() {
     };
 
     load();
-  }, [isLoaded, user]);
+  }, [isLoaded, user, apiCall]);
 
   const sendMessage = async () => {
     if (!msgDraft.trim()) return;
@@ -164,16 +134,6 @@ function AccountPageInner() {
       setMsgDraft("");
     }
     setMsgSending(false);
-  };
-
-  const cancelReservation = async (id: number) => {
-    if (!confirm("Cancel this reservation?")) return;
-    const res = await apiCall(`/reservations/${id}/cancel`, { method: "PATCH" });
-    if (res.ok) {
-      setReservations((rs) =>
-        rs.map((r) => r.reservationId === id ? { ...r, Status: "Cancelled" } : r)
-      );
-    }
   };
 
   const savePreferences = async (cats: string[]) => {
@@ -191,12 +151,11 @@ function AccountPageInner() {
       { method: addrForm.addressId ? "PUT" : "POST", body: JSON.stringify(addrForm) }
     );
     if (res.ok) {
-      const saved = await res.json();
-      setAddresses((a) =>
-        addrForm.addressId
-          ? a.map((x) => x.addressId === saved.AddressId ? saved : x)
-          : [...a, saved]
-      );
+      // Re-fetch addresses via the session context so the basket page's
+      // checkout panel also sees the change. Drops the optimistic-update
+      // pattern from the old version — slower by one round-trip, but
+      // keeps both surfaces in sync without an event bus.
+      await refreshAddresses();
       setAddrForm(null);
     }
   };
@@ -204,7 +163,7 @@ function AccountPageInner() {
   const deleteAddress = async (id: number) => {
     if (!confirm("Remove this address?")) return;
     await apiCall(`/customers/me/addresses/${id}`, { method: "DELETE" });
-    setAddresses((a) => a.filter((x) => x.addressId !== id));
+    await refreshAddresses();
   };
 
   if (!isLoaded || loading) {
@@ -218,7 +177,6 @@ function AccountPageInner() {
   return (
     <div className="ll-texture-overlay min-h-screen" style={{ backgroundColor: "var(--cream)", color: "var(--ink)" }}>
       <div className="ll-texture-overlay pointer-events-none fixed inset-0 z-0" />
-      <BorderMotif />
 
       {/* Header */}
       <div className="relative z-[1] border-b px-16 py-12" style={{ borderColor: "var(--linen)", background: "linear-gradient(135deg, var(--cream) 0%, var(--cream-dark) 100%)" }}>
@@ -230,13 +188,14 @@ function AccountPageInner() {
         <p className="ll-body mt-2 text-sm font-light" style={{ color: "var(--ink-soft)" }}>{user?.primaryEmailAddress?.emailAddress}</p>
       </div>
 
-      {/* Tab bar */}
-      <div className="relative z-[1] flex border-b" style={{ borderColor: "var(--linen)", background: "var(--cream)" }}>
+      {/* Tab bar — basket tab removed; basket now lives at /basket. A small
+          link in the header points there so the customer doesn't have to
+          go back to the storefront to find it. */}
+      <div className="relative z-[1] flex items-center border-b" style={{ borderColor: "var(--linen)", background: "var(--cream)" }}>
         {([
-          { id: "reservations", label: "Reservations" },
-          { id: "address",      label: "Addresses"    },
-          { id: "preferences",  label: "Preferences"  },
-          { id: "messages",     label: "Messages"     },
+          { id: "address",     label: "Addresses"   },
+          { id: "preferences", label: "Preferences" },
+          // { id: "contact",     label: "Contact"     },
         ] as { id: Tab; label: string }[]).map(({ id, label }) => (
           <button
             key={id}
@@ -251,133 +210,32 @@ function AccountPageInner() {
             {label}
           </button>
         ))}
+
+        {/* Spacer + basket link, right-aligned so it doesn't pretend to
+            be one of the tabs. Visible affordance for customers who land
+            on /account looking for their basket or orders — both live
+            at /basket now. */}
+        <div className="ml-auto mr-8 flex items-center gap-4">
+          <Link
+            href="/basket"
+            className="ll-label text-[0.62rem] uppercase tracking-[0.15em] underline"
+            style={{ color: "var(--sage-deep)" }}
+          >
+            Basket &amp; Orders →
+          </Link>
+          <SignOutButton>
+            <button
+              className="ll-label text-[0.62rem] uppercase tracking-[0.15em] underline"
+              style={{ color: "var(--ink-soft)", background: "none", border: "none", cursor: "pointer" }}
+            >
+              Sign Out
+            </button>
+          </SignOutButton>
+        </div>
       </div>
 
       {/* Content */}
       <div className="relative z-[1] px-16 py-12">
-
-        {/* ── Reservations ── */}
-        {tab === "reservations" && (
-          <div className="max-w-3xl">
-            {/* One-time success banner after the reserve flow. The banner
-                shows whether this is a brand-new reservation, a re-click of
-                a piece already reserved, or a multi-item cart submission. */}
-            {justReserved !== null && (() => {
-              const isCart    = justReserved.kind === "cart";
-              const isExisting =
-                justReserved.kind === "single" &&
-                reservations.some(r => r.reservationId === justReserved.id);
-              return (
-                <div
-                  className="mb-6 flex items-start justify-between gap-4 border p-4"
-                  style={{
-                    borderColor: "var(--sage)",
-                    background:  "var(--sage-light)",
-                    color:       "var(--sage-deep)",
-                  }}
-                  role="status"
-                >
-                  <div>
-                    <p className="ll-label mb-1 text-[0.62rem] uppercase tracking-[0.18em]">
-                      {isCart
-                        ? "Reservations Confirmed"
-                        : isExisting
-                        ? "Reservation Confirmed"
-                        : "Reservation Sent"}
-                    </p>
-                    <p className="ll-body text-sm font-light">
-                      {isCart
-                        ? "Your pieces are held for 48 hours each. Noemi will follow up — replies arrive in your messages."
-                        : isExisting
-                        ? "Your piece is held for 48 hours. Noemi will follow up with next steps — replies arrive in your messages."
-                        : "Working on it — your reservation should appear below shortly. If not, refresh."}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setJustReserved(null)}
-                    aria-label="Dismiss"
-                    className="ll-label shrink-0 self-start px-2 py-1 text-[0.65rem] uppercase tracking-[0.1em] transition-opacity hover:opacity-60"
-                    style={{ background: "none", border: "none", cursor: "pointer", color: "inherit" }}
-                  >
-                    ✕
-                  </button>
-                </div>
-              );
-            })()}
-
-            <h2 className="ll-display mb-8 text-xl font-normal" style={{ color: "var(--ink)" }}>
-              Your <em className="italic" style={{ color: "var(--rose-deep)" }}>Reservations</em>
-            </h2>
-            {reservations.length === 0 ? (
-              <div className="py-16 text-center">
-                <div className="mb-4 text-4xl opacity-20">🪡</div>
-                <p className="ll-body text-lg italic" style={{ color: "var(--brown-light)" }}>No reservations yet.</p>
-                <Link href="/shop" className="ll-label mt-6 inline-block border px-8 py-3 text-[0.65rem] uppercase tracking-[0.15em]" style={{ color: "var(--sage-deep)", borderColor: "var(--sage)", textDecoration: "none" }}>
-                  Browse the Collection
-                </Link>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-4">
-                {reservations.map((r) => {
-                  const colors = STATUS_COLORS[r.status] ?? STATUS_COLORS.Pending;
-                  const isActive = ["Pending","Confirmed","PaymentSent"].includes(r.status);
-                  return (
-                    <div key={r.reservationId} className="border p-6" style={{ borderColor: "var(--linen)", background: "var(--cream-dark)" }}>
-                      <div className="mb-4 flex items-start justify-between gap-4">
-                        <div>
-                          <div className="ll-display text-lg font-normal" style={{ color: "var(--ink)" }}>{r.itemName}</div>
-                          <div className="ll-label mt-0.5 text-[0.62rem] uppercase tracking-[0.12em]" style={{ color: "var(--ink-soft)" }}>SKU: {r.itemSku}</div>
-                        </div>
-                        <span className="ll-label shrink-0 px-3 py-1 text-[0.58rem] font-medium uppercase tracking-[0.12em]" style={{ background: colors.bg, color: colors.color }}>
-                          {r.status}
-                        </span>
-                      </div>
-
-                      <div className="mb-4 flex flex-wrap gap-6 text-sm">
-                        <div>
-                          <div className="ll-label text-[0.58rem] uppercase tracking-[0.1em] mb-0.5" style={{ color: "var(--ink-soft)" }}>Reserved</div>
-                          <div className="ll-body italic" style={{ color: "var(--ink)" }}>{formatDate(r.reservedAt)}</div>
-                        </div>
-                        {isActive && (
-                          <div>
-                            <div className="ll-label text-[0.58rem] uppercase tracking-[0.1em] mb-0.5" style={{ color: "var(--ink-soft)" }}>Expires</div>
-                            <div className="ll-body italic" style={{ color: "var(--rose-deep)" }}>{timeLeft(r.expiresAt)}</div>
-                          </div>
-                        )}
-                        <div>
-                          <div className="ll-label text-[0.58rem] uppercase tracking-[0.1em] mb-0.5" style={{ color: "var(--ink-soft)" }}>Amount</div>
-                          <div className="ll-body italic" style={{ color: "var(--ink)" }}>{formatPrice(r.amountCents)}</div>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap gap-3">
-                        {r.squarePaymentLinkUrl && r.status === "PaymentSent" && (
-                          <a href={r.squarePaymentLinkUrl} target="_blank" rel="noreferrer"
-                            className="ll-label inline-block px-6 py-2.5 text-[0.65rem] font-medium uppercase tracking-[0.15em] text-white transition-all hover:-translate-y-px"
-                            style={{ background: "var(--rose-deep)", textDecoration: "none" }}>
-                            Complete Payment →
-                          </a>
-                        )}
-                        {isActive && (
-                          <button onClick={() => cancelReservation(r.reservationId)}
-                            className="ll-label border px-6 py-2.5 text-[0.65rem] font-medium uppercase tracking-[0.15em] transition-colors hover:bg-[#fee2e2]"
-                            style={{ borderColor: "var(--linen)", color: "var(--ink-soft)" }}>
-                            Cancel
-                          </button>
-                        )}
-                        <Link href={`/shop/${r.itemSku}`}
-                          className="ll-label border px-6 py-2.5 text-[0.65rem] font-medium uppercase tracking-[0.15em] transition-colors hover:bg-[#c8daca]"
-                          style={{ borderColor: "var(--sage)", color: "var(--sage-deep)", textDecoration: "none" }}>
-                          View Item
-                        </Link>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
 
         {/* ── Addresses ── */}
         {tab === "address" && (
@@ -408,27 +266,39 @@ function AccountPageInner() {
                     {a.street1}{a.street2 && `, ${a.street2}`}<br />{a.city}, {a.state} {a.zip}
                   </address>
                   <div className="mt-3 flex gap-3">
-                    <button onClick={() => setAddrForm(a)} className="ll-label text-[0.6rem] uppercase tracking-[0.12em] underline" style={{ color: "var(--sage-deep)", background: "none", border: "none", cursor: "pointer" }}>Edit</button>
+                    <button onClick={() => setAddrForm({
+                      addressId: a.addressId,
+                      label:     a.label,
+                      street1:   a.street1,
+                      street2:   a.street2 ?? "",
+                      city:      a.city,
+                      state:     a.state,
+                      zip:       a.zip,
+                      isDefault: a.isDefault,
+                    })} className="ll-label text-[0.6rem] uppercase tracking-[0.12em] underline" style={{ color: "var(--sage-deep)", background: "none", border: "none", cursor: "pointer" }}>Edit</button>
                     <button onClick={() => deleteAddress(a.addressId)} className="ll-label text-[0.6rem] uppercase tracking-[0.12em] underline" style={{ color: "var(--rose-deep)", background: "none", border: "none", cursor: "pointer" }}>Remove</button>
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Address form */}
             {addrForm !== null && (
               <div className="mt-6 border p-6" style={{ borderColor: "var(--linen)", background: "var(--cream-dark)" }}>
                 <h3 className="ll-display mb-5 text-lg font-normal italic" style={{ color: "var(--ink)" }}>
                   {addrForm.addressId ? "Edit Address" : "New Address"}
                 </h3>
                 <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                  {/* Form fields. Keys are camelCase to match the C# DTO's
+                      JSON property names as deserialized by the API. The
+                      legacy version mixed PascalCase here, which silently
+                      broke the address-update path; this version normalizes. */}
                   {[
-                    { key: "Label",   label: "Label",    full: false },
-                    { key: "Street1", label: "Street",   full: true  },
-                    { key: "Street2", label: "Apt/Suite",full: true  },
-                    { key: "City",    label: "City",     full: false },
-                    { key: "State",   label: "State",    full: false },
-                    { key: "Zip",     label: "ZIP",      full: false },
+                    { key: "label",   label: "Label",    full: false },
+                    { key: "street1", label: "Street",   full: true  },
+                    { key: "street2", label: "Apt/Suite",full: true  },
+                    { key: "city",    label: "City",     full: false },
+                    { key: "state",   label: "State",    full: false },
+                    { key: "zip",     label: "ZIP",      full: false },
                   ].map(({ key, label, full }) => (
                     <div key={key} style={{ gridColumn: full ? "1 / -1" : "auto" }}>
                       <label className="ll-label mb-1 block text-[0.6rem] uppercase tracking-[0.12em]" style={{ color: "var(--ink-soft)" }}>{label}</label>
@@ -443,7 +313,7 @@ function AccountPageInner() {
                   <div style={{ gridColumn: "1 / -1" }}>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={!!addrForm.isDefault}
-                        onChange={(e) => setAddrForm((f) => ({ ...f, IsDefault: e.target.checked }))} />
+                        onChange={(e) => setAddrForm((f) => ({ ...f, isDefault: e.target.checked }))} />
                       <span className="ll-label text-[0.62rem] uppercase tracking-[0.12em]" style={{ color: "var(--ink-soft)" }}>Set as default address</span>
                     </label>
                   </div>
@@ -464,7 +334,7 @@ function AccountPageInner() {
               New Arrival <em className="italic" style={{ color: "var(--rose-deep)" }}>Alerts</em>
             </h2>
             <p className="ll-body mb-8 text-base font-light leading-relaxed" style={{ color: "var(--ink-soft)" }}>
-              Choose the categories you'd like to be notified about when new pieces arrive.
+              Choose the categories you&apos;d like to be notified about when new pieces arrive.
             </p>
             <div className="flex flex-col gap-3">
               {CATEGORY_OPTIONS.map(({ value, label }) => {
@@ -490,62 +360,7 @@ function AccountPageInner() {
             </div>
           </div>
         )}
-
-        {/* ── Messages ── */}
-        {tab === "messages" && (
-          <div className="max-w-2xl">
-            <h2 className="ll-display mb-8 text-xl font-normal" style={{ color: "var(--ink)" }}>
-              Messages to <em className="italic" style={{ color: "var(--rose-deep)" }}>Noemi</em>
-            </h2>
-
-            {/* Thread */}
-            <div className="mb-6 flex max-h-[480px] flex-col gap-3 overflow-y-auto pr-2">
-              {messages.length === 0 && (
-                <p className="ll-body italic text-base" style={{ color: "var(--brown-light)" }}>No messages yet. Say hello!</p>
-              )}
-              {messages.map((m) => {
-                const isOutbound = m.direction === "Outbound";
-                return (
-                  <div key={m.messageId} className={`flex ${isOutbound ? "justify-start" : "justify-end"}`}>
-                    <div className="max-w-[75%] px-4 py-3"
-                      style={{
-                        background: isOutbound ? "var(--cream-dark)" : "var(--rose-deep)",
-                        color: isOutbound ? "var(--ink)" : "#fff",
-                        border: isOutbound ? "1px solid var(--linen)" : "none",
-                      }}>
-                      <p className="ll-body text-sm font-light leading-relaxed">{m.body}</p>
-                      <div className={`ll-label mt-1 text-[0.55rem] uppercase tracking-[0.1em] ${isOutbound ? "" : "text-right"}`}
-                        style={{ color: isOutbound ? "var(--ink-soft)" : "rgba(255,255,255,0.65)" }}>
-                        {isOutbound ? "Noemi" : "You"} · {new Date(m.sentAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Compose */}
-            <div className="flex gap-3 border-t pt-4" style={{ borderColor: "var(--linen)" }}>
-              <textarea
-                value={msgDraft}
-                onChange={(e) => setMsgDraft(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }}}
-                rows={3}
-                placeholder="Write a message to Noemi…"
-                className="ll-body flex-1 resize-none border p-3 text-sm font-light outline-none placeholder:italic"
-                style={{ borderColor: "var(--linen)", background: "var(--cream-dark)", color: "var(--ink)" }}
-              />
-              <button onClick={sendMessage} disabled={msgSending || !msgDraft.trim()}
-                className="ll-label self-end px-6 py-3 text-[0.65rem] font-medium uppercase tracking-[0.15em] text-white transition-all disabled:opacity-40"
-                style={{ background: "var(--rose-deep)", border: "none", cursor: "pointer" }}>
-                Send
-              </button>
-            </div>
-          </div>
-        )}
       </div>
-
-      <BorderMotif />
 
       <footer className="relative z-[1] px-16 pb-8 pt-12" style={{ background: "var(--ink)", color: "var(--cream-dark)" }}>
         <div className="ll-label flex flex-wrap items-center justify-between gap-2 text-[0.6rem] uppercase tracking-[0.1em]" style={{ color: "rgba(255,255,255,0.25)" }}>

@@ -14,13 +14,6 @@ function LegalLayout({ title, updated, children }: {
 
       <div className="h-3 w-full opacity-60" style={{ background: `repeating-linear-gradient(90deg,#b07878 0px,#b07878 8px,transparent 8px,transparent 16px,#8fad94 16px,#8fad94 24px,transparent 24px,transparent 32px,#ecdcdc 32px,#ecdcdc 40px,transparent 40px,transparent 48px)` }} />
 
-      <nav className="relative z-10 flex items-center justify-between border-b px-12 py-5" style={{ borderColor: "var(--linen)", backgroundColor: "var(--cream)" }}>
-        <Link href="/" className="ll-display text-lg italic" style={{ color: "var(--brown)", textDecoration: "none" }}>
-          Noemi <span style={{ fontStyle: "normal", color: "var(--rose-deep)" }}>· The Linen Lady</span>
-        </Link>
-        <Link href="/shop" className="ll-label text-[0.72rem] font-medium uppercase tracking-[0.15em]" style={{ color: "var(--ink-soft)", textDecoration: "none" }}>Shop</Link>
-      </nav>
-
       <div className="relative z-[1] mx-auto max-w-3xl px-8 py-20">
         <div className="ll-label mb-3 text-[0.62rem] font-medium uppercase tracking-[0.25em]" style={{ color: "var(--sage-deep)" }}>
           Last updated {updated}

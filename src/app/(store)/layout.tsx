@@ -2,6 +2,7 @@
 import Header from "@/components/storefront/Header";
 import CookieBanner from "@/components/CookieBanner";
 import Footer from "@/components/storefront/Footer";
+import BorderMotif from "@/components/storefront/BorderMotif";
 
 export default function StorefrontLayout({ children }: { children: React.ReactNode }) {
   return (

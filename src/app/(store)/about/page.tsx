@@ -4,59 +4,36 @@ import Link from "next/link";
 import React, { useEffect, useState } from "react";
 
 /* ─────────────────────────────────────────────────────────────
-   Shared
-───────────────────────────────────────────────────────────── */
-
-function BorderMotif() {
-  return (
-    <div
-      className="h-3 w-full opacity-60"
-      style={{
-        background: `repeating-linear-gradient(
-          90deg,
-          #b07878 0px, #b07878 8px,
-          transparent 8px, transparent 16px,
-          #8fad94 16px, #8fad94 24px,
-          transparent 24px, transparent 32px,
-          #ecdcdc 32px, #ecdcdc 40px,
-          transparent 40px, transparent 48px
-        )`,
-      }}
-    />
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────
    Timeline data
 ───────────────────────────────────────────────────────────── */
 
-const timeline = [
-  {
-    year: "1994",
-    headline: "The First Sunday",
-    body: "Noemi sets up her first booth at the Georgetown Flea Market with a folding table, a handful of pieces she'd collected over the years, and no particular plan to stay. She stays.",
-  },
-  {
-    year: "Late 90s",
-    headline: "Word Spreads",
-    body: "Interior designers start making the Sunday trip specifically for Noemi's booth. She develops a reputation for finding European linens that other dealers overlook — Provençal embroidery, Belgian damask, Irish linen monogrammed sets still in their original wrapping.",
-  },
-  {
-    year: "2000s",
-    headline: "A Regular Institution",
-    body: "Collectors, decorators, and eventually diplomats become regulars. She turns down a national television feature. Then another. The booth — and the Sunday ritual — is exactly where she wants to be.",
-  },
-  {
-    year: "2010s",
-    headline: "The Eye Sharpens",
-    body: "Decades of handling thousands of pieces develops something close to a sixth sense. She can date a tablecloth by its weave, identify a region by its embroidery style, and spot a genuine antique linen from across a crowded estate sale. Regulars learn to trust her completely.",
-  },
-  {
-    year: "Today",
-    headline: "Thirty Years On",
-    body: "The same booth. The same spot. New pieces every week. A community of collectors who've been coming since the beginning — and new ones who stumble in for the first time and immediately understand why they won't be leaving empty-handed.",
-  },
-];
+// const timeline = [
+//   {
+//     year: "1994",
+//     headline: "The First Sunday",
+//     body: "Noemi sets up her first booth at the Georgetown Flea Market with a folding table, a handful of pieces she'd collected over the years, and no particular plan to stay. She stays.",
+//   },
+//   {
+//     year: "Late 90s",
+//     headline: "Word Spreads",
+//     body: "Interior designers start making the Sunday trip specifically for Noemi's booth. She develops a reputation for finding European linens that other dealers overlook — Provençal embroidery, Belgian damask, Irish linen monogrammed sets still in their original wrapping.",
+//   },
+//   {
+//     year: "2000s",
+//     headline: "A Regular Institution",
+//     body: "Collectors, decorators, and eventually diplomats become regulars. She turns down a national television feature. Then another. The booth — and the Sunday ritual — is exactly where she wants to be.",
+//   },
+//   {
+//     year: "2010s",
+//     headline: "The Eye Sharpens",
+//     body: "Decades of handling thousands of pieces develops something close to a sixth sense. She can date a tablecloth by its weave, identify a region by its embroidery style, and spot a genuine antique linen from across a crowded estate sale. Regulars learn to trust her completely.",
+//   },
+//   {
+//     year: "Today",
+//     headline: "Thirty Years On",
+//     body: "The same booth. The same spot. New pieces every week. A community of collectors who've been coming since the beginning — and new ones who stumble in for the first time and immediately understand why they won't be leaving empty-handed.",
+//   },
+// ];
 
 /* ─────────────────────────────────────────────────────────────
    About page
@@ -76,55 +53,6 @@ export default function AboutPage() {
     >
       <div className="ll-texture-overlay pointer-events-none fixed inset-0 z-0" />
 
-      <BorderMotif />
-
-      {/* ── Nav ── */}
-      <nav
-        className="relative z-10 flex items-center justify-between border-b px-12 py-5"
-        style={{ borderColor: "var(--linen)", backgroundColor: "var(--cream)" }}
-      >
-        <Link
-          href="/"
-          className="ll-display text-lg italic"
-          style={{ color: "var(--brown)", letterSpacing: "0.02em", textDecoration: "none" }}
-        >
-          Noemi{" "}
-          <span style={{ fontStyle: "normal", color: "var(--rose-deep)" }}>
-            · The Linen Lady
-          </span>
-        </Link>
-        <ul className="flex list-none gap-10">
-          {[
-            { href: "/shop",      label: "Shop"     },
-            { href: "/about",     label: "Our Story" },
-            { href: "/#schedule", label: "Find Us"   },
-            { href: "/#contact",  label: "Inquire"   },
-          ].map(({ href, label }) => (
-            <li key={href}>
-              <Link
-                href={href}
-                className="ll-label text-[0.72rem] font-medium uppercase tracking-[0.15em] transition-colors duration-200"
-                style={{
-                  color: href === "/about" ? "var(--rose-deep)" : "var(--ink-soft)",
-                  textDecoration: "none",
-                  borderBottom: href === "/about" ? "1px solid var(--rose-deep)" : "none",
-                  paddingBottom: href === "/about" ? 2 : 0,
-                }}
-                onMouseEnter={(e) =>
-                  ((e.target as HTMLElement).style.color = "var(--rose-deep)")
-                }
-                onMouseLeave={(e) => {
-                  if (href !== "/about")
-                    (e.target as HTMLElement).style.color = "var(--ink-soft)";
-                }}
-              >
-                {label}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
-
       {/* ══════════════════════════════════════════════════════
           OPENING — full-width atmospheric header
       ══════════════════════════════════════════════════════ */}
@@ -136,7 +64,6 @@ export default function AboutPage() {
           minHeight: 480,
         }}
       >
-        {/* Embroidery pattern */}
         <div
           className="absolute inset-0 opacity-20"
           style={{
@@ -146,7 +73,6 @@ export default function AboutPage() {
         />
 
         <div className="relative z-[1] grid" style={{ gridTemplateColumns: "1fr 1fr", minHeight: 480 }}>
-          {/* Left — text */}
           <div className="flex flex-col justify-center px-16 py-20">
             <div
               className="ll-hero-item ll-hero-item-1 ll-label mb-4 flex items-center gap-3 text-[0.62rem] font-medium uppercase tracking-[0.25em]"
@@ -176,9 +102,7 @@ export default function AboutPage() {
             </p>
           </div>
 
-          {/* Right — photo placeholder */}
           <div className="relative overflow-hidden" style={{ minHeight: 480 }}>
-            {/* Replace this div with <img src="..." /> when a photo is available */}
             <div
               className="absolute inset-6 flex items-center justify-center ll-display text-base italic"
               style={{
@@ -192,7 +116,6 @@ export default function AboutPage() {
               Photo of Noemi at the booth
             </div>
 
-            {/* Est. badge */}
             <div
               className="ll-hero-item ll-hero-item-4 absolute bottom-8 left-[-1.5rem] z-[3] border px-6 py-5 shadow-[4px_4px_20px_rgba(44,31,26,0.10)]"
               style={{ backgroundColor: "var(--cream)", borderColor: "var(--linen)" }}
@@ -213,7 +136,6 @@ export default function AboutPage() {
           </div>
         </div>
 
-        {/* Bottom gradient fade */}
         <div
           className="absolute bottom-0 left-0 right-0 h-16 z-[2]"
           style={{
@@ -223,7 +145,7 @@ export default function AboutPage() {
       </header>
 
       {/* ══════════════════════════════════════════════════════
-          OPENING PARAGRAPH — wide, editorial
+          OPENING PARAGRAPH
       ══════════════════════════════════════════════════════ */}
       <section
         className="relative z-[1] px-16 py-20"
@@ -233,21 +155,10 @@ export default function AboutPage() {
           <p
             className="ll-body text-[1.25rem] font-light leading-[1.9]"
             style={{ color: "var(--ink-soft)" }}
-          >
-            Every Sunday since 1994, <strong style={{ fontWeight: 400, color: "var(--ink)" }}>Noemi</strong> has
-            packed her car before dawn, driven to the Georgetown Flea Market, and spent the morning
-            surrounded by beautiful things. Not because it was a business plan. Because it was
-            the only way she wanted to spend a Sunday.
-          </p>
-          <p
-            className="ll-body mt-6 text-[1.25rem] font-light leading-[1.9]"
-            style={{ color: "var(--ink-soft)" }}
-          >
-            The linens she carries aren&apos;t antiques in the distant, untouchable sense. They&apos;re
-            objects made to be used — tablecloths that belonged on dinner tables, napkins that
-            were pressed and folded for company, bed linens that were gifts for a wedding. They
-            just happen to have been made with a level of care that&apos;s almost impossible to find
-            in anything new.
+          >       
+            Welcome to Antique and Vintage Linens, your one-stop-shop for the finest linens from a bygone era. We specialize in sourcing, and selling antique and vintage linens, including bedding, tablecloths, napkins, lace, and more.
+            Whether you're a collector, interior designer, or simply someone who appreciates the beauty of vintage linens, we invite you to explore our collection. Browse our online store.
+            At Antique and Vintage Linens, we are dedicated to preserving the legacy of these timeless pieces and making them accessible to future generations. Thank you for choosing us as your source for antique and vintage linens.
           </p>
         </div>
       </section>
@@ -301,24 +212,20 @@ export default function AboutPage() {
             </em>
           </h2>
 
-          {/* Timeline entries */}
           <div className="relative">
-            {/* Vertical line */}
             <div
               className="absolute left-[5.5rem] top-0 bottom-0 w-px"
               style={{ background: "var(--linen)" }}
             />
 
-            <div className="flex flex-col gap-0">
+            {/* <div className="flex flex-col gap-0">
               {timeline.map(({ year, headline, body }, i) => (
                 <div key={year} className="relative flex gap-12 pb-14 last:pb-0">
-                  {/* Year */}
                   <div
                     className="ll-display relative z-[1] w-20 shrink-0 pt-1 text-right text-lg font-normal italic leading-none"
                     style={{ color: "var(--rose-deep)" }}
                   >
                     {year}
-                    {/* Dot on the line */}
                     <div
                       className="absolute right-[-1.65rem] top-[0.35rem] h-3 w-3 rounded-full border-2"
                       style={{
@@ -328,7 +235,6 @@ export default function AboutPage() {
                     />
                   </div>
 
-                  {/* Content */}
                   <div className="flex-1 pt-0.5">
                     <div
                       className="ll-display mb-2 text-xl font-normal"
@@ -345,19 +251,18 @@ export default function AboutPage() {
                   </div>
                 </div>
               ))}
-            </div>
+            </div> */}
           </div>
         </div>
       </section>
 
       {/* ══════════════════════════════════════════════════════
-          THE EYE — what Noemi looks for
+          THE EYE
       ══════════════════════════════════════════════════════ */}
       <section
         className="relative z-[1] grid"
         style={{ gridTemplateColumns: "1fr 1fr", minHeight: 500 }}
       >
-        {/* Left — dark panel */}
         <div
           className="flex flex-col justify-center px-16 py-20"
           style={{ background: "var(--ink)" }}
@@ -397,7 +302,6 @@ export default function AboutPage() {
           </p>
         </div>
 
-        {/* Right — qualities grid */}
         <div
           className="grid gap-px"
           style={{
@@ -436,7 +340,7 @@ export default function AboutPage() {
       </section>
 
       {/* ══════════════════════════════════════════════════════
-          THE MARKET — atmosphere section
+          THE MARKET
       ══════════════════════════════════════════════════════ */}
       <section
         className="relative z-[1] px-16 py-24"
@@ -470,7 +374,7 @@ export default function AboutPage() {
               className="ll-body text-base font-light leading-[1.85]"
               style={{ color: "var(--ink-soft)" }}
             >
-              The Georgetown Flea Market has been running since 1976 in the parking
+              The Georgetown Flea Market has been running since 1994 in the parking
               lot of Hardy Middle School on 35th Street. On any given Sunday morning
               you&apos;ll find antique dealers, vintage clothing vendors, jewelry makers,
               and collectors from across the mid-Atlantic.
@@ -486,7 +390,6 @@ export default function AboutPage() {
             </p>
           </div>
 
-          {/* Market info card */}
           <div
             className="relative border p-10"
             style={{ borderColor: "var(--linen)", background: "var(--cream)" }}
@@ -593,8 +496,9 @@ export default function AboutPage() {
           >
             Browse the Collection
           </Link>
+          {/* Get in Touch — now points at the contact page (was /account?tab=messages) */}
           <Link
-            href="/account?tab=messages"
+            href="/contact"
             className="ll-label inline-block border px-10 py-4 text-[0.72rem] font-medium uppercase tracking-[0.15em] transition-all duration-200 hover:-translate-y-0.5"
             style={{
               borderColor: "var(--sage)",
@@ -612,8 +516,6 @@ export default function AboutPage() {
           </Link>
         </div>
       </section>
-
-      <BorderMotif />
 
       {/* ── Footer ── */}
       <footer
@@ -652,10 +554,10 @@ export default function AboutPage() {
             </div>
             <ul className="flex flex-col gap-2.5">
               {[
-                { href: "/shop",     label: "Shop"      },
-                { href: "/about",    label: "Our Story"  },
-                { href: "/#schedule", label: "Find Us"   },
-                { href: "/#contact",  label: "Inquire"   },
+                { href: "/shop",      label: "Shop"       },
+                { href: "/about",     label: "Our Story"  },
+                { href: "/#schedule", label: "Find Us"    },
+                { href: "/contact",   label: "Inquire"    },   // was "/#contact"
               ].map(({ href, label }) => (
                 <li key={href}>
                   <Link
