@@ -65,9 +65,9 @@ export default function AdminMediaPage() {
       }),
     });
     if (!createRes.ok) throw new Error("Failed to create media record.");
-    const { UploadUrl } = await createRes.json();
+    const { uploadUrl } = await createRes.json();
 
-    const uploadRes = await fetch(UploadUrl, {
+    const uploadRes = await fetch(uploadUrl, {
       method:  "PUT",
       headers: { "x-ms-blob-type": "BlockBlob", "Content-Type": contentType },
       body:    blob,

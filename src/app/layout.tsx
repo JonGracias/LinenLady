@@ -23,7 +23,9 @@ export default function RootLayout({
           <ClerkProvider>
             <ThemeProvider>
               <ContextProvider>
+                <div className="sm:mx-8">
                   {children}
+                </div>
               </ContextProvider>
               <CookieBanner />
             </ThemeProvider>

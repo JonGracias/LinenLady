@@ -2,13 +2,11 @@
 import Header from "@/components/storefront/Header";
 import CookieBanner from "@/components/CookieBanner";
 import Footer from "@/components/storefront/Footer";
-import BorderMotif from "@/components/storefront/BorderMotif";
 
 export default function StorefrontLayout({ children }: { children: React.ReactNode }) {
   return (
     <div
-      className="flex flex-col h-screen overflow-hidden mx-auto w-full"
-      style={{ maxWidth: "1800px" }}
+      className="flex flex-col h-screen overflow-hidden mx-auto max-w-7xl"
     >
       {/* ── Sticky top ── */}
       <div className="shrink-0">

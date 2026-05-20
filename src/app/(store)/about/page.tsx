@@ -1,5 +1,6 @@
 "use client";
 
+import { SitePhoto } from "@/components/shared/SitePhoto";
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
 
@@ -54,207 +55,66 @@ export default function AboutPage() {
       <div className="ll-texture-overlay pointer-events-none fixed inset-0 z-0" />
 
       {/* ══════════════════════════════════════════════════════
-          OPENING — full-width atmospheric header
+          OPENING — full-width photo on top, text below
       ══════════════════════════════════════════════════════ */}
       <header
         className={`relative z-[1] overflow-hidden ${visible ? "ll-hero-visible" : ""}`}
         style={{
           background:
             "linear-gradient(160deg, var(--rose-light) 0%, var(--linen) 45%, var(--sage-light) 100%)",
-          minHeight: 480,
-        }}
-      >
+        }}>
+        {/* Decorative pattern overlay */}
         <div
-          className="absolute inset-0 opacity-20"
+          className="pointer-events-none absolute inset-0 opacity-20"
           style={{
             backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Ccircle cx='40' cy='40' r='36' fill='none' stroke='%238fad94' stroke-width='0.8' stroke-dasharray='5 4'/%3E%3Ccircle cx='40' cy='40' r='24' fill='none' stroke='%23d4a0a0' stroke-width='0.6'/%3E%3Ccircle cx='40' cy='40' r='4' fill='%23d4a0a0'/%3E%3C/svg%3E")`,
             backgroundSize: "80px 80px",
           }}
         />
 
-        <div className="relative z-[1] grid" style={{ gridTemplateColumns: "1fr 1fr", minHeight: 480 }}>
-          <div className="flex flex-col justify-center px-16 py-20">
-            <div
-              className="ll-hero-item ll-hero-item-1 ll-label mb-4 flex items-center gap-3 text-[0.62rem] font-medium uppercase tracking-[0.25em]"
-              style={{ color: "var(--sage-deep)" }}
-            >
-              <span className="inline-block h-px w-8" style={{ background: "var(--sage-deep)" }} />
-              Georgetown · Since 1994
-            </div>
-
-            <h1
-              className="ll-hero-item ll-hero-item-2 ll-display font-normal leading-[1.08]"
-              style={{ fontSize: "clamp(2.8rem, 4.5vw, 5rem)", color: "var(--ink)" }}
-            >
-              The Story of{" "}
-              <em className="block italic" style={{ color: "var(--rose-deep)" }}>
-                Noemi
-              </em>
-            </h1>
-
-            <p
-              className="ll-hero-item ll-hero-item-3 ll-body mt-6 max-w-md text-[1.1rem] font-light leading-[1.85]"
-              style={{ color: "var(--ink-soft)" }}
-            >
-              Thirty years of Sunday mornings. Thousands of pieces that found
-              their way to the right tables, the right homes, the right hands.
-              One booth that never moved.
-            </p>
-          </div>
-
-          <div className="relative overflow-hidden" style={{ minHeight: 480 }}>
-            <div
-              className="absolute inset-6 flex items-center justify-center ll-display text-base italic"
-              style={{
-                background: "rgba(250,246,240,0.7)",
-                color: "var(--brown-light)",
-                textAlign: "center",
-                padding: "2rem",
-                backdropFilter: "blur(2px)",
-              }}
-            >
-              Photo of Noemi at the booth
-            </div>
-
-            <div
-              className="ll-hero-item ll-hero-item-4 absolute bottom-8 left-[-1.5rem] z-[3] border px-6 py-5 shadow-[4px_4px_20px_rgba(44,31,26,0.10)]"
-              style={{ backgroundColor: "var(--cream)", borderColor: "var(--linen)" }}
-            >
-              <div
-                className="ll-display text-3xl font-medium leading-none"
-                style={{ color: "var(--rose-deep)" }}
-              >
-                1994
-              </div>
-              <div
-                className="ll-label mt-1 text-[0.6rem] uppercase tracking-[0.18em]"
-                style={{ color: "var(--ink-soft)" }}
-              >
-                Est. Georgetown
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div
-          className="absolute bottom-0 left-0 right-0 h-16 z-[2]"
-          style={{
-            background: "linear-gradient(to bottom, transparent, var(--cream))",
-          }}
+        <SitePhoto
+          siteKey="About"
+          alt="Noemi at her booth"
+          className="absolute inset-0 h-full w-full"
         />
+        {/* ── Photo — full width, reasonable height ── */}
+          <div
+            className="relative z-[1] w-full overflow-hidden"
+          >
+
+          {/* ── Text block — centered below photo ── */}
+          <div className="relative z-[1] px-16 py-12">
+            <div className="mx-auto max-w-3xl text-center">
+              <div
+                className="ll-label mb-4 flex items-center justify-center gap-3 text-[0.62rem] font-medium uppercase tracking-[0.25em]"
+                style={{ color: "var(--sage-deep)" }}
+              >
+                <span className="inline-block h-px w-8" style={{ background: "var(--sage-deep)" }} />
+                Georgetown · Since 1994
+                <span className="inline-block h-px w-8" style={{ background: "var(--sage-deep)" }} />
+              </div>
+
+              <h1
+                className="ll-display font-normal leading-[1.08]"
+                style={{ fontSize: "clamp(2.8rem, 4.5vw, 5rem)", color: "var(--ink)" }}
+              >
+                Welcome to {" "}
+                <em className="italic" style={{ color: "var(--rose-deep)" }}>
+                  Antique and Vintage Linens
+                </em>
+              </h1>
+
+              <p
+                className="ll-body mx-auto mt-6 max-w-xl text-[1.1rem] font-light leading-[1.85]"
+                style={{ color: "var(--ink-soft)" }}>
+                Your one-stop-shop for the finest linens from a bygone era. We specialize in sourcing, and selling antique and vintage linens, including bedding, tablecloths, napkins, lace, and more.
+              Whether you're a collector, interior designer, or simply someone who appreciates the beauty of vintage linens, we invite you to explore our collection. Browse our online store.
+              At Antique and Vintage Linens, we are dedicated to preserving the legacy of these timeless pieces and making them accessible to future generations. Thank you for choosing us as your source for antique and vintage linens.
+              </p>
+            </div>
+          </div>
+        </div>
       </header>
-
-      {/* ══════════════════════════════════════════════════════
-          OPENING PARAGRAPH
-      ══════════════════════════════════════════════════════ */}
-      <section
-        className="relative z-[1] px-16 py-20"
-        style={{ background: "var(--cream)" }}
-      >
-        <div className="mx-auto max-w-3xl">
-          <p
-            className="ll-body text-[1.25rem] font-light leading-[1.9]"
-            style={{ color: "var(--ink-soft)" }}
-          >       
-            Welcome to Antique and Vintage Linens, your one-stop-shop for the finest linens from a bygone era. We specialize in sourcing, and selling antique and vintage linens, including bedding, tablecloths, napkins, lace, and more.
-            Whether you're a collector, interior designer, or simply someone who appreciates the beauty of vintage linens, we invite you to explore our collection. Browse our online store.
-            At Antique and Vintage Linens, we are dedicated to preserving the legacy of these timeless pieces and making them accessible to future generations. Thank you for choosing us as your source for antique and vintage linens.
-          </p>
-        </div>
-      </section>
-
-      {/* ══════════════════════════════════════════════════════
-          PULL QUOTE
-      ══════════════════════════════════════════════════════ */}
-      <div
-        className="relative z-[1] px-16 py-16"
-        style={{ background: "var(--rose-deep)" }}
-      >
-        <div className="mx-auto max-w-3xl text-center">
-          <div
-            className="ll-display text-[2rem] font-normal italic leading-[1.4]"
-            style={{ color: "var(--cream)" }}
-          >
-            &ldquo;Every piece has been chosen with care. Not because it&apos;s
-            valuable — but because it&apos;s beautiful.&rdquo;
-          </div>
-          <div
-            className="ll-label mt-6 text-[0.65rem] uppercase tracking-[0.2em]"
-            style={{ color: "var(--rose-light)" }}
-          >
-            — Noemi, Georgetown Flea Market
-          </div>
-        </div>
-      </div>
-
-      {/* ══════════════════════════════════════════════════════
-          TIMELINE
-      ══════════════════════════════════════════════════════ */}
-      <section
-        className="relative z-[1] px-16 py-24"
-        style={{ background: "var(--cream-dark)" }}
-      >
-        <div className="mx-auto max-w-4xl">
-          <div
-            className="ll-label mb-3 flex items-center gap-3 text-[0.62rem] font-medium uppercase tracking-[0.25em]"
-            style={{ color: "var(--sage-deep)" }}
-          >
-            <span className="inline-block h-px w-8" style={{ background: "var(--sage-deep)" }} />
-            Thirty Years
-          </div>
-          <h2
-            className="ll-display mb-16 font-normal"
-            style={{ fontSize: "clamp(1.8rem, 3vw, 2.8rem)", color: "var(--ink)" }}
-          >
-            A Life at the{" "}
-            <em className="italic" style={{ color: "var(--rose-deep)" }}>
-              Market
-            </em>
-          </h2>
-
-          <div className="relative">
-            <div
-              className="absolute left-[5.5rem] top-0 bottom-0 w-px"
-              style={{ background: "var(--linen)" }}
-            />
-
-            {/* <div className="flex flex-col gap-0">
-              {timeline.map(({ year, headline, body }, i) => (
-                <div key={year} className="relative flex gap-12 pb-14 last:pb-0">
-                  <div
-                    className="ll-display relative z-[1] w-20 shrink-0 pt-1 text-right text-lg font-normal italic leading-none"
-                    style={{ color: "var(--rose-deep)" }}
-                  >
-                    {year}
-                    <div
-                      className="absolute right-[-1.65rem] top-[0.35rem] h-3 w-3 rounded-full border-2"
-                      style={{
-                        background: "var(--cream-dark)",
-                        borderColor: i === timeline.length - 1 ? "var(--rose-deep)" : "var(--sage)",
-                      }}
-                    />
-                  </div>
-
-                  <div className="flex-1 pt-0.5">
-                    <div
-                      className="ll-display mb-2 text-xl font-normal"
-                      style={{ color: "var(--ink)" }}
-                    >
-                      {headline}
-                    </div>
-                    <p
-                      className="ll-body text-base font-light leading-[1.85]"
-                      style={{ color: "var(--ink-soft)" }}
-                    >
-                      {body}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div> */}
-          </div>
-        </div>
-      </section>
 
       {/* ══════════════════════════════════════════════════════
           THE EYE
@@ -264,41 +124,34 @@ export default function AboutPage() {
         style={{ gridTemplateColumns: "1fr 1fr", minHeight: 500 }}
       >
         <div
-          className="flex flex-col justify-center px-16 py-20"
+          className="flex flex-col justify-center px-16 py-10"
           style={{ background: "var(--ink)" }}
         >
           <div
             className="ll-label mb-3 flex items-center gap-3 text-[0.62rem] font-medium uppercase tracking-[0.25em]"
-            style={{ color: "var(--sage-light)" }}
-          >
+            style={{ color: "var(--sage-light)" }}>
             <span className="inline-block h-px w-8" style={{ background: "var(--sage-light)" }} />
             The Eye
           </div>
+
           <h2
             className="ll-display mb-6 font-normal leading-snug"
-            style={{ fontSize: "clamp(1.8rem, 3vw, 2.6rem)", color: "var(--cream)" }}
-          >
+            style={{ fontSize: "clamp(1.8rem, 3vw, 2.6rem)", color: "var(--cream)" }}>
             What She{" "}
             <em className="italic" style={{ color: "var(--rose-light)" }}>
               Looks For
             </em>
           </h2>
+
           <p
             className="ll-body text-base font-light leading-[1.85]"
-            style={{ color: "rgba(255,255,255,0.65)" }}
-          >
+            style={{ color: "rgba(255,255,255,0.65)" }}>
             After thirty years of handling linens from across Europe and America,
             Noemi has developed an almost instinctive sense for quality. She can
             feel the difference between machine-made and hand-hemstitched. She
             knows what a proper linen weight should feel like, how a genuine
             damask weave catches the light, what distinguishes a factory monogram
             from one worked by hand.
-          </p>
-          <p
-            className="ll-body mt-4 text-base font-light leading-[1.85]"
-            style={{ color: "rgba(255,255,255,0.65)" }}
-          >
-            She buys what she loves. Everything at the booth has passed that test.
           </p>
         </div>
 

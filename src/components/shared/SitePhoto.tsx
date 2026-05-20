@@ -14,10 +14,10 @@ type Props = {
 };
 
 type SiteConfigDto = {
-  ConfigKey: string;
-  MediaId:   number | null;
-  Media:     SiteMediaItem | null;
-  UpdatedAt: string;
+  configKey: string;
+  mediaId:   number | null;
+  media:     SiteMediaItem | null;
+  updatedAt: string;
 };
 
 const ADMIN_ORG_ID = process.env.NEXT_PUBLIC_ADMIN_ORG_ID;
@@ -49,7 +49,7 @@ export function SitePhoto({ siteKey, alt, className, style, objectFit = "cover" 
       const res = await fetch(`/api/site/config/${encodeURIComponent(siteKey)}`, {
         method:  "PUT",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ MediaId: media.mediaId }),
+        body:    JSON.stringify({ mediaId: media.mediaId }),
       });
       if (res.ok) setConfig(await res.json());
     } finally {
@@ -57,12 +57,12 @@ export function SitePhoto({ siteKey, alt, className, style, objectFit = "cover" 
     }
   };
 
-  const imgUrl = config?.Media?.readUrl ?? null;
+  const imgUrl = config?.media?.readUrl ?? null;
 
   return (
     <>
       <div
-        className={`relative overflow-hidden ${className ?? ""}`}
+        className={`relative w-full overflow-hidden ${className ?? ""}`}
         style={style}
         onMouseEnter={() => isAdmin && setHovered(true)}
         onMouseLeave={() => isAdmin && setHovered(false)}
