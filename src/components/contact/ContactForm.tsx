@@ -42,7 +42,7 @@ export type ContactFormProps = {
 };
 
 const NOEMI_EMAIL =
-  process.env.NEXT_PUBLIC_CONTACT_EMAIL || "noemi@linenlady.net";
+  process.env.NEXT_PUBLIC_CONTACT_EMAIL || "jon.gracias@gmail.com";
 
 export default function ContactForm({
   productSku,
