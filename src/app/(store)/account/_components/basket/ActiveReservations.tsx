@@ -28,6 +28,7 @@ type Props = {
   submitting:    boolean;
   onCheckChange: (reservationId: number, checked: boolean) => void;
   onRemove:      (reservationId: number) => void;
+  getThumbnailUrl: (inventoryId: number) => string | null;
 };
 
 export default function ActiveReservations({
@@ -37,6 +38,7 @@ export default function ActiveReservations({
   submitting,
   onCheckChange,
   onRemove,
+  getThumbnailUrl,
 }: Props) {
   return (
     <div>
@@ -74,18 +76,16 @@ export default function ActiveReservations({
               />
 
               {/* Thumb */}
-              <div
-                className="shrink-0 overflow-hidden"
-                style={{ width: 64, height: 64, borderRadius: "0.2rem", background: "var(--cream-dark)" }}
-              >
-                {r.thumbnailUrl ? (
+              {(() => {
+                const thumb = getThumbnailUrl(r.inventoryId) ?? r.thumbnailUrl;
+                return thumb ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={r.thumbnailUrl} alt={r.itemName ?? ""} className="h-full w-full object-cover" />
+                  <img src={thumb} alt={r.itemName ?? ""} className="h-full w-full object-cover" />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center ll-display text-[0.5rem] italic"
-                       style={{ color: "var(--ink-soft)" }}>LL</div>
-                )}
-              </div>
+                      style={{ color: "var(--ink-soft)" }}>LL</div>
+                );
+              })()}
 
               {/* Body */}
               <div className="flex-1 min-w-0">

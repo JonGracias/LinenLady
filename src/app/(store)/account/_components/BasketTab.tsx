@@ -40,6 +40,7 @@ import ActiveReservations from "./basket/ActiveReservations";
 import ExpiredReservations from "./basket/ExpiredReservations";
 import CheckoutPanel from "./basket/CheckoutPanel";
 import OrdersTab from "./OrdersTab";
+import { useStorefrontContext } from "@/context/StorefrontContext";
 
 type View = "active" | "expired" | "orders";
 
@@ -77,14 +78,21 @@ export default function BasketTab() {
     remove: removeAnonymous,
   } = useCustomerSession();
 
-  /* ── Signed-in derived state ─────────────────────────────────────── */
+  const { getThumbnailUrl, ensureThumbnail } = useStorefrontContext();
 
+  
+  /* ── Signed-in derived state ─────────────────────────────────────── */
+  
   // Split active / recently-expired from the unified list. The server returns
   // both kinds in a single basket payload — simpler than two endpoints — and
   // the UI flips between them with a tab switch.
   const active  = useMemo(() => reservations.filter(r => r.status === "Active"),  [reservations]);
   const expired = useMemo(() => reservations.filter(r => r.status === "Expired"), [reservations]);
 
+  useEffect(() => {
+    active.forEach(r => ensureThumbnail(r.inventoryId));
+  }, [active, ensureThumbnail]);
+  
   // Set of inventory ids the customer currently holds an Active reservation
   // on. ExpiredReservations consumes this to distinguish "back in your
   // basket" from "no longer available".
@@ -389,6 +397,7 @@ export default function BasketTab() {
             submitting={submitting}
             onCheckChange={(id, val) => setChecked(c => ({ ...c, [id]: val }))}
             onRemove={removeItem}
+            getThumbnailUrl={getThumbnailUrl} 
           />
         ) : view === "expired" ? (
           <ExpiredReservations
@@ -447,6 +456,8 @@ function AnonymousBasket({
   const totalCents = items.reduce((s, i) => s + i.unitPriceCents, 0);
   const signInHref = `/sign-in?redirect_url=${encodeURIComponent(currentPath)}`;
   const signUpHref = `/sign-up?redirect_url=${encodeURIComponent(currentPath)}`;
+
+  
 
   return (
     // Same `md:grid-rows-[1fr_auto]` as the signed-in layout. This panel

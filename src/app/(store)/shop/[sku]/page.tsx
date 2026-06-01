@@ -295,9 +295,10 @@ export default function ItemDetailPage() {
       }
 
       /* ── Fetch related (similar) ── */
-      const relRes = await fetch(`/api/items/${data.inventoryId}/similar?top=3`);
+      const relRes = await fetch(`/api/items/${data.inventoryId}/similar?top=4`);
       if (relRes.ok) {
         const relData = await relRes.json();
+        console.log("similar items sample:", relData[0]);
         const rel3 = relData.slice(0, 3) as ItemDetail[];
         setRelated(rel3);
         // Pre-fetch thumbnails for related items via the storefront context cache

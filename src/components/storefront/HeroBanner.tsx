@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { InventoryItem } from "@/types/inventory";
+import { cfImage, cfSrcSet, WIDTHS, SIZES } from "@/lib/images";
 
 /**
  * Panel anchor positions — kept as a union so the AI backend can save one of
@@ -145,6 +146,7 @@ export default function HeroBanner({ slides, interval = 6000 }: Props) {
         const img      = s.photoUrl ?? s.thumbnailUrl ?? null;
         const isActive = i === current;
         const isPrev   = i === prev;
+        const widths   = WIDTHS.hero;
         return (
           <div
             key={i}
@@ -154,8 +156,13 @@ export default function HeroBanner({ slides, interval = 6000 }: Props) {
             {img ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={img}
+                src={cfImage(img, { width: 1280 })}
+                srcSet={cfSrcSet(img, widths)}
+                sizes={SIZES.hero}
                 alt={s.itemName ?? s.headline}
+                fetchPriority={i === 0 ? "high" : "auto"} // ← only first slide
+                loading={i === 0 ? "eager" : "lazy"}      // ← lazy-load offscreen slides
+                decoding="async"
                 className="absolute inset-0 h-full w-full object-cover"
               />
             ) : (
