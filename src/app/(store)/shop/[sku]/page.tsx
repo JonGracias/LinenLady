@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import type {
   AvailabilityState,
@@ -225,6 +225,7 @@ const CARE_STEPS = [
 
 export default function ItemDetailPage() {
   const { sku }  = useParams<{ sku: string }>();
+  const router   = useRouter();
   const {
     getThumbnailUrl,
     ensureThumbnail,
@@ -255,7 +256,9 @@ export default function ItemDetailPage() {
   const inBasket = item ? has(item.inventoryId) : false;
 
   // Derived flags — recomputed cheaply from availState. The "yours" states
-  // get distinct routing; the "locked by other" states block the action.
+  // get distinct routing; the "locked by other" states present a single
+  // "Sold" message regardless of underlying state (InBasket vs PendingPayment
+  // is an internal distinction customers don't care about).
   const isLockedByOther =
     availState === "InBasket" || availState === "PendingPayment";
   const isYourBasket          = availState === "YourBasket";
@@ -298,7 +301,6 @@ export default function ItemDetailPage() {
       const relRes = await fetch(`/api/items/${data.inventoryId}/similar?top=4`);
       if (relRes.ok) {
         const relData = await relRes.json();
-        console.log("similar items sample:", relData[0]);
         const rel3 = relData.slice(0, 3) as ItemDetail[];
         setRelated(rel3);
         // Pre-fetch thumbnails for related items via the storefront context cache
@@ -324,11 +326,12 @@ export default function ItemDetailPage() {
   const toggleBasket = useCallback(async () => {
     if (!item || busy) return;
 
-    // State-based short-circuits, no network needed.
+    // State-based short-circuits, no network needed. Held items present
+    // a single "Sold" message regardless of whether the underlying state
+    // is InBasket or PendingPayment — customers don't care about the
+    // distinction; they just want to know if they can buy it.
     if (isLockedByOther) {
-      setHint(availState === "PendingPayment"
-        ? "This piece is awaiting payment from another customer."
-        : "Another customer is holding this piece right now.");
+      setHint("Sorry, this piece has been sold.");
       return;
     }
 
@@ -350,9 +353,7 @@ export default function ItemDetailPage() {
       if (entry) {
         setAvailState(entry.state);
         if (entry.state === "InBasket" || entry.state === "PendingPayment") {
-          setHint(entry.state === "PendingPayment"
-            ? "This piece was just claimed for payment. Please refresh to see other pieces."
-            : "Another customer just added this piece to their basket.");
+          setHint("Sorry, this piece has been sold.");
           return;
         }
         if (entry.state === "Sold" || entry.state === "Inactive") {
@@ -376,10 +377,16 @@ export default function ItemDetailPage() {
       if (!result.ok) {
         if (result.reason === "needs_email_verify") {
           setHint("Please verify your email before adding pieces to your basket.");
+        } else if (result.reason === "needs_signin") {
+          // Anonymous user — reservation requires sign-in. Send them to
+          // /sign-in with a redirect back here so they can click Add again
+          // and complete the reservation.
+          const here = window.location.pathname + window.location.search;
+          router.push(`/sign-in?redirect_url=${encodeURIComponent(here)}`);
         } else if (result.reason === "held_by_other") {
           // Lost the race even after the pre-flight — re-sync state so the
           // pill updates and the button disables.
-          setHint("Another customer just added this piece. Try refreshing the page.");
+          setHint("Sorry, this piece has been sold.");
           const re = await checkAvailability([item.inventoryId]);
           const reEntry = re.find((e) => e.inventoryId === item.inventoryId);
           setAvailState(reEntry ? reEntry.state : null);
@@ -395,7 +402,7 @@ export default function ItemDetailPage() {
     } finally {
       setBusy(false);
     }
-  }, [item, busy, inBasket, isLockedByOther, availState, add, remove, images, checkAvailability]);
+  }, [item, busy, inBasket, isLockedByOther, add, remove, images, checkAvailability, router]);
 
   /* ── Loading skeleton ── */
   if (loading) {
@@ -445,11 +452,10 @@ export default function ItemDetailPage() {
   /* ── Button label + styling, computed once for use in both desktop CTA
        and mobile sticky bar so they always agree on what the state means. ── */
   const ctaLabel: string = (() => {
-    if (busy)                   return inBasket ? "Removing…" : "Adding…";
-    if (isYourPendingPayment)   return "Complete Payment →";
+    if (busy)                     return inBasket ? "Removing…" : "Adding…";
+    if (isYourPendingPayment)     return "Complete Payment →";
     if (isYourBasket || inBasket) return "✓ In Basket";
-    if (availState === "InBasket")       return "In Someone's Basket";
-    if (availState === "PendingPayment") return "Awaiting Payment";
+    if (isLockedByOther)          return "Sold";
     return "+ Add to Basket";
   })();
 
@@ -485,7 +491,7 @@ export default function ItemDetailPage() {
 
             {/* Status + SKU */}
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 {item.isFeatured && (
                   <span
                     className="ll-label px-2.5 py-1 text-[0.5rem] font-medium uppercase tracking-[0.15em]"
@@ -501,22 +507,19 @@ export default function ItemDetailPage() {
                   One of a Kind
                 </span>
 
-                {/* Availability badge — visible alongside the One of a Kind
-                    label so it's contextual to the piece's status. */}
-                {availState === "InBasket" && (
+                {/* Availability badge — InBasket and PendingPayment both
+                    surface as a prominent "Sold" pill, since the customer
+                    has no actionable difference between them. */}
+                {isLockedByOther && (
                   <span
-                    className="ll-label px-2.5 py-1 text-[0.5rem] font-medium uppercase tracking-[0.15em]"
-                    style={{ background: "rgba(30,27,26,0.78)", color: "rgba(253,250,246,0.92)", borderRadius: "0.2rem" }}
+                    className="ll-label px-4 py-1.5 text-[0.72rem] font-medium uppercase tracking-[0.18em]"
+                    style={{
+                      background:   "rgba(30,27,26,0.78)",
+                      color:        "rgba(253,250,246,0.95)",
+                      borderRadius: "0.25rem",
+                    }}
                   >
-                    In Someone's Basket
-                  </span>
-                )}
-                {availState === "PendingPayment" && (
-                  <span
-                    className="ll-label px-2.5 py-1 text-[0.5rem] font-medium uppercase tracking-[0.15em]"
-                    style={{ background: "rgba(176,120,120,0.92)", color: "#ffffff", borderRadius: "0.2rem" }}
-                  >
-                    Awaiting Payment
+                    Sold
                   </span>
                 )}
                 {(availState === "YourBasket" || isYourPendingPayment) && (
@@ -607,7 +610,7 @@ export default function ItemDetailPage() {
 
             {/* Desktop CTAs — single primary action: add/remove from basket,
                 OR route to checkout-resume for YourPendingPayment, OR show
-                disabled "held by other" state. */}
+                disabled "Sold" state when held by another customer. */}
             <div className="hidden md:flex flex-col gap-3">
               {isYourPendingPayment ? (
                 // The customer has a Square checkout pending — send them
@@ -761,7 +764,7 @@ export default function ItemDetailPage() {
       {/* ────────────────────────────────────────────────────────
           Mobile sticky bottom bar — basket toggle + view-basket link,
           OR resume-payment link for YourPendingPayment, OR disabled
-          state for locked-by-other.
+          "Sold" state for locked-by-other.
       ──────────────────────────────────────────────────────── */}
       <div
         className="md:hidden fixed bottom-0 left-0 right-0 z-40 flex flex-col"
@@ -799,9 +802,9 @@ export default function ItemDetailPage() {
             </Link>
           ) : (
             <>
-              {/* When in basket: split bar — left half toggles off, right half goes to /account */}
+              {/* When in basket: split bar — left half toggles off, right half goes to /basket */}
               {/* When not in basket: full-width add button */}
-              {/* When locked-by-other: full-width disabled button */}
+              {/* When locked-by-other: full-width disabled "Sold" button */}
               <button
                 onClick={toggleBasket}
                 disabled={ctaDisabled}

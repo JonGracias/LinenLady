@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { AvailabilityState, InventoryItem } from "@/types/inventory";
 import { useCustomerSession } from "@/context/CustomerSessionContext";
+import { cfImage, cfSrcSet, WIDTHS, SIZES } from "@/lib/images";
 
 function formatPrice(cents: number) {
   return new Intl.NumberFormat("en-US", {
@@ -47,15 +48,15 @@ function pillFor(state: AvailabilityState): PillSpec | null {
   switch (state) {
     case "InBasket":
       return {
-        label:      "In Someone's Basket",
+        label:      "Sold",
         background: "rgba(30,27,26,0.78)",
         color:      "rgba(253,250,246,0.92)",
       };
     case "PendingPayment":
       return {
-        label:      "Awaiting Payment",
-        background: "rgba(176,120,120,0.92)", // muted dusty rose — soft urgency
-        color:      "#ffffff",
+        label:      "Sold",
+        background: "rgba(30,27,26,0.78)",
+        color:      "rgba(253,250,246,0.92)",
       };
     case "YourBasket":
       return {
@@ -92,7 +93,8 @@ export default function DesktopItemCard({ item, thumbnailUrl }: Props) {
   //   • undefined        → normal add/remove toggle
   //   • YourBasket       → already yours; route them to the basket tab
   //   • YourPendingPay   → mid-checkout; route to orders so they can resume
-  //   • InBasket / Pending → locked. No action, just the visible pill.
+  //   • InBasket / Pending → locked. Card remains clickable to the detail
+  //                          page, but the add action surfaces as "Sold".
   const isLockedByOther =
     state === "InBasket" || state === "PendingPayment";
 
@@ -117,9 +119,7 @@ export default function DesktopItemCard({ item, thumbnailUrl }: Props) {
 
     // Pre-flight by state — short-circuit before the network hop.
     if (isLockedByOther) {
-      setHint(state === "PendingPayment"
-        ? "This piece is awaiting payment from another customer."
-        : "Another customer is holding this piece right now.");
+      setHint("Sorry, this piece has been sold.");
       return;
     }
     if (isYours) {
@@ -149,7 +149,7 @@ export default function DesktopItemCard({ item, thumbnailUrl }: Props) {
           } else if (result.reason === "held_by_other") {
             // Race: availability said available at grid-render time but
             // someone grabbed it in the window before this click landed.
-            setHint("Another customer just grabbed this piece.");
+            setHint("Sorry, this piece has been sold.");
           } else if (result.reason === "needs_signin") {
             const here = window.location.pathname + window.location.search;
             router.push(`/sign-in?redirect_url=${encodeURIComponent(here)}`);
@@ -166,32 +166,21 @@ export default function DesktopItemCard({ item, thumbnailUrl }: Props) {
   // Label for the small in-card action button. Hover overlay uses
   // a slightly longer label because it has more room.
   const compactLabel: string = (() => {
-    if (busy)           return "…";
-    if (isYours)        return state === "YourPendingPayment" ? "Pay →" : "View →";
-    if (isLockedByOther) return state === "PendingPayment" ? "Pending" : "Reserved";
-    if (inBasket)       return "✓ Added";
+    if (busy)            return "…";
+    if (isYours)         return state === "YourPendingPayment" ? "Pay →" : "View →";
+    if (isLockedByOther) return "Sold";
+    if (inBasket)        return "✓ Added";
     return "+ Add";
   })();
 
   const fullLabel: string = (() => {
-    if (busy)            return inBasket ? "Removing…" : "Adding…";
-    if (state === "YourBasket")        return "✓ In Your Basket — View";
+    if (busy)                           return inBasket ? "Removing…" : "Adding…";
+    if (state === "YourBasket")         return "View in Your Basket";
     if (state === "YourPendingPayment") return "Complete Payment →";
-    if (state === "InBasket")          return "In Someone's Basket";
-    if (state === "PendingPayment")    return "Awaiting Payment";
-    if (inBasket)                      return "✓ In Basket";
+    if (isLockedByOther)                return "Sold";
+    if (inBasket)                       return "✓ In Basket";
     return "+ Add to Basket";
   })();
-
-  // The wrapping element. Locked-by-other gets a <div> instead of <Link>
-  // so the card isn't clickable through to a detail page they can't act
-  // on. "Yours" states keep the link to the SKU detail so they can still
-  // read about it.
-  const isHardLocked = isLockedByOther;
-
-  // Visual: dim the image for locked-by-other states. "Yours" states stay
-  // full-color since the customer is engaged with the piece.
-  const dimImage = isLockedByOther;
 
   // ─── Render ───────────────────────────────────────────────────────────
 
@@ -205,14 +194,14 @@ export default function DesktopItemCard({ item, thumbnailUrl }: Props) {
         {thumbnailUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={thumbnailUrl}
+            src={cfImage(thumbnailUrl, { width: 480 })}
+            srcSet={cfSrcSet(thumbnailUrl, WIDTHS.card)}
+            sizes={SIZES.cardDesktop}
             alt={item.name}
             className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-103"
-            style={{
-              transitionTimingFunction: "ease-in-out",
-              filter:                   dimImage ? "grayscale(0.4) brightness(0.92)" : undefined,
-              opacity:                  dimImage ? 0.85 : 1,
-            }}
+            style={{ transitionTimingFunction: "ease-in-out" }}
+            loading="lazy"
+            decoding="async"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center ll-display text-2xl italic" style={{ color: "var(--outline-variant)" }}>
@@ -221,8 +210,9 @@ export default function DesktopItemCard({ item, thumbnailUrl }: Props) {
         )}
 
         {/* Hover overlay — suppressed for locked-by-other since there's
-            nothing to act on. */}
-        {!isHardLocked && (
+            nothing to act on (the card remains clickable to the detail
+            page via the wrapping <Link>). */}
+        {!isLockedByOther && (
           <div
             className="absolute inset-0 flex flex-col items-center justify-end pb-5 gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-400"
             style={{ background: "linear-gradient(to top, rgba(30,27,26,0.55) 0%, transparent 55%)" }}
@@ -235,10 +225,10 @@ export default function DesktopItemCard({ item, thumbnailUrl }: Props) {
               disabled={busy}
               className="ll-label text-[0.55rem] uppercase tracking-[0.12em] px-4 py-1.5 transition-all duration-300 disabled:opacity-50"
               style={{
-                background:   inBasket || isYours ? "var(--primary)" : "rgba(253,250,246,0.15)",
-                color:        inBasket || isYours ? "var(--on-primary)" : "rgba(253,250,246,0.9)",
-                border:       inBasket || isYours ? "1px solid var(--primary)" : "1px solid rgba(253,250,246,0.35)",
-                borderRadius: "0.2rem",
+                background:     inBasket || isYours ? "var(--primary)" : "rgba(253,250,246,0.15)",
+                color:          inBasket || isYours ? "var(--on-primary)" : "rgba(253,250,246,0.9)",
+                border:         inBasket || isYours ? "1px solid var(--primary)" : "1px solid rgba(253,250,246,0.35)",
+                borderRadius:   "0.2rem",
                 backdropFilter: "blur(4px)",
                 cursor:         busy ? "wait" : "pointer",
               }}
@@ -344,27 +334,9 @@ export default function DesktopItemCard({ item, thumbnailUrl }: Props) {
     </>
   );
 
-  // Locked-by-other → render as a non-clickable div so the user can't even
-  // navigate to the detail page (which would just show another disabled
-  // add button). "Yours" + available → wrap in <Link> as normal.
-  if (isHardLocked) {
-    return (
-      <div
-        className="group relative block overflow-hidden transition-all duration-400"
-        style={{
-          textDecoration: "none",
-          background:     "var(--surface-bright)",
-          borderRadius:   "0.25rem",
-          opacity:        0.94,
-          cursor:         "default",
-        }}
-        aria-disabled="true"
-      >
-        {inner}
-      </div>
-    );
-  }
-
+  // Every card — including locked-by-other — wraps in <Link> so users can
+  // browse the detail page regardless of basket state. The action button
+  // is what carries the unavailability, not the navigation.
   return (
     <Link
       href={`/shop/${item.sku}`}

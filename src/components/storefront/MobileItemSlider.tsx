@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { InventoryItem } from "@/types/inventory";
+import { cfImage, cfSrcSet, WIDTHS, SIZES } from "@/lib/images";
 
 function formatPrice(cents: number) {
   return new Intl.NumberFormat("en-US", {
@@ -31,10 +32,13 @@ function MobileItemCard({
           style={{ aspectRatio: "3/4", maxHeight: "82svh" }}
         >
           {thumbnailUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={thumbnailUrl}
+              src={cfImage(thumbnailUrl, { width: 480 })}
+              srcSet={cfSrcSet(thumbnailUrl, WIDTHS.card)}
+              sizes={SIZES.cardDesktop}
               alt={item.name}
+              loading="lazy"
+              decoding="async"
               className="h-full w-full object-cover"
             />
           ) : (

@@ -370,6 +370,28 @@ export function CustomerSessionProvider({ children }: { children: React.ReactNod
   }, [readLocal, writeLocal, apiCall]);
 
   /* ── Initial load + auth transitions ────────────────────────────── */
+    /* ── Derived display surface ────────────────────────────────────── */
+
+  // The "items" projection — what header badges and card "in basket" checks
+  // consume. Signed-in → active reservations as PendingItem rows. Signed-out
+  // → the localStorage pending list as-is.
+  const items: PendingItem[] = useMemo(() => {
+    if (!isSignedIn) return pending;
+    return reservations
+      .filter(r => r.status === "Active")
+      .map(r => ({
+        inventoryId:    r.inventoryId,
+        sku:            r.itemSku ?? "",
+        name:           r.itemName ?? "Linen Lady piece",
+        unitPriceCents: r.unitPriceCents,
+        thumbnailUrl:   r.thumbnailUrl,
+      }));
+  }, [isSignedIn, pending, reservations]);
+
+  const has = useCallback(
+    (inventoryId: number) => items.some(i => i.inventoryId === inventoryId),
+    [items]
+  );
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -421,53 +443,38 @@ export function CustomerSessionProvider({ children }: { children: React.ReactNod
     };
 
     load().catch(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     isLoaded, isSignedIn,
-    syncCustomerOnce, replayPending,
-    fetchBasket, fetchAddresses, fetchOrders, readLocal,
   ]);
-
-  /* ── Derived display surface ────────────────────────────────────── */
-
-  // The "items" projection — what header badges and card "in basket" checks
-  // consume. Signed-in → active reservations as PendingItem rows. Signed-out
-  // → the localStorage pending list as-is.
-  const items: PendingItem[] = useMemo(() => {
-    if (!isSignedIn) return pending;
-    return reservations
-      .filter(r => r.status === "Active")
-      .map(r => ({
-        inventoryId:    r.inventoryId,
-        sku:            r.itemSku ?? "",
-        name:           r.itemName ?? "Linen Lady piece",
-        unitPriceCents: r.unitPriceCents,
-        thumbnailUrl:   r.thumbnailUrl,
-      }));
-  }, [isSignedIn, pending, reservations]);
-
-  const has = useCallback(
-    (inventoryId: number) => items.some(i => i.inventoryId === inventoryId),
-    [items]
-  );
 
   /* ── Mutations: anonymous-aware ─────────────────────────────────── */
 
-  const add = useCallback(async (item: PendingItem): Promise<AddResult> => {
-    // De-dupe locally regardless of mode.
-    if (items.some(i => i.inventoryId === item.inventoryId)) {
-      return { ok: false, reason: "already_in_basket" };
-    }
+    const add = useCallback(async (item: PendingItem): Promise<AddResult> => {
+      // De-dupe locally regardless of mode.
+      if (items.some(i => i.inventoryId === item.inventoryId)) {
+        return { ok: false, reason: "already_in_basket" };
+      }
 
-    if (!isSignedIn) {
-      const next = [...pending, item];
-      writeLocal(next);
-      setPending(next);
-      return { ok: true };
-    }
+      // Reservation requires sign-in. Earlier versions wrote anonymous adds
+      // to localStorage so they could be replayed on auth (see replayPending),
+      // but for one-of-a-kind inventory that produced confusing UX — a
+      // "basket" that didn't actually hold the piece. The caller is expected
+      // to route to the sign-in page on this reason.
+      //
+      // replayPending stays in place so any pre-existing localStorage state
+      // still drains on the next authenticated load. The signed-out branches
+      // of `items` and `remove` also stay for the same backward-compat reason.
+      // Once those entries naturally clear, those paths become dead code we
+      // can remove.
+      if (!isSignedIn) {
+        return { ok: false, reason: "needs_signin" };
+      }
 
-    // Belt-and-suspenders for the race where Clerk's auth state flips
-    // between the effect and a click.
-    await syncCustomerOnce();
+      // Belt-and-suspenders for the race where Clerk's auth state flips
+      // between the effect and a click.
+      await syncCustomerOnce();
+
 
     try {
       const res = await apiCall("/customers/me/basket", {
@@ -500,7 +507,7 @@ export function CustomerSessionProvider({ children }: { children: React.ReactNod
     } catch (e) {
       return { ok: false, reason: "error", message: e instanceof Error ? e.message : "Network error" };
     }
-  }, [items, pending, isSignedIn, writeLocal, apiCall, fetchBasket, syncCustomerOnce]);
+  }, [items, isSignedIn, apiCall, fetchBasket, syncCustomerOnce]);
 
   // Remove by inventoryId — works in both modes. Signed-out: drop from
   // localStorage. Signed-in: find the matching active reservation and

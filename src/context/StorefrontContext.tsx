@@ -321,7 +321,7 @@ export function StorefrontProvider({ children }: { children: React.ReactNode }) 
     if (!authLoaded)               return;
     if (rawItemsRef.current.length === 0) return;
     void applyAvailability(rawItemsRef.current);
-  }, [authLoaded, isSignedIn, applyAvailability]);
+  }, [authLoaded, isSignedIn,]);
 
   // ── Thumbnails ──────────────────────────────────────────────────────────
   // Auto-fetch thumbnails whenever items change
@@ -433,7 +433,7 @@ export function StorefrontProvider({ children }: { children: React.ReactNode }) 
 
   // ── Provider value ──────────────────────────────────────────────────────
 
-  const value: StorefrontContextValue = {
+  const value: StorefrontContextValue = useMemo(() => ({
     items,
     loading,
     error,
@@ -454,7 +454,15 @@ export function StorefrontProvider({ children }: { children: React.ReactNode }) 
     getAvailabilityState,
     checkAvailability,
     refreshAvailability,
-  };
+  }), [
+    items, loading, error,
+    page, pageSize, totalCount, totalPages,
+    category,
+    getThumbnailUrl, ensureThumbnail,
+    getImages, ensureImages, refreshImages,
+    reloadItems,
+    getAvailabilityState, checkAvailability, refreshAvailability,
+  ]);
 
   return (
     <StorefrontContext.Provider value={value}>
