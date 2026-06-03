@@ -20,6 +20,7 @@
 import Link from "next/link";
 import type { ReservationDto } from "@/types/customer";
 import { formatPrice, timeLeft } from "@/lib/utils";
+import { cfImage, cfSrcSet } from "@/lib/images";
 
 
 type Props = {
@@ -77,15 +78,27 @@ export default function ActiveReservations({
               />
 
               {/* Thumb */}
-              {(() => {
-                const thumb = getThumbnailUrl(r.inventoryId) ?? r.thumbnailUrl;
-                return thumb ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={thumb} alt={r.itemName ?? ""} className="h-full w-full object-cover" />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center ll-display text-[0.5rem] italic"
-                      style={{ color: "var(--ink-soft)" }}>LL</div>
-                );
+                {(() => {
+                  const thumb = getThumbnailUrl(r.inventoryId) ?? r.thumbnailUrl;
+                  return (
+                    <div className="shrink-0 overflow-hidden" style={{ width: 72, height: 72, borderRadius: "0.2rem", background: "var(--linen)" }}>
+                      {thumb ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={cfImage(thumb, { width: 120 })}
+                          srcSet={cfSrcSet(thumb, [72, 120, 144, 240])}
+                          sizes="72px"
+                          alt={r.itemName ?? ""}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center ll-display text-[0.5rem] italic"
+                            style={{ color: "var(--ink-soft)" }}>LL</div>
+                      )}
+                    </div>
+                  );
               })()}
 
               {/* Body */}
