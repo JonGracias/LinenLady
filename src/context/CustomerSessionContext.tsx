@@ -443,13 +443,15 @@ export function CustomerSessionProvider({ children }: { children: React.ReactNod
       r => r.inventoryId === inventoryId && r.status === "Active"
     );
     if (!match) {
-      // Already gone from the active set — re-sync to be safe.
       setReservations(await fetchBasket());
       return;
     }
 
     await apiCall(`/customers/me/basket/${match.reservationId}`, { method: "DELETE" });
     setReservations(await fetchBasket());
+    
+    // Notify StorefrontContext to re-check availability
+    window.dispatchEvent(new CustomEvent("ll:basket-changed"));
   }, [pending, reservations, isSignedIn, writeLocal, apiCall, fetchBasket]);
 
   /* ── Mutations: signed-in only, by reservation id ───────────────── */
@@ -462,11 +464,12 @@ export function CustomerSessionProvider({ children }: { children: React.ReactNod
       const res = await apiCall(`/customers/me/basket/${reservationId}`, { method: "DELETE" });
       if (!res.ok) return null;
       const updated = await res.json() as ReservationDto;
-      // Replace the row in-place so the basket UI transitions Active → Expired
-      // without a refetch flicker. Then re-fetch to be authoritative.
       setReservations(prev => prev.map(r => r.reservationId === reservationId ? updated : r));
-      // Also refresh in case the server returned more than the one row.
-      fetchBasket().then(setReservations).catch(() => { /* in-place update covers us */ });
+      fetchBasket().then(setReservations).catch(() => {});
+      
+      // Notify StorefrontContext to re-check availability
+      window.dispatchEvent(new CustomEvent("ll:basket-changed"));
+      
       return updated;
     },
     [apiCall, fetchBasket]

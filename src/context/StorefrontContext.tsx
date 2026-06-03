@@ -336,6 +336,17 @@ export function StorefrontProvider({ children }: { children: React.ReactNode }) 
     [thumbs]
   );
 
+ // ── re-runs availability ──────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    const handler = () => {
+      if (rawItemsRef.current.length === 0) return;
+      void applyAvailability(rawItemsRef.current);
+    };
+    window.addEventListener("ll:basket-changed", handler);
+    return () => window.removeEventListener("ll:basket-changed", handler);
+  }, [applyAvailability]);
+
   const ensureThumbnail = useCallback(
     (id: number, ttlMinutes = 60) => {
       if (typeof id !== "number" || !Number.isFinite(id)) {
