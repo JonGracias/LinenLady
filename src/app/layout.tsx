@@ -12,25 +12,19 @@ export const metadata: Metadata = {
   description: "Inventory management system",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body>
-          <ClerkProvider>
-            <ThemeProvider>
-              <ContextProvider>
-                <div className="sm:mx-8">
-                  {children}
-                </div>
-              </ContextProvider>
-              <CookieBanner />
-            </ThemeProvider>
-          </ClerkProvider>
-      </body>
-    </html>
+    <ClerkProvider>
+      <html lang="en" suppressHydrationWarning>
+        <body>
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+            <ContextProvider>
+              <div className="sm:mx-8">{children}</div>
+            </ContextProvider>
+            <CookieBanner />
+          </ThemeProvider>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

@@ -1,6 +1,5 @@
 // src/app/(store)/layout.tsx
 import Header from "@/components/storefront/Header";
-import CookieBanner from "@/components/CookieBanner";
 import Footer from "@/components/storefront/Footer";
 
 export default function StorefrontLayout({ children }: { children: React.ReactNode }) {
