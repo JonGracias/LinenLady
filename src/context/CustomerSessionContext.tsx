@@ -1,93 +1,6 @@
 // src/context/CustomerSessionContext.tsx
 "use client";
 
-/**
- * CustomerSessionContext — formerly BasketContext.
- *
- * Owns ALL signed-in customer state that gets consumed across multiple
- * pages of the storefront:
- *
- *   - The basket (active + expired reservations, server-side when signed-in)
- *   - Saved addresses
- *   - Orders (placed via checkout — Active, Paid, Cancelled, etc.)
- *   - The apiCall helper that wraps fetch with a Clerk bearer token
- *   - The in-progress inline-address-form draft (see "Address draft" below)
- *
- * AND the anonymous-mode basket holding pen (localStorage), which lets
- * customers add pieces before signing in and have them replay on auth.
- *
- * The mental model:
- *
- *   Signed-in:  the server is the source of truth. Mutations call the API
- *               and re-fetch; reservations + addresses arrays mirror the
- *               server response.
- *
- *   Signed-out: localStorage holds a "pending" list. add/remove are purely
- *               local. reservations stays empty, addresses stays empty.
- *               The page-level basket UI renders the pending list directly.
- *
- *   Sign-in transition: on the first authenticated load we run, in order:
- *
- *                 1. syncCustomerOnce — POST /api/customers/sync so the
- *                    cust.Customer row exists before any customer-scoped
- *                    endpoint is hit.
- *                 2. replayPending — POST localStorage items to the basket.
- *                 3. fetchSession — pull basket + addresses in parallel.
- *
- * Why one context for both: the address picker on /basket needs addresses,
- * the address tab in /account also needs addresses, and a mutation in
- * either place should update both surfaces. Same logic for basket. One
- * context owning both means the data is in one place, fetched once,
- * mutated consistently.
- *
- * ── Address draft (added) ────────────────────────────────────────────
- *
- * CheckoutPanel's inline address form previously held its open/closed
- * flag (CheckoutPanel) and its field values (InlineAddressForm) in local
- * useState. That state did not survive a remount — and BasketTab remounts
- * "every so often" because Clerk auth-refresh events invalidate the RSC
- * cache and re-render the server component tree (see BasketTab's header
- * comment). Every remount wiped a half-typed address and forced the
- * customer to start over.
- *
- * The draft now lives HERE because CustomerSessionProvider sits high in
- * the tree and does NOT remount on those auth-refresh events. CheckoutPanel
- * reads `addressDraft.formOpen`; InlineAddressForm reads/writes the field
- * values through `addressDraft` / `setAddressDraft`. A remount re-reads the
- * same surviving draft, so the customer sees their work intact.
- *
- * The draft is cleared on two INTENTIONAL user actions: a successful save
- * (the address now exists; reopening means "add another") and Cancel (an
- * explicit discard). It is NOT cleared on remount — that's the whole point.
- *
- * Public API surface (the bit consumers care about):
- *
- *   // Display-shape basket items (header badge, "in basket" indicators)
- *   items, count, has
- *
- *   // Full server payload (for the /basket page and basket tab)
- *   reservations, addresses
- *
- *   // Status
- *   loading
- *
- *   // Anonymous-friendly add/remove (handles signed-in vs not internally)
- *   add, remove
- *
- *   // Signed-in-only operations against specific reservation rows
- *   removeReservation, reAddReservation, checkout
- *
- *   // Refetchers (call after external mutations)
- *   refresh, refreshAddresses
- *
- *   // Inline-address-form draft (survives BasketTab remounts)
- *   addressDraft, setAddressDraft, clearAddressDraft
- *
- *   // Shared HTTP helper — exposes the same fetch wrapper the context
- *   // uses internally so call sites don't recreate it
- *   apiCall
- */
-
 import {
   createContext,
   useCallback,
@@ -208,6 +121,9 @@ type CustomerSessionContextValue = {
   refreshAddresses: () => Promise<void>;
   refreshOrders:    () => Promise<void>;
   apiCall:          (path: string, opts?: RequestInit) => Promise<Response>;
+  signedIn:         boolean | null | undefined;
+  isSignedIn:       boolean | null | undefined;
+
 };
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -231,6 +147,7 @@ export function CustomerSessionProvider({ children }: { children: React.ReactNod
   const [addresses,    setAddresses]    = useState<CustomerAddressDto[]>([]);
   const [orders,       setOrders]       = useState<OrderDto[]>([]);
   const [loading,      setLoading]      = useState(true);
+  const [signedIn, setSignedIn]         = useState(false);
 
   // Inline-address-form draft. Lives here (not in CheckoutPanel /
   // InlineAddressForm) so it survives the BasketTab remounts that Clerk
@@ -392,6 +309,8 @@ export function CustomerSessionProvider({ children }: { children: React.ReactNod
     (inventoryId: number) => items.some(i => i.inventoryId === inventoryId),
     [items]
   );
+
+  useEffect(() => setSignedIn(!!isSignedIn), [isSignedIn]);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -731,11 +650,13 @@ export function CustomerSessionProvider({ children }: { children: React.ReactNod
     notesDraft,
     setNotesDraft,
     clearNotesDraft,
+    signedIn,
+    isSignedIn,
   }), [
     items, has, loading, reservations, addresses, orders,
     add, remove, removeReservation, reAddReservation, checkout, cancelOrder,
     addressDraft, setAddressDraft, clearAddressDraft,
-    refresh, refreshAddresses, refreshOrders, apiCall, notesDraft, setNotesDraft, clearNotesDraft
+    refresh, refreshAddresses, refreshOrders, apiCall, notesDraft, setNotesDraft, clearNotesDraft, signedIn, isSignedIn
   ]);
 
   return (

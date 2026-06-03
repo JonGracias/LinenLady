@@ -9,6 +9,7 @@ import CategoryGrid from "@/components/storefront/CategoryGrid";
 import HeroBanner, { type BannerSlide } from "@/components/storefront/HeroBanner";
 import { SitePhoto } from "@/components/shared/SitePhoto";
 
+
 type HeroSlideDto = {
   slideId:   number;
   heading:   string | null;
@@ -70,8 +71,11 @@ export default function HomePage() {
       .catch(() => {});
   }, []);
 
+
+
   return (
     <div className="ll-texture-overlay" style={{ background: "var(--surface)", color: "var(--on-surface)" }}>
+
 
       {/* ── 1. Hero ── */}
       <HeroBanner slides={bannerSlides} interval={6000} />
@@ -79,12 +83,14 @@ export default function HomePage() {
       {/* ── 2. Category grid ── */}
       <CategoryGrid SectionTitle={SectionTitle} />
 
+      
       {/* ── 3. Newest & Featured — 10 items, no filter bar, CTA to /shop ── */}
       <section style={{ background: "var(--surface)" }}>
         <div
           className="flex items-baseline justify-between px-6 md:px-10 pt-10 pb-4"
           style={{ borderBottom: "1px solid rgba(196,181,168,0.15)" }}
-        >
+          >
+
           <div>
             <p
               className="ll-label mb-1 text-[0.6rem] font-medium uppercase tracking-[0.25em]"

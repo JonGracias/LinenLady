@@ -17,8 +17,9 @@
 
 "use client";
 
+
 import Link from "next/link";
-import BasketTab from "../account/_components/BasketTab";
+import BasketTab from "@/components/storefront/BasketTab";
 import { useCustomerSession } from "@/context/CustomerSessionContext";
 
 export default function BasketPage() {

@@ -18,9 +18,6 @@ export default function StorefrontLayout({ children }: { children: React.ReactNo
         {children}
         <Footer />
       </main>
-
-      {/* ── Fixed bottom ── */}
-      <CookieBanner />
     </div>
   );
 }

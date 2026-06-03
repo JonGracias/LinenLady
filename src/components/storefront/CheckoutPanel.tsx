@@ -39,7 +39,7 @@
 import Link from "next/link";
 import type { ReservationDto, CustomerAddressDto } from "@/types/customer";
 import { useCustomerSession } from "@/context/CustomerSessionContext";
-import { formatPrice } from "./_utils";
+import { formatPrice } from "@/lib/utils"
 import InlineAddressForm from "./InlineAddressForm";
 
 type Props = {

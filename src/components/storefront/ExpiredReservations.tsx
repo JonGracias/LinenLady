@@ -34,7 +34,7 @@
 
 import Link from "next/link";
 import type { ReservationDto } from "@/types/customer";
-import { formatPrice } from "./_utils";
+import { formatPrice } from "@/lib/utils"
 
 type Props = {
   expired:           ReservationDto[];

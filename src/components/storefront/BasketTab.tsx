@@ -36,25 +36,14 @@ import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { useCustomerSession } from "@/context/CustomerSessionContext";
-import ActiveReservations from "./basket/ActiveReservations";
-import ExpiredReservations from "./basket/ExpiredReservations";
-import CheckoutPanel from "./basket/CheckoutPanel";
+import ActiveReservations from "./ActiveReservations";
+import ExpiredReservations from "./ExpiredReservations";
+import CheckoutPanel from "./CheckoutPanel";
 import OrdersTab from "./OrdersTab";
 import { useStorefrontContext } from "@/context/StorefrontContext";
+import { formatPrice } from "@/lib/utils";
 
 type View = "active" | "expired" | "orders";
-
-/* ─────────────────────────────────────────────────────────────────────────
-   Helpers
-───────────────────────────────────────────────────────────────────────── */
-
-function formatPrice(cents: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-  }).format(cents / 100);
-}
 
 /* ─────────────────────────────────────────────────────────────────────────
    Component

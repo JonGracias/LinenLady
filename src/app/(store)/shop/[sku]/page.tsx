@@ -1,67 +1,21 @@
 // src/app/(store)/shop/[sku]/page.tsx
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import type {
-  AvailabilityState,
-  InventoryItem,
-  InventoryImage,
-} from "@/types/inventory";
 import { useStorefrontContext } from "@/context/StorefrontContext";
 import { useCustomerSession } from "@/context/CustomerSessionContext";
+import type {
+  AvailabilityState,
+  InventoryImage,
+  ItemDetail,
+} from "@/types/inventory";
+import { formatPrice, CARE_STEPS } from "@/lib/utils";
+import Breadcrumb from "@/components/BreadCrumb";
 
-/* ─── helpers ─────────────────────────────────────────────────────────────── */
 
-function formatPrice(cents: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-  }).format(cents / 100);
-}
 
-/* ─── types ───────────────────────────────────────────────────────────────── */
-
-type ItemDetail = InventoryItem & {
-  images?: InventoryImage[];
-};
-
-/* ─── Breadcrumb ──────────────────────────────────────────────────────────── */
-
-function Breadcrumb({ name }: { name: string }) {
-  return (
-    <nav className="flex items-center gap-2 px-6 md:px-10 py-4" aria-label="breadcrumb">
-      <Link
-        href="/"
-        className="ll-label text-[0.58rem] uppercase tracking-[0.15em] transition-opacity hover:opacity-60"
-        style={{ color: "var(--on-surface-variant)" }}
-      >
-        Home
-      </Link>
-      <span className="ll-label text-[0.58rem]" style={{ color: "var(--outline-variant)" }}>
-        /
-      </span>
-      <Link
-        href="/shop"
-        className="ll-label text-[0.58rem] uppercase tracking-[0.15em] transition-opacity hover:opacity-60"
-        style={{ color: "var(--on-surface-variant)" }}
-      >
-        Collection
-      </Link>
-      <span className="ll-label text-[0.58rem]" style={{ color: "var(--outline-variant)" }}>
-        /
-      </span>
-      <span
-        className="ll-label text-[0.58rem] uppercase tracking-[0.15em] truncate max-w-[160px]"
-        style={{ color: "var(--on-surface)" }}
-      >
-        {name}
-      </span>
-    </nav>
-  );
-}
 
 /* ─── Image Gallery (desktop) ─────────────────────────────────────────────── */
 
@@ -114,7 +68,7 @@ function DesktopGallery({ images }: { images: InventoryImage[] }) {
 
       {/* Thumbnail strip */}
       {images.length > 1 && (
-        <div className="flex gap-2 overflow-x-auto">
+        <div className="flex gap-2 overflow-hidden px-2">
           {images.map((img, i) => (
             <button
               key={img.imageId}
@@ -146,10 +100,51 @@ function DesktopGallery({ images }: { images: InventoryImage[] }) {
   );
 }
 
-/* ─── Mobile Carousel ─────────────────────────────────────────────────────── */
-
 function MobileCarousel({ images }: { images: InventoryImage[] }) {
   const [active, setActive] = useState(0);
+  const [showControls, setShowControls] = useState(false);
+  const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Touch tracking
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+
+  const prev = () => setActive((a) => (a - 1 + images.length) % images.length);
+  const next = () => setActive((a) => (a + 1) % images.length);
+
+  const flashControls = () => {
+    setShowControls(true);
+    if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
+    controlsTimerRef.current = setTimeout(() => setShowControls(false), 2500);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    const dy = e.changedTouches[0].clientY - touchStartY.current;
+
+    // Only swipe if horizontal movement dominates
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
+      if (dx < 0) next();
+      else prev();
+    } else {
+      // Tap — flash controls
+      flashControls();
+    }
+
+    touchStartX.current = null;
+    touchStartY.current = null;
+  };
+
+  useEffect(() => () => {
+    if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
+  }, []);
 
   if (!images.length) {
     return (
@@ -162,8 +157,16 @@ function MobileCarousel({ images }: { images: InventoryImage[] }) {
     );
   }
 
+  const canNav = images.length > 1;
+
   return (
-    <div className="relative overflow-hidden w-full" style={{ aspectRatio: "4/3" }}>
+    <div
+      className="relative overflow-hidden w-full select-none"
+      style={{ aspectRatio: "4/3" }}
+      onTouchStart={canNav ? handleTouchStart : undefined}
+      onTouchEnd={canNav ? handleTouchEnd : undefined}
+      onClick={canNav ? flashControls : undefined}
+    >
       {images.map((img, i) => (
         <div
           key={img.imageId}
@@ -175,13 +178,60 @@ function MobileCarousel({ images }: { images: InventoryImage[] }) {
         </div>
       ))}
 
+      {/* Side nav buttons */}
+      {canNav && (
+        <>
+          <button
+            onClick={(e) => { e.stopPropagation(); prev(); flashControls(); }}
+            aria-label="Previous image"
+            style={{
+              position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)",
+              zIndex: 10,
+              width: 32, height: 32, borderRadius: "50%",
+              background: "rgba(0,0,0,0.35)", backdropFilter: "blur(4px)",
+              border: "1px solid rgba(255,255,255,0.2)",
+              color: "#fff", cursor: "pointer", padding: 0,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              opacity: showControls ? 1 : 0,
+              pointerEvents: showControls ? "auto" : "none",
+              transition: "opacity 300ms ease",
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+
+          <button
+            onClick={(e) => { e.stopPropagation(); next(); flashControls(); }}
+            aria-label="Next image"
+            style={{
+              position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
+              zIndex: 10,
+              width: 32, height: 32, borderRadius: "50%",
+              background: "rgba(0,0,0,0.35)", backdropFilter: "blur(4px)",
+              border: "1px solid rgba(255,255,255,0.2)",
+              color: "#fff", cursor: "pointer", padding: 0,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              opacity: showControls ? 1 : 0,
+              pointerEvents: showControls ? "auto" : "none",
+              transition: "opacity 300ms ease",
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </>
+      )}
+
       {/* Dots */}
-      {images.length > 1 && (
+      {canNav && (
         <div className="absolute bottom-4 left-0 right-0 z-10 flex justify-center gap-1.5">
           {images.map((_, i) => (
             <button
               key={i}
-              onClick={() => setActive(i)}
+              onClick={(e) => { e.stopPropagation(); setActive(i); flashControls(); }}
               aria-label={`Image ${i + 1}`}
               style={{
                 width: i === active ? 18 : 6,
@@ -200,27 +250,6 @@ function MobileCarousel({ images }: { images: InventoryImage[] }) {
     </div>
   );
 }
-
-/* ─── Care instructions ───────────────────────────────────────────────────── */
-
-const CARE_STEPS = [
-  {
-    n: "01",
-    title: "Laundering",
-    body: "Avoid modern detergents and mechanical washing. Hand wash only in tepid distilled water with a neutral-pH linen soap. Do not wring.",
-  },
-  {
-    n: "02",
-    title: "Drying",
-    body: "Lay flat on a clean white cotton sheet in a shaded area. Direct sunlight may cause uneven bleaching of the natural fibres.",
-  },
-  {
-    n: "03",
-    title: "Storage",
-    body: "Roll — never fold — to avoid structural creases. Store in acid-free tissue paper within a breathable cedar chest or linen bag.",
-  },
-];
-
 /* ─── Main page ───────────────────────────────────────────────────────────── */
 
 export default function ItemDetailPage() {

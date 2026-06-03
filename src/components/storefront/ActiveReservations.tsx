@@ -19,7 +19,8 @@
 
 import Link from "next/link";
 import type { ReservationDto } from "@/types/customer";
-import { formatPrice, timeLeft } from "./_utils";
+import { formatPrice, timeLeft } from "@/lib/utils";
+
 
 type Props = {
   active:        ReservationDto[];

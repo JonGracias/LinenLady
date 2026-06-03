@@ -7,14 +7,7 @@ import { useRouter } from "next/navigation";
 import type { AvailabilityState, InventoryItem } from "@/types/inventory";
 import { useCustomerSession } from "@/context/CustomerSessionContext";
 import { cfImage, cfSrcSet, WIDTHS, SIZES } from "@/lib/images";
-
-function formatPrice(cents: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-  }).format(cents / 100);
-}
+import { formatPrice } from "@/lib/utils";
 
 /**
  * The card accepts an item that may carry an availability `state` set by
