@@ -1,0 +1,5 @@
+{
+  "globalHeaders": {
+    "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://clerk.noemithelinenlady.net https://*.clerk.accounts.dev; connect-src 'self' https://clerk.noemithelinenlady.net https://*.clerk.accounts.dev https://api.clerk.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; frame-src 'self' https://clerk.noemithelinenlady.net;"
+  }
+}
