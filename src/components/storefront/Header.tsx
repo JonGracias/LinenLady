@@ -294,6 +294,9 @@ export default function StorefrontHeader() {
       style={{ borderColor: "rgba(196,181,168,0.2)" }}
     >
         <ClerkDebug />
+        <div style={{ position: "fixed", top: 0, left: 0, zIndex: 99999, background: "red", color: "white" }}>
+          HEADER VERSION TEST
+        </div>
       {/* Top bar — flex with justify-between gives us the two-group layout
           without a middle column. */}
       <div className="mx-auto flex h-16 max-w-[1800px] items-center justify-between gap-4 px-6 md:px-12">
@@ -449,7 +452,7 @@ export default function StorefrontHeader() {
                   <SignInButton mode="redirect">
                     <button
                       type="button"
-                      onClick={close}
+                      //onClick={close}
                       className="nav-mobile-item nav-mobile-item--secondary text-left"
                     >
                       Sign In
