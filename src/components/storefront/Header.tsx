@@ -3,9 +3,17 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
-import { SignInButton, SignOutButton, useUser } from "@clerk/nextjs";
+import { SignInButton, SignOutButton, useAuth, useUser } from "@clerk/nextjs";
 import { useCustomerSession } from "@/context/CustomerSessionContext";
+export function ClerkDebug() {
+  const auth = useAuth();
+  const user = useUser();
 
+  console.log("CLERK AUTH:", auth);
+  console.log("CLERK USER:", user);
+
+  return null;
+}
 /* ─── Env-driven identity ────────────────────────────────────────────────
    Two names so the header can compress on narrow viewports. Short name
    falls back to the full name if no short is configured, so the swap
@@ -101,6 +109,9 @@ function AccountDropdown() {
     ? `Account menu — ${user?.firstName ?? user?.username ?? "signed in"}`
     : "Account menu";
 
+  
+  
+
   return (
     <div className="relative">
 
@@ -162,8 +173,8 @@ function AccountDropdown() {
 
             {!isSignedIn ? (
               <div className="flex flex-col pb-3">
-                <SignInButton mode="modal">
-                  <div
+                <SignInButton mode="redirect">
+                  <button
                     role="menuitem"
                     tabIndex={0}
                     onClick={() => setOpen(false)}
@@ -178,7 +189,7 @@ function AccountDropdown() {
                     <span className="ll-body text-xs font-light" style={{ color: "var(--on-surface-variant)" }}>
                       Access your basket, orders, and messages
                     </span>
-                  </div>
+                  </button>
                 </SignInButton>
               </div>
             ) : (

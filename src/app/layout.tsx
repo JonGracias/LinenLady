@@ -14,7 +14,13 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ClerkProvider>
+    <ClerkProvider
+      publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      signInUrl="https://accounts.noemithelinenlady.net/sign-in"
+      signUpUrl="https://accounts.noemithelinenlady.net/sign-up"
+      signInForceRedirectUrl="/"
+      signUpForceRedirectUrl="/"
+    >
       <html lang="en" suppressHydrationWarning>
         <body>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
