@@ -446,7 +446,7 @@ export default function StorefrontHeader() {
 
               <nav className="flex flex-col" aria-label="Account">
                 {!isSignedIn ? (
-                  <SignInButton mode="modal">
+                  <SignInButton mode="redirect">
                     <button
                       type="button"
                       onClick={close}
