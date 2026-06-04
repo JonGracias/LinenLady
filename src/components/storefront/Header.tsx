@@ -296,6 +296,9 @@ export default function StorefrontHeader() {
         <ClerkDebug />
         <div style={{ position: "fixed", top: 0, left: 0, zIndex: 99999, background: "red", color: "white" }}>
           HEADER VERSION TEST
+          <div style={{ position: "fixed", top: 120, left: 0, zIndex: 99999, background: "yellow" }}>
+            Clerk key: {process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "undefined"}
+          </div>
         </div>
       {/* Top bar — flex with justify-between gives us the two-group layout
           without a middle column. */}
