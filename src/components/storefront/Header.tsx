@@ -293,6 +293,7 @@ export default function StorefrontHeader() {
       className="glass relative z-50 border-b"
       style={{ borderColor: "rgba(196,181,168,0.2)" }}
     >
+        <ClerkDebug />
       {/* Top bar — flex with justify-between gives us the two-group layout
           without a middle column. */}
       <div className="mx-auto flex h-16 max-w-[1800px] items-center justify-between gap-4 px-6 md:px-12">
