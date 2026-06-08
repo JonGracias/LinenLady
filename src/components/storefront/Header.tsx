@@ -5,15 +5,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { SignInButton, SignOutButton, useAuth, useUser } from "@clerk/nextjs";
 import { useCustomerSession } from "@/context/CustomerSessionContext";
-export function ClerkDebug() {
-  const auth = useAuth();
-  const user = useUser();
 
-  console.log("CLERK AUTH:", auth);
-  console.log("CLERK USER:", user);
-
-  return null;
-}
 /* ─── Env-driven identity ────────────────────────────────────────────────
    Two names so the header can compress on narrow viewports. Short name
    falls back to the full name if no short is configured, so the swap

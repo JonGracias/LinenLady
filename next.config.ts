@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ['www.linenlady.net'],
+  allowedDevOrigins: ['dev.noemithelinenlady.net'],
 
 };
 
