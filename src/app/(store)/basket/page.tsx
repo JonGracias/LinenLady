@@ -85,9 +85,6 @@ export default function BasketPage() {
         </p>
       </div>
 
-      {/* Content area — same horizontal padding as /account so the basket
-          UI lays out identically whether the customer lands here directly
-          or used to land in /account?tab=basket. */}
       <div className="relative z-[1] px-16 py-12">
         <BasketTab />
       </div>
