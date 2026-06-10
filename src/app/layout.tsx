@@ -16,10 +16,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <ClerkProvider
       publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
-      signInUrl="https://accounts.noemithelinenlady.net/sign-in"
-      signUpUrl="https://accounts.noemithelinenlady.net/sign-up"
-      signInForceRedirectUrl="/"
-      signUpForceRedirectUrl="/"
+      signInUrl={`${process.env.NEXT_PUBLIC_CLERK_ACCOUNT_URL}/sign-in`}
+      signUpUrl={`${process.env.NEXT_PUBLIC_CLERK_ACCOUNT_URL}/sign-up`}
+      signInFallbackRedirectUrl="/"
+      signUpFallbackRedirectUrl="/"
     >
       <html lang="en" suppressHydrationWarning>
         <body>

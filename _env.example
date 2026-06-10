@@ -1,14 +1,27 @@
-# ─────────────────────────────────────────────────────────────────────────
-# Frontend env vars for the Contact feature
-# ─────────────────────────────────────────────────────────────────────────
-# Add to .env.local (dev) and to Azure Static Web App / Vercel project settings (prod).
+# -----------------------------------------------
+# Clerk Authentication
+# dashboard.clerk.com → your LinenLady app → API Keys
+# -----------------------------------------------
+# Clerk org ID that gets admin access
+# Clerk dashboard → Organizations → your org → copy ID (org_...)
+ADMIN_ORG_ID=
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+CLERK_SECRET_KEY=
+# Same value, used client-side in SitePhoto.tsx
+NEXT_PUBLIC_ADMIN_ORG_ID=
 
-# Where Next.js server-side proxy routes find LinenLady.API.
-# Local dev:    http://localhost:5152
-# Production:   https://<your-app-service>.azurewebsites.net
-LINENLADY_API_BASE_URL=http://localhost:5152
+# -----------------------------------------------
+# Store Identity (public — shown in UI)
+# -----------------------------------------------
+NEXT_PUBLIC_STORE_NAME=
+NEXT_PUBLIC_SHORT_NAME=
+NEXT_PUBLIC_ADMIN_NAME=
+NEXT_PUBLIC_CONTACT_EMAIL=
+NEXT_PUBLIC_BASE_URL=
+NEXT_PUBLIC_CF_IMAGE_ZONE=
 
-# Recipient address shown to the user in the success state and used as the
-# "to" for the secondary mailto fallback. The actual API send target lives
-# in the backend's Contact:RecipientEmail config — keep them in sync.
-NEXT_PUBLIC_CONTACT_EMAIL=noemi@linenlady.net
+# -----------------------------------------------
+# Backend API (C# Azure Functions)
+# Change if your backend runs on a different port
+# -----------------------------------------------
+LINENLADY_API_BASE_URL=
