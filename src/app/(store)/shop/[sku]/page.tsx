@@ -385,7 +385,7 @@ export default function ItemDetailPage() {
           setHint("Sorry, this piece is not currently available.");
           return;
         }
-        if (entry.state === "Sold" || entry.state === "Inactive") {
+        if (entry.state === "Reserved" || entry.state === "Inactive") {
           setHint("This piece is no longer available.");
           return;
         }
