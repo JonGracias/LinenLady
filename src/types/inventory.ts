@@ -222,7 +222,7 @@ export type SimilarItem = {
 export type AvailabilityState =
   | "InBasket"             // someone else's basket, 2-day timer
   | "PendingPayment"       // someone else mid-Square-checkout
-  | "Sold"                 // already purchased, never returns
+  | "Reserved"                 // already purchased, never returns
   | "Inactive"             // IsDeleted / IsDraft / IsActive=0, defensive
   | "YourBasket"           // *the caller* is holding it (JWT required)
   | "YourPendingPayment";  // *the caller* has a pending Square payment
@@ -257,5 +257,5 @@ export function isShownBlockedState(s: AvailabilityState): s is BlockedShownStat
 export function isHardHidden(s: AvailabilityState): boolean {
   // Sold and Inactive should never render. Filter them out of the list
   // entirely rather than rendering a disabled card.
-  return s === "Sold" || s === "Inactive";
+  return s === "Reserved" || s === "Inactive";
 }

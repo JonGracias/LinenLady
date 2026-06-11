@@ -41,13 +41,13 @@ function pillFor(state: AvailabilityState): PillSpec | null {
   switch (state) {
     case "InBasket":
       return {
-        label:      "Sold",
+        label:      "Reserved",
         background: "rgba(30,27,26,0.78)",
         color:      "rgba(253,250,246,0.92)",
       };
     case "PendingPayment":
       return {
-        label:      "Sold",
+        label:      "Reserved",
         background: "rgba(30,27,26,0.78)",
         color:      "rgba(253,250,246,0.92)",
       };
@@ -76,7 +76,7 @@ export default function DesktopItemCard({ item, thumbnailUrl }: Props) {
 
   // Defensive — these should be filtered out by StorefrontContext, but if
   // they slip through we render nothing rather than a broken card.
-  if (item.state === "Sold" || item.state === "Inactive") return null;
+  if (item.state === "Reserved" || item.state === "Inactive") return null;
 
   const state    = item.state;
   const pill     = state ? pillFor(state) : null;
@@ -112,7 +112,7 @@ export default function DesktopItemCard({ item, thumbnailUrl }: Props) {
 
     // Pre-flight by state — short-circuit before the network hop.
     if (isLockedByOther) {
-      setHint("Sorry, this piece has been sold.");
+      setHint("Sorry, this piece is not currently available.");
       return;
     }
     if (isYours) {
@@ -142,7 +142,7 @@ export default function DesktopItemCard({ item, thumbnailUrl }: Props) {
           } else if (result.reason === "held_by_other") {
             // Race: availability said available at grid-render time but
             // someone grabbed it in the window before this click landed.
-            setHint("Sorry, this piece has been sold.");
+            setHint("Sorry, this piece is not currently available.");
           } else if (result.reason === "needs_signin") {
             const here = window.location.pathname + window.location.search;
             router.push(`/sign-in?redirect_url=${encodeURIComponent(here)}`);

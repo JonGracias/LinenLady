@@ -293,7 +293,7 @@ export default function ItemDetailPage() {
   const isYourBasket          = availState === "YourBasket";
   const isYourPendingPayment  = availState === "YourPendingPayment";
   const isYours               = isYourBasket || isYourPendingPayment;
-  const isGone                = availState === "Sold" || availState === "Inactive";
+  const isGone                = availState === "Reserved" || availState === "Inactive";
 
   /* ── Fetch item by SKU, then check availability ── */
   const fetchItem = useCallback(async () => {
@@ -360,7 +360,7 @@ export default function ItemDetailPage() {
     // is InBasket or PendingPayment — customers don't care about the
     // distinction; they just want to know if they can buy it.
     if (isLockedByOther) {
-      setHint("Sorry, this piece has been sold.");
+      setHint("Sorry, this piece is not currently available.");
       return;
     }
 
@@ -382,7 +382,7 @@ export default function ItemDetailPage() {
       if (entry) {
         setAvailState(entry.state);
         if (entry.state === "InBasket" || entry.state === "PendingPayment") {
-          setHint("Sorry, this piece has been sold.");
+          setHint("Sorry, this piece is not currently available.");
           return;
         }
         if (entry.state === "Sold" || entry.state === "Inactive") {
@@ -415,7 +415,7 @@ export default function ItemDetailPage() {
         } else if (result.reason === "held_by_other") {
           // Lost the race even after the pre-flight — re-sync state so the
           // pill updates and the button disables.
-          setHint("Sorry, this piece has been sold.");
+          setHint("Sorry, this piece is not currently available.");
           const re = await checkAvailability([item.inventoryId]);
           const reEntry = re.find((e) => e.inventoryId === item.inventoryId);
           setAvailState(reEntry ? reEntry.state : null);
@@ -536,9 +536,6 @@ export default function ItemDetailPage() {
                   One of a Kind
                 </span>
 
-                {/* Availability badge — InBasket and PendingPayment both
-                    surface as a prominent "Sold" pill, since the customer
-                    has no actionable difference between them. */}
                 {isLockedByOther && (
                   <span
                     className="ll-label px-4 py-1.5 text-[0.72rem] font-medium uppercase tracking-[0.18em]"
@@ -548,7 +545,7 @@ export default function ItemDetailPage() {
                       borderRadius: "0.25rem",
                     }}
                   >
-                    Sold
+                    Reserved
                   </span>
                 )}
                 {(availState === "YourBasket" || isYourPendingPayment) && (
