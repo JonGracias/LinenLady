@@ -1,6 +1,7 @@
 // src/app/admin/messages/page.tsx
 "use client";
 
+import { authedFetch } from "@/lib/request";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useAuth } from "@clerk/nextjs";
 import type { ConversationSummaryDto, MessageDto } from "@/types/customer";
@@ -58,7 +59,7 @@ export default function AdminMessagesPage() {
 
   const adminFetch = useCallback(async (path: string, opts?: RequestInit) => {
     const token = await getToken();
-    return fetch(`/admin/api${path}`, {
+    return authedFetch(`/admin/api${path}`, {
       ...opts,
       headers: {
         "Content-Type": "application/json",

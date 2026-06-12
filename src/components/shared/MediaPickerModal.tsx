@@ -1,6 +1,7 @@
 // src/components/shared/MediaPickerModal.tsx
 "use client";
 
+import { authedFetch } from "@/lib/request";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
 export type SiteMediaItem = {
@@ -27,7 +28,7 @@ export function MediaPickerModal({ open, onClose, onSelect, title = "Pick a phot
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res  = await fetch("/admin/api/site/media");
+      const res  = await authedFetch("/admin/api/site/media");
       const data = res.ok ? await res.json() : [];
       setItems(Array.isArray(data) ? data : []);
     } catch {

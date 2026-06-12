@@ -8,8 +8,16 @@ import { ClerkProvider } from '@clerk/nextjs'
 
 
 export const metadata: Metadata = {
-  title: process.env.NEXT_PUBLIC_STORE_NAME,
-  description: "Inventory management system",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://noemithelinenlady.net"),
+  title: { default: "The Linen Lady — Antique & Vintage Linens", template: "%s | The Linen Lady" },
+  description: "Curated antique and vintage linens from Noemi, serving collectors since 1994.",
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    siteName: "The Linen Lady",
+    images: ["/og-default.jpg"], // 1200×630, drop in /public
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

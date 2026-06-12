@@ -1,6 +1,7 @@
 // src/components/admin/Drafts.tsx
 "use client";
 
+import { authedFetch } from "@/lib/request";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -43,7 +44,7 @@ export default function Draft({ inventoryId }: DraftProps) {
       setItemLoading(true);
       setItemError(null);
       try {
-        const res = await fetch(`/admin/api/items/${inventoryId}`, { cache: "no-store" });
+        const res = await authedFetch(`/admin/api/items/${inventoryId}`, { cache: "no-store" });
         if (!res.ok) throw new Error(await res.text() || `Failed (${res.status})`);
         const data = await res.json() as InventoryItem;
         if (!cancelled) setItem(data);
@@ -65,7 +66,7 @@ export default function Draft({ inventoryId }: DraftProps) {
 
     async function loadImages() {
       try {
-        const res = await fetch(`/admin/api/items/${inventoryId}/images?ttlMinutes=60`);
+        const res = await authedFetch(`/admin/api/items/${inventoryId}/images?ttlMinutes=60`);
         if (!res.ok) return;
         const data = await res.json() as InventoryImage[];
         if (!cancelled) {
@@ -84,7 +85,7 @@ export default function Draft({ inventoryId }: DraftProps) {
   /* ── PATCH helper ── */
   const patchItem = useCallback(async (body: Record<string, unknown>) => {
     try {
-      const res = await fetch(`/admin/api/items/${inventoryId}`, {
+      const res = await authedFetch(`/admin/api/items/${inventoryId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -118,7 +119,7 @@ export default function Draft({ inventoryId }: DraftProps) {
     if (!item) return;
     setDeleting(true);
     try {
-      const res = await fetch(`/admin/api/items/${inventoryId}`, { method: "DELETE" });
+      const res = await authedFetch(`/admin/api/items/${inventoryId}`, { method: "DELETE" });
       if (!res.ok) throw new Error(await res.text() || `Delete failed (${res.status})`);
       router.push("/admin/items");
       router.refresh();
@@ -137,7 +138,7 @@ export default function Draft({ inventoryId }: DraftProps) {
     if (settingPrimary !== null || imageId === primaryImageId) return;
     setSettingPrimary(imageId);
     try {
-      const res = await fetch(`/admin/api/items/${inventoryId}/images/${imageId}/primary`, { method: "PATCH" });
+      const res = await authedFetch(`/admin/api/items/${inventoryId}/images/${imageId}/primary`, { method: "PATCH" });
       if (!res.ok) return;
       setImages((prev) => prev.map((img) => ({ ...img, isPrimary: img.imageId === imageId })));
     } catch { /* non-fatal */ }
@@ -171,7 +172,7 @@ export default function Draft({ inventoryId }: DraftProps) {
       const formData = new FormData();
       for (const file of Array.from(files)) formData.append("file", file);
 
-      const res = await fetch(`/admin/api/items/${inventoryId}/images/add`, {
+      const res = await authedFetch(`/admin/api/items/${inventoryId}/images/add`, {
         method: "POST",
         body: formData,
       });
@@ -192,7 +193,7 @@ export default function Draft({ inventoryId }: DraftProps) {
   /* ── Delete image ── */
   const handleDeleteImage = useCallback(async (imageId: number) => {
     try {
-      const res = await fetch(`/admin/api/items/${inventoryId}/images/${imageId}`, { method: "DELETE" });
+      const res = await authedFetch(`/admin/api/items/${inventoryId}/images/${imageId}`, { method: "DELETE" });
       if (!res.ok) throw new Error(await res.text().catch(() => "") || `Delete failed (${res.status})`);
       setImages((prev) => {
         const next = prev.filter((img) => img.imageId !== imageId);

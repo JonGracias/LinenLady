@@ -1,6 +1,7 @@
 // src/components/admin/AiMetaPanel.tsx
 "use client";
 
+import { authedFetch } from "@/lib/request";
 import { useCallback, useEffect, useState } from "react";
 import { ManualEditModal } from "@/components/admin/modals/ManualEditModal";
 import { useItemAi } from "@/context/ItemAiContext";
@@ -87,7 +88,7 @@ export default function AiMetaPanel({
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`/admin/api/items/${inventoryId}/ai-meta`, { cache: "no-store" });
+        const res = await authedFetch(`/admin/api/items/${inventoryId}/ai-meta`, { cache: "no-store" });
         if (!res.ok) throw new Error(`Failed (${res.status})`);
         const data = await res.json() as AiMeta;
         if (!cancelled) setMeta(data);
@@ -125,7 +126,7 @@ export default function AiMetaPanel({
         .filter((f) => activeFields.has(f));
 
       if (rewriteFields.length > 0) {
-        const res = await fetch(`/admin/api/items/${inventoryId}`, {
+        const res = await authedFetch(`/admin/api/items/${inventoryId}`, {
           method:  "PATCH",
           headers: { "Content-Type": "application/json" },
           body:    JSON.stringify({
@@ -146,14 +147,14 @@ export default function AiMetaPanel({
       }
 
       if (activeFields.has("keywords")) {
-        const kwRes = await fetch(`/admin/api/items/${inventoryId}/keywords/generate`, {
+        const kwRes = await authedFetch(`/admin/api/items/${inventoryId}/keywords/generate`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ hint: aiHint.trim() || undefined }),
           cache: "no-store",
         });
         if (kwRes.ok) {
-          const metaRes = await fetch(`/admin/api/items/${inventoryId}/ai-meta`, { cache: "no-store" });
+          const metaRes = await authedFetch(`/admin/api/items/${inventoryId}/ai-meta`, { cache: "no-store" });
           if (metaRes.ok) {
             const freshMeta = await metaRes.json() as AiMeta;
             setMeta(freshMeta);

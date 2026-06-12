@@ -1,4 +1,5 @@
 // /lib/createDraft.ts
+import { authedFetch } from "@/lib/request";
 
 import type {
   CreateDraftRequest,
@@ -27,7 +28,7 @@ function getFiles(form: FormData, key: string): File[] {
 }
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
-  const res = await fetch(url, {
+  const res = await authedFetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     cache: "no-store",
@@ -43,7 +44,7 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
 }
 
 async function postForm<T>(url: string, form: FormData): Promise<T> {
-  const res = await fetch(url, {
+  const res = await authedFetch(url, {
     method: "POST",
     cache: "no-store",
     body: form,

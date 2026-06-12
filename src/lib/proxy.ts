@@ -3,11 +3,22 @@
 // Server-side proxy utility — used by all Next.js API routes to forward
 // requests to the C# backend (LinenLady.API).
 //
-// Auth model: each proxy call mints a fresh Clerk session token server-side
-// via auth().getToken() and forwards it as Authorization: Bearer. The C# API
-// validates the JWT against Clerk's JWKS (see Program.cs). Minting server-side
-// avoids trusting any client-supplied Authorization header and keeps token
-// handling out of the browser's fetch calls.
+// Auth model: prefer a client-forwarded Authorization: Bearer header, fall
+// back to minting a token server-side via auth().getToken().
+//
+// Why the passthrough exists: Clerk session JWTs live 60 seconds. When a
+// fetch fires after the tab has idled (sleep, background, lunch), the
+// __session cookie holds an EXPIRED JWT. Page navigations recover via
+// Clerk's handshake redirect; fetch/XHR cannot — and server-side
+// auth().getToken() cannot refresh from an expired cookie, it just returns
+// null. Only client-side clerk-js can refresh (it holds the long-lived
+// client session), so src/lib/request.ts attaches a fresh token per call
+// and we forward it.
+//
+// Forwarding a client-supplied token extends no trust: the C# API validates
+// every JWT's signature, issuer, and expiry against Clerk's JWKS
+// (see Program.cs). The proxy is a courier, not an authority — a forged or
+// stale header fails validation upstream exactly as it would here.
 
 import { auth } from "@clerk/nextjs/server";
 
@@ -25,11 +36,18 @@ export class HttpError extends Error {
 }
 
 // ---------------------------------------------------------------------------
-// Auth hook — mints a fresh Clerk session token for the current request.
+// Auth hook — prefers the client's forwarded Bearer header (fresh by
+// construction: request.ts mints it via clerk-js immediately before the
+// call), otherwise mints a token server-side from the session cookie.
 // Returns an empty object for unauthenticated requests so public endpoints
 // (items list, hero, etc.) still function without a token.
 // ---------------------------------------------------------------------------
-async function getAuthHeaders(): Promise<Record<string, string>> {
+async function getAuthHeaders(req?: Request): Promise<Record<string, string>> {
+  const forwarded = req?.headers.get("authorization");
+  if (forwarded?.toLowerCase().startsWith("bearer ")) {
+    return { Authorization: forwarded };
+  }
+
   const { getToken } = await auth();
   const token = await getToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -42,13 +60,20 @@ export type ProxyOptions = {
   method?: string;
   body?: BodyInit | null;
   headers?: Record<string, string>;
+  /**
+   * The inbound Next.js request. When provided, its Authorization header
+   * (if any) is forwarded upstream in preference to server-minting a token.
+   * proxyJson passes this automatically; direct proxyFetch callers should
+   * pass their `req` too so authed clients survive an expired cookie.
+   */
+  req?: Request;
 };
 
 export async function proxyFetch(
   path: string,
-  { method = "GET", body, headers = {} }: ProxyOptions = {}
+  { method = "GET", body, headers = {}, req }: ProxyOptions = {}
 ): Promise<Response> {
-  const authHeaders = await getAuthHeaders();
+  const authHeaders = await getAuthHeaders(req);
   const finalHeaders: Record<string, string> = { ...authHeaders, ...headers };
 
   // Only auto-set application/json when:
@@ -173,7 +198,7 @@ export function proxyJson<P = Record<string, string>>(opts: ProxyJsonOptions<P>)
       const params = await ctx.params;
       const upstreamPath = path(params, req);
       const body = passBody ? await req.text() : undefined;
-      const upstream = await proxyFetch(upstreamPath, { method, body });
+      const upstream = await proxyFetch(upstreamPath, { method, body, req });
       return forward(upstream);
     } catch (err) {
       return serverError(err);

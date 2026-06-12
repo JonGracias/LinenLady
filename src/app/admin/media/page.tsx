@@ -1,6 +1,7 @@
 // src/app/admin/media/page.tsx
 "use client";
 
+import { authedFetch } from "@/lib/request";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ImageEditorModal } from "@/components/shared/ImageEditorModal";
 
@@ -28,7 +29,7 @@ export default function AdminMediaPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res  = await fetch("/admin/api/site/media");
+      const res  = await authedFetch("/admin/api/site/media");
       const data = res.ok ? await res.json() : [];
       setItems(Array.isArray(data) ? data : []);
     } catch {
@@ -54,7 +55,7 @@ export default function AdminMediaPage() {
   };
 
   const uploadBlob = async (blob: Blob, name: string, fileName: string, contentType: string) => {
-    const createRes = await fetch("/admin/api/site/media", {
+    const createRes = await authedFetch("/admin/api/site/media", {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -97,7 +98,7 @@ export default function AdminMediaPage() {
     if (!confirm("Delete this photo? This cannot be undone.")) return;
     setDeleting(id);
     try {
-      await fetch(`/admin/api/site/media/${id}`, { method: "DELETE" });
+      await authedFetch(`/admin/api/site/media/${id}`, { method: "DELETE" });
       setItems((prev) => prev.filter((m) => m.mediaId !== id));
     } finally {
       setDeleting(null);

@@ -1,6 +1,7 @@
 // src/app/admin/hero/page.tsx
 "use client";
 
+import { authedFetch } from "@/lib/request";
 import React, { useCallback, useEffect, useState } from "react";
 import { MediaPickerModal, type SiteMediaItem } from "@/components/shared/MediaPickerModal";
 import { CropModal } from "@/components/shared/CropModal";
@@ -44,7 +45,7 @@ export default function AdminHeroPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res  = await fetch("/admin/api/site/hero");
+      const res  = await authedFetch("/admin/api/site/hero");
       const data = res.ok ? await res.json() : [];
       setSlides(Array.isArray(data) ? data : []);
     } catch {
@@ -102,12 +103,12 @@ export default function AdminHeroPage() {
 
   const handleDelete = async (id: number) => {
     if (!confirm("Delete this slide?")) return;
-    await fetch(`/admin/api/site/hero/${id}`, { method: "DELETE" });
+    await authedFetch(`/admin/api/site/hero/${id}`, { method: "DELETE" });
     await load();
   };
 
   const handleToggleActive = async (slide: HeroSlide) => {
-    await fetch(`/admin/api/site/hero/${slide.slideId}`, {
+    await authedFetch(`/admin/api/site/hero/${slide.slideId}`, {
       method:  "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...slide, isActive: !slide.isActive }),
@@ -121,7 +122,7 @@ export default function AdminHeroPage() {
     if (target < 0 || target >= newSlides.length) return;
     [newSlides[index], newSlides[target]] = [newSlides[target], newSlides[index]];
     const reorder = newSlides.map((s, i) => ({ slideId: s.slideId, sortOrder: (i + 1) * 10 }));
-    await fetch("/admin/api/site/hero/reorder", {
+    await authedFetch("/admin/api/site/hero/reorder", {
       method:  "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ slides: reorder }),
@@ -149,7 +150,7 @@ export default function AdminHeroPage() {
     setError(null);
 
     try {
-      const createRes = await fetch("/admin/api/site/media", {
+      const createRes = await authedFetch("/admin/api/site/media", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

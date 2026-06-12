@@ -1,6 +1,14 @@
 // src/app/(store)/shop/page.tsx
 import ShopPageInner from "@/components/storefront/ShopPageInner";
+import { Metadata } from "next";
 import { Suspense } from "react";
+
+export const metadata: Metadata = {
+title: "The Collection",
+description:
+  "Browse one-of-a-kind antique and vintage linens — every piece hand-selected by Noemi, The Linen Lady.",
+alternates: { canonical: "/shop" },
+};
 
 export default function ShopPage() {
   return (
