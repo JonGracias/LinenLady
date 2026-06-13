@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import type { ItemDetail, InventoryImage } from "@/types/inventory";
 import ItemDetailClient from "./ItemDetailClient";
 
-const API  = process.env.API_BASE_URL!;        // absolute App Service URL — see note below
+const API  = process.env.LINENLADY_API_BASE_URL!;        // absolute App Service URL — see note below
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://noemithelinenlady.net";
 
 async function getItem(sku: string): Promise<ItemDetail | null> {
