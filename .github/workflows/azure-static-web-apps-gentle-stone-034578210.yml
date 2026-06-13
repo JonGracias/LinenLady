@@ -27,6 +27,7 @@ jobs:
           NEXT_PUBLIC_STORE_NAME: Noemi The Linen Lady
           NEXT_PUBLIC_ADMIN_NAME: Admin
           NEXT_PUBLIC_CONTACT_EMAIL: oldworldlinens@icloud.com
+          NEXT_PUBLIC_CLERK_ACCOUNT_URL: https://accounts.noemithelinenlady.net
           LINENLADY_API_BASE_URL: https://www.noemithelinenlady.net
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_GENTLE_STONE_034578210 }}
