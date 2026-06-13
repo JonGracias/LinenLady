@@ -35,6 +35,7 @@
 import Link from "next/link";
 import type { ReservationDto } from "@/types/customer";
 import { formatPrice } from "@/lib/utils"
+import { cfImage, cfSrcSet } from "@/lib/images";
 
 type Props = {
   expired:           ReservationDto[];
@@ -48,6 +49,9 @@ type Props = {
   inPendingPayment:  Set<number>;
   busyId:            number | null;
   onReAdd:           (reservationId: number) => void;
+  /** Resolves a live thumbnail by inventory id from the shared cache.
+      Returns null until the parent's ensureThumbnail() has fetched it. */
+  getThumbnailUrl:   (inventoryId: number) => string | null;
 };
 
 export default function ExpiredReservations({
@@ -56,6 +60,7 @@ export default function ExpiredReservations({
   inPendingPayment,
   busyId,
   onReAdd,
+  getThumbnailUrl,
 }: Props) {
   if (expired.length === 0) {
     return (
@@ -120,16 +125,30 @@ export default function ExpiredReservations({
                 opacity,
               }}
             >
-              {/* Thumb */}
-              <div
-                className="shrink-0 overflow-hidden"
-                style={{ width: 48, height: 48, borderRadius: "0.2rem", background: "var(--cream-dark)" }}
-              >
-                {r.thumbnailUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={r.thumbnailUrl} alt={r.itemName ?? ""} className="h-full w-full object-cover" />
-                ) : null}
-              </div>
+              {/* Thumb — live-resolved from the shared cache, with the
+                  (always-null) DTO field only as a last-resort fallback. */}
+              {(() => {
+                const thumb = getThumbnailUrl(r.inventoryId) ?? r.thumbnailUrl;
+                return (
+                  <div
+                    className="shrink-0 overflow-hidden"
+                    style={{ width: 48, height: 48, borderRadius: "0.2rem", background: "var(--cream-dark)" }}
+                  >
+                    {thumb ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={cfImage(thumb, { width: 96 })}
+                        srcSet={cfSrcSet(thumb, [48, 96, 144])}
+                        sizes="48px"
+                        alt={r.itemName ?? ""}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    ) : null}
+                  </div>
+                );
+              })()}
 
               {/* Body */}
               <div className="flex-1 min-w-0">

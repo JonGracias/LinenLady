@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { OrderDto, OrderStatus } from "@/types/customer";
 import { useCustomerSession } from "@/context/CustomerSessionContext";
+import { cfImage, cfSrcSet } from "@/lib/images";
 
 /* ─────────────────────────────────────────────────────────────
    Helpers
@@ -147,9 +148,15 @@ function CancelOrderButton({
 type OrdersTabProps = {
   orders:     OrderDto[];
   highlight?: number | null;   // ?placed=N from checkout redirect
+  /** Resolves a live thumbnail by inventory id from the shared cache.
+      Returns null until the parent's ensureThumbnail() has fetched it.
+      Order line items carry a null thumbnailUrl from the API (the SQL
+      ThumbnailUrl column is a NULL placeholder), so this is the only
+      way order rows get an image. */
+  getThumbnailUrl: (inventoryId: number) => string | null;
 };
 
-export default function OrdersTab({ orders, highlight }: OrdersTabProps) {
+export default function OrdersTab({ orders, highlight, getThumbnailUrl }: OrdersTabProps) {
 
   // Expanded-row state — starts with the highlighted order open if present,
   // otherwise the most recent. Customers usually want to see the most recent
@@ -264,15 +271,25 @@ export default function OrdersTab({ orders, highlight }: OrdersTabProps) {
                       Pieces
                     </p>
                     <ul className="flex flex-col gap-3">
-                      {order.items.map(item => (
+                      {order.items.map(item => {
+                        const thumb = getThumbnailUrl(item.inventoryId) ?? item.thumbnailUrl;
+                        return (
                         <li key={item.orderItemId} className="flex items-center gap-3">
                           <div
                             className="shrink-0 overflow-hidden"
                             style={{ width: 48, height: 48, borderRadius: "0.2rem", background: "var(--cream)" }}
                           >
-                            {item.thumbnailUrl ? (
+                            {thumb ? (
                               // eslint-disable-next-line @next/next/no-img-element
-                              <img src={item.thumbnailUrl} alt={item.itemName} className="h-full w-full object-cover" />
+                              <img
+                                src={cfImage(thumb, { width: 96 })}
+                                srcSet={cfSrcSet(thumb, [48, 96, 144])}
+                                sizes="48px"
+                                alt={item.itemName}
+                                className="h-full w-full object-cover"
+                                loading="lazy"
+                                decoding="async"
+                              />
                             ) : null}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -289,7 +306,8 @@ export default function OrdersTab({ orders, highlight }: OrdersTabProps) {
                             {formatPrice(item.unitPriceCents)}
                           </span>
                         </li>
-                      ))}
+                        );
+                      })}
                     </ul>
                   </div>
 

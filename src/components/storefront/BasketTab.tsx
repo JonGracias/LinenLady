@@ -56,9 +56,15 @@ export default function BasketTab() {
     [reservations]
   );
 
+  // Prefetch thumbnails for every surface that renders one — active and
+  // expired reservations plus all order line items. Previously this only
+  // covered `active`, which is why ExpiredReservations and OrdersTab fell
+  // back to the (always-null) DTO thumbnailUrl and showed blank boxes.
   useEffect(() => {
     active.forEach(r => ensureThumbnail(r.inventoryId));
-  }, [active, ensureThumbnail]);
+    expired.forEach(r => ensureThumbnail(r.inventoryId));
+    orders.forEach(o => o.items.forEach(i => ensureThumbnail(i.inventoryId)));
+  }, [active, expired, orders, ensureThumbnail]);
 
   const inActiveBasketByInventoryId = useMemo(
     () => new Set(active.map(r => r.inventoryId)),
@@ -261,9 +267,10 @@ export default function BasketTab() {
             inPendingPayment={inPendingPaymentByInventoryId}
             busyId={busyId}
             onReAdd={reAddItem}
+            getThumbnailUrl={getThumbnailUrl}
           />
         ) : (
-          <OrdersTab orders={orders} highlight={placedOrderId} />
+          <OrdersTab orders={orders} highlight={placedOrderId} getThumbnailUrl={getThumbnailUrl} />
         )}
       </div>
 
