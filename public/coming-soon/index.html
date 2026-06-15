@@ -1,0 +1,723 @@
+<!--
+  The Linen Lady — Coming Soon
+  -------------------------------------------------------------------
+  Self-contained holding page. No store access — links into /shop are
+  intentionally absent so the catalog can't be used before launch.
+
+  Built on the site's Heritage & Tactility tokens (copied from
+  globals.css) so it matches noemithelinenlady.net exactly.
+
+  STANDALONE FOLDER — drop the whole /coming-soon/ folder into public/.
+  No app coupling, no external requests. Served at /coming-soon/.
+    coming-soon/
+      index.html      <- this file
+      fonts/          <- self-hosted woff2 (Noto Serif, Cormorant, Work Sans)
+      (your photos)   <- e.g. linens.jpg, lace.jpg ...
+  Delete the folder to remove the holding page entirely.
+
+  SWAP IN REAL PHOTOS:
+  Drop images into this same folder, then in a gallery tile (each is
+  labelled "TILE: name") replace the inner svg element with an img, e.g.
+  an img with src="./linens.jpg" and alt="Antique linen".
+  The .tile-art frame already crops/centres any image (object-fit: cover).
+
+  LAUNCH DATE: set in the LAUNCH constant near the bottom (currently
+  2026-06-19 00:00 local).
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Opening Soon | The Linen Lady</title>
+<meta name="description" content="The Linen Lady — antique & vintage linens from Noemi. The historical collectibles open Friday, June 19, 2026." />
+<meta name="robots" content="noindex" />
+<meta property="og:title" content="The Linen Lady — Opening Soon" />
+<meta property="og:description" content="Heavenly fabric, first. Antique & vintage linen opens Friday, June 19." />
+<meta property="og:type" content="website" />
+<style>
+  /* ── Self-hosted fonts (standalone — no external requests) ────────── */
+  @font-face{font-family:'Noto Serif';font-style:normal;font-weight:400;font-display:swap;src:url('./fonts/noto-serif-latin-400-normal.woff2') format('woff2');}
+  @font-face{font-family:'Noto Serif';font-style:normal;font-weight:500;font-display:swap;src:url('./fonts/noto-serif-latin-500-normal.woff2') format('woff2');}
+  @font-face{font-family:'Cormorant Garamond';font-style:italic;font-weight:300;font-display:swap;src:url('./fonts/cormorant-garamond-latin-300-italic.woff2') format('woff2');}
+  @font-face{font-family:'Cormorant Garamond';font-style:italic;font-weight:400;font-display:swap;src:url('./fonts/cormorant-garamond-latin-400-italic.woff2') format('woff2');}
+  @font-face{font-family:'Work Sans';font-style:normal;font-weight:300;font-display:swap;src:url('./fonts/work-sans-latin-300-normal.woff2') format('woff2');}
+  @font-face{font-family:'Work Sans';font-style:normal;font-weight:400;font-display:swap;src:url('./fonts/work-sans-latin-400-normal.woff2') format('woff2');}
+  @font-face{font-family:'Work Sans';font-style:normal;font-weight:500;font-display:swap;src:url('./fonts/work-sans-latin-500-normal.woff2') format('woff2');}
+
+  /* ── Heritage & Tactility tokens (from globals.css) ───────────────── */
+  :root {
+    --primary:                  #804e4f;
+    --primary-container:        #f2dada;
+    --on-primary:               #ffffff;
+    --on-primary-container:     #3b1415;
+
+    --surface-bright:           #fdfaf6;
+    --surface:                  #f7f2eb;
+    --surface-container-low:    #f0e9df;
+    --surface-container:        #e8ddd0;
+    --surface-container-high:   #ddd0bf;
+    --surface-container-highest:#d0c0aa;
+
+    --on-surface:               #1e1b1a;
+    --on-surface-variant:       #4a3f38;
+    --outline:                  #8a7a70;
+    --outline-variant:          #c4b5a8;
+
+    --rose:                     #d4a0a0;
+    --sage:                     #8fad94;
+    --sage-deep:                #4a6e50;
+
+    --display: 'Noto Serif', serif;          /* heritage voice  */
+    --editorial: 'Cormorant Garamond', serif;/* pull-quote voice*/
+    --label: 'Work Sans', sans-serif;        /* functional voice*/
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scrollbar-gutter: stable both-edges; }
+
+  body {
+    margin: 0;
+    background: var(--surface);
+    color: var(--on-surface);
+    font-family: var(--label);
+    font-weight: 300;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* subtle linen grain (ll-texture-overlay) */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='4' height='4' fill='none'/%3E%3Ccircle cx='1' cy='1' r='0.5' fill='%23804e4f' opacity='0.05'/%3E%3Ccircle cx='3' cy='3' r='0.5' fill='%238fad94' opacity='0.05'/%3E%3C/svg%3E");
+  }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 1.5rem; }
+
+  /* ── Eyebrow / curator chip ───────────────────────────────────────── */
+  .eyebrow {
+    font-family: var(--label);
+    font-size: 0.62rem;
+    font-weight: 500;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--primary);
+  }
+  .curator-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.7rem;
+    background: var(--surface-container-low);
+    font-family: var(--label);
+    font-size: 0.56rem;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--on-surface-variant);
+    border-radius: 0.125rem;
+  }
+
+  /* ── Hero ─────────────────────────────────────────────────────────── */
+  .hero {
+    position: relative;
+    min-height: 100svh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 4.5rem 1.5rem 3rem;
+    overflow: hidden;
+  }
+  /* faint embroidery rings behind the hero */
+  .hero::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Ccircle cx='60' cy='60' r='54' fill='none' stroke='%238fad94' stroke-width='0.5' stroke-dasharray='4 3' opacity='0.18'/%3E%3Ccircle cx='60' cy='60' r='34' fill='none' stroke='%23804e4f' stroke-width='0.5' opacity='0.12'/%3E%3C/svg%3E");
+    background-size: 120px 120px;
+    pointer-events: none;
+    -webkit-mask-image: radial-gradient(ellipse at center, #000 10%, transparent 72%);
+    mask-image: radial-gradient(ellipse at center, #000 10%, transparent 72%);
+  }
+  .hero > * { position: relative; z-index: 1; }
+
+  .brand {
+    font-family: var(--display);
+    font-weight: 400;
+    font-size: 0.95rem;
+    letter-spacing: 0.05em;
+    color: var(--on-surface-variant);
+    margin: 0 0 1.6rem;
+  }
+  .brand span { color: var(--primary); }
+
+  .hero h1 {
+    font-family: var(--display);
+    font-weight: 400;
+    line-height: 1.04;
+    letter-spacing: -0.01em;
+    font-size: clamp(2.6rem, 8.5vw, 6rem);
+    margin: 0.4rem 0 0;
+    color: var(--on-surface);
+  }
+  .hero h1 em {
+    font-style: italic;
+    color: var(--primary);
+  }
+
+  .lede {
+    font-family: var(--editorial);
+    font-weight: 300;
+    font-style: italic;
+    font-size: clamp(1.25rem, 3.2vw, 1.9rem);
+    line-height: 1.35;
+    color: var(--on-surface-variant);
+    max-width: 38ch;
+    margin: 1.5rem auto 0;
+  }
+
+  /* ── Running-stitch divider (signature motif) ─────────────────────── */
+  .stitch {
+    width: min(420px, 80%);
+    height: 14px;
+    margin: 2.2rem auto;
+    display: block;
+  }
+
+  /* ── Date plate / countdown ───────────────────────────────────────── */
+  .plate {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 1.5rem 2.4rem 1.7rem;
+    background: var(--surface-bright);
+    border: 1px solid rgba(196, 181, 168, 0.4);
+    border-radius: 0.5rem;
+    box-shadow: 0 16px 64px 0 rgba(30, 27, 26, 0.06);
+  }
+  .plate .opening {
+    font-family: var(--label);
+    font-size: 0.6rem;
+    font-weight: 500;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    color: var(--on-surface-variant);
+  }
+  .plate .date {
+    font-family: var(--display);
+    font-weight: 500;
+    font-size: clamp(1.5rem, 4.5vw, 2.2rem);
+    letter-spacing: -0.01em;
+    color: var(--on-surface);
+    line-height: 1.1;
+  }
+  .plate .holiday {
+    font-family: var(--editorial);
+    font-style: italic;
+    font-size: 1.05rem;
+    color: var(--primary);
+  }
+
+  .countdown {
+    display: flex;
+    gap: 0.4rem;
+    margin-top: 0.7rem;
+    list-style: none;
+    padding: 0;
+  }
+  .countdown li {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 3.4rem;
+    padding: 0.6rem 0.4rem;
+    background: var(--surface-container-low);
+    border-radius: 0.25rem;
+  }
+  .countdown .num {
+    font-family: var(--display);
+    font-weight: 500;
+    font-size: 1.7rem;
+    line-height: 1;
+    color: var(--on-surface);
+    font-variant-numeric: tabular-nums;
+  }
+  .countdown .unit {
+    font-family: var(--label);
+    font-size: 0.5rem;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--on-surface-variant);
+    margin-top: 0.35rem;
+  }
+  .open-now {
+    display: none;
+    font-family: var(--editorial);
+    font-style: italic;
+    font-size: 1.2rem;
+    color: var(--sage-deep);
+    margin-top: 0.6rem;
+  }
+
+  .sub {
+    font-family: var(--label);
+    font-weight: 300;
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: var(--on-surface-variant);
+    max-width: 46ch;
+    margin: 2.2rem auto 0;
+  }
+
+  /* ── Gallery ──────────────────────────────────────────────────────── */
+  .gallery {
+    padding: 4.5rem 0 5rem;
+    border-top: 1px solid rgba(196, 181, 168, 0.25);
+    background: var(--surface);
+  }
+  .gallery-head { text-align: center; margin-bottom: 2.8rem; }
+  .gallery-head h2 {
+    font-family: var(--display);
+    font-weight: 400;
+    font-size: clamp(1.6rem, 4vw, 2.4rem);
+    letter-spacing: -0.01em;
+    margin: 0.5rem 0 0;
+    color: var(--on-surface);
+  }
+  .gallery-head h2 em { font-style: italic; color: var(--primary); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+  @media (min-width: 720px) {
+    .grid { grid-template-columns: repeat(4, 1fr); gap: 1.25rem; }
+  }
+
+  .tile {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  .tile.in { animation: fadeUp 0.7s ease forwards; }
+
+  .tile-art {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    background: var(--surface-container-low);
+    border-radius: 0.375rem;
+    overflow: hidden;
+    box-shadow: 0 8px 48px 0 rgba(30, 27, 26, 0.04);
+  }
+  .tile-art svg, .tile-art img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .tile-art .chip {
+    position: absolute;
+    top: 0.6rem; left: 0.6rem;
+  }
+  .tile-meta {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 0.7rem 0.15rem 0;
+  }
+  .tile-meta .name {
+    font-family: var(--display);
+    font-weight: 400;
+    font-size: 1rem;
+    color: var(--on-surface);
+  }
+  .tile-meta .n {
+    font-family: var(--label);
+    font-size: 0.58rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--on-surface-variant);
+  }
+
+  /* feature tile spans wider on desktop */
+  @media (min-width: 720px) {
+    .tile.feature { grid-column: span 2; grid-row: span 2; }
+    .tile.feature .tile-meta .name { font-size: 1.5rem; }
+  }
+
+  /* ── Footer ───────────────────────────────────────────────────────── */
+  footer {
+    text-align: center;
+    padding: 3rem 1.5rem 3.5rem;
+    border-top: 1px solid rgba(196, 181, 168, 0.25);
+    background: var(--surface-container-low);
+  }
+  .notify-line {
+    font-family: var(--editorial);
+    font-style: italic;
+    font-size: 1.15rem;
+    color: var(--on-surface-variant);
+    margin: 0 0 1.1rem;
+  }
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 2rem;
+    background: var(--primary);
+    color: var(--on-primary);
+    font-family: var(--label);
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    border-radius: 0.375rem;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    transition: transform 400ms ease, background 400ms ease;
+  }
+  .btn-primary:hover {
+    background: radial-gradient(ellipse at center, var(--primary) 0%, var(--primary-container) 180%);
+    transform: translateY(-1px);
+  }
+  .colophon {
+    margin-top: 2.4rem;
+    font-family: var(--label);
+    font-size: 0.62rem;
+    font-weight: 400;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--on-surface-variant);
+  }
+
+  a:focus-visible, .btn-primary:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+    .tile { opacity: 1; transform: none; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- ════════════════ HERO ════════════════ -->
+  <header class="hero">
+    <p class="brand">The Linen Lady <span>·</span> Est. 1994</p>
+
+    <p class="eyebrow">The Historical Collectibles</p>
+    <h1>Opening <em>Soon</em></h1>
+
+    <p class="lede">Heavenly fabric, first&nbsp;— antique &amp; vintage linen.</p>
+
+    <!-- running-stitch divider (signature) -->
+    <svg class="stitch" viewBox="0 0 420 14" aria-hidden="true">
+      <line x1="6" y1="7" x2="414" y2="7" stroke="#8fad94" stroke-width="1.4"
+            stroke-dasharray="9 7" stroke-linecap="round" opacity="0.7" />
+      <circle cx="210" cy="7" r="2.6" fill="#804e4f" />
+    </svg>
+
+    <div class="plate">
+      <span class="opening">Opening Day</span>
+      <span class="date" id="dateLabel">Friday · June 19 · 2026</span>
+      <span class="holiday" id="holidayLabel">Juneteenth</span>
+
+      <ul class="countdown" id="countdown" aria-label="Time until opening">
+        <li><span class="num" data-d>—</span><span class="unit">Days</span></li>
+        <li><span class="num" data-h>—</span><span class="unit">Hours</span></li>
+        <li><span class="num" data-m>—</span><span class="unit">Minutes</span></li>
+        <li><span class="num" data-s>—</span><span class="unit">Seconds</span></li>
+      </ul>
+      <p class="open-now" id="openNow">The doors are open.</p>
+    </div>
+
+    <p class="sub">
+      Thirty years at the Georgetown Flea Market, now opening online. A curated
+      archive of antique linens, lace, and heritage textiles begins this
+      Juneteenth&nbsp;— one of a kind, every piece.
+    </p>
+  </header>
+
+  <!-- ════════════════ GALLERY ════════════════ -->
+  <section class="gallery">
+    <div class="wrap">
+      <div class="gallery-head">
+        <p class="eyebrow">A First Look</p>
+        <h2>Laid out on the <em>table</em></h2>
+      </div>
+
+      <div class="grid" id="grid">
+
+        <!-- TILE: linens (feature / headliner) -->
+        <figure class="tile feature">
+          <div class="tile-art">
+            <span class="chip curator-tag">Heavenly Fabric</span>
+            <svg viewBox="0 0 200 200" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <rect width="200" height="200" fill="#e8ddd0"/>
+              <g stroke="#804e4f" stroke-width="0.6" opacity="0.22">
+                <path d="M20 64 H180 M20 84 H180 M20 104 H180 M20 124 H180 M20 144 H180"/>
+                <path d="M40 50 V160 M70 50 V160 M100 50 V160 M130 50 V160 M160 50 V160"/>
+              </g>
+              <g fill="#fdfaf6" stroke="#c4b5a8" stroke-width="1">
+                <rect x="34" y="70" width="132" height="30" rx="2"/>
+                <rect x="40" y="100" width="120" height="28" rx="2"/>
+                <rect x="46" y="128" width="108" height="26" rx="2"/>
+              </g>
+              <g stroke="#804e4f" stroke-width="0.8" opacity="0.5" stroke-dasharray="3 3" fill="none">
+                <path d="M40 85 H166 M46 114 H160 M52 141 H154"/>
+              </g>
+              <circle cx="100" cy="48" r="2" fill="#8fad94"/>
+            </svg>
+          </div>
+          <figcaption class="tile-meta">
+            <span class="name">Linen</span>
+            <span class="n">First to open</span>
+          </figcaption>
+        </figure>
+
+        <!-- TILE: lace -->
+        <figure class="tile">
+          <div class="tile-art">
+            <span class="chip curator-tag">One of a Kind</span>
+            <svg viewBox="0 0 200 200" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <rect width="200" height="200" fill="#f0e9df"/>
+              <g fill="none" stroke="#804e4f" stroke-width="1" opacity="0.55">
+                <circle cx="100" cy="100" r="58"/>
+                <circle cx="100" cy="100" r="42"/>
+                <circle cx="100" cy="100" r="22"/>
+              </g>
+              <g fill="#804e4f" opacity="0.25">
+                <circle cx="100" cy="100" r="6"/>
+              </g>
+              <g stroke="#8fad94" stroke-width="0.8" opacity="0.6">
+                <path d="M100 18 V42 M100 158 V182 M18 100 H42 M158 100 H182
+                         M42 42 L58 58 M158 42 L142 58 M42 158 L58 142 M158 158 L142 142"/>
+              </g>
+              <g fill="#fdfaf6" stroke="#c4b5a8" stroke-width="0.6">
+                <circle cx="100" cy="58" r="4"/><circle cx="142" cy="100" r="4"/>
+                <circle cx="100" cy="142" r="4"/><circle cx="58" cy="100" r="4"/>
+              </g>
+            </svg>
+          </div>
+          <figcaption class="tile-meta">
+            <span class="name">Lace</span><span class="n">Cutwork</span>
+          </figcaption>
+        </figure>
+
+        <!-- TILE: tablecloths -->
+        <figure class="tile">
+          <div class="tile-art">
+            <span class="chip curator-tag">One of a Kind</span>
+            <svg viewBox="0 0 200 200" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <rect width="200" height="200" fill="#e8ddd0"/>
+              <path d="M30 40 H170 V150 Q140 165 100 165 Q60 165 30 150 Z" fill="#fdfaf6" stroke="#c4b5a8"/>
+              <g stroke="#804e4f" stroke-width="0.7" opacity="0.3">
+                <path d="M50 60 L70 80 L50 100 L30 80 Z" fill="none"/>
+                <path d="M100 60 L120 80 L100 100 L80 80 Z" fill="none"/>
+                <path d="M150 60 L170 80 L150 100 L130 80 Z" fill="none"/>
+                <path d="M75 110 L95 130 L75 150 L55 130 Z" fill="none"/>
+                <path d="M125 110 L145 130 L125 150 L105 130 Z" fill="none"/>
+              </g>
+              <path d="M30 150 Q100 168 170 150" fill="none" stroke="#804e4f" stroke-width="0.8" stroke-dasharray="2 3" opacity="0.5"/>
+            </svg>
+          </div>
+          <figcaption class="tile-meta">
+            <span class="name">Tablecloths</span><span class="n">Damask</span>
+          </figcaption>
+        </figure>
+
+        <!-- TILE: embroidery -->
+        <figure class="tile">
+          <div class="tile-art">
+            <span class="chip curator-tag">One of a Kind</span>
+            <svg viewBox="0 0 200 200" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <rect width="200" height="200" fill="#f0e9df"/>
+              <circle cx="100" cy="100" r="64" fill="#fdfaf6" stroke="#8a7a70" stroke-width="3" opacity="0.85"/>
+              <circle cx="100" cy="100" r="64" fill="none" stroke="#804e4f" stroke-width="1" stroke-dasharray="2 4" opacity="0.5"/>
+              <text x="100" y="128" text-anchor="middle" font-family="Cormorant Garamond, serif" font-style="italic" font-size="78" fill="#804e4f" opacity="0.85">N</text>
+              <g stroke="#8fad94" stroke-width="1" opacity="0.6">
+                <path d="M58 60 q8 -8 16 0 M126 60 q8 -8 16 0"/>
+              </g>
+            </svg>
+          </div>
+          <figcaption class="tile-meta">
+            <span class="name">Embroidery</span><span class="n">Monogram</span>
+          </figcaption>
+        </figure>
+
+        <!-- TILE: runners -->
+        <figure class="tile">
+          <div class="tile-art">
+            <span class="chip curator-tag">One of a Kind</span>
+            <svg viewBox="0 0 200 200" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <rect width="200" height="200" fill="#e8ddd0"/>
+              <rect x="74" y="20" width="52" height="160" fill="#fdfaf6" stroke="#c4b5a8"/>
+              <g stroke="#804e4f" stroke-width="0.8" opacity="0.35">
+                <path d="M84 44 H116 M84 156 H116"/>
+                <path d="M100 56 v12 M92 62 h16" />
+                <path d="M100 132 v12 M92 138 h16" />
+              </g>
+              <g stroke="#8fad94" stroke-width="1.2" opacity="0.6" stroke-linecap="round">
+                <path d="M80 180 v12 M88 180 v14 M96 180 v12 M104 180 v14 M112 180 v12 M120 180 v14"/>
+                <path d="M80 20 v-12 M88 20 v-14 M96 20 v-12 M104 20 v-14 M112 20 v-12 M120 20 v-14"/>
+              </g>
+            </svg>
+          </div>
+          <figcaption class="tile-meta">
+            <span class="name">Runners</span><span class="n">Tasselled</span>
+          </figcaption>
+        </figure>
+
+        <!-- TILE: doilies -->
+        <figure class="tile">
+          <div class="tile-art">
+            <span class="chip curator-tag">One of a Kind</span>
+            <svg viewBox="0 0 200 200" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <rect width="200" height="200" fill="#f0e9df"/>
+              <g transform="translate(100 100)">
+                <g fill="none" stroke="#804e4f" stroke-width="0.9" opacity="0.55">
+                  <circle r="62"/><circle r="40"/><circle r="14"/>
+                </g>
+                <g stroke="#804e4f" stroke-width="0.7" opacity="0.4">
+                  <path d="M0 -62 V-40 M0 62 V40 M-62 0 H-40 M62 0 H40
+                           M-44 -44 L-28 -28 M44 -44 L28 -28 M-44 44 L-28 28 M44 44 L28 28"/>
+                </g>
+                <g fill="#fdfaf6" stroke="#c4b5a8" stroke-width="0.6">
+                  <circle cx="0" cy="-51" r="5"/><circle cx="0" cy="51" r="5"/>
+                  <circle cx="-51" cy="0" r="5"/><circle cx="51" cy="0" r="5"/>
+                  <circle cx="-36" cy="-36" r="5"/><circle cx="36" cy="-36" r="5"/>
+                  <circle cx="-36" cy="36" r="5"/><circle cx="36" cy="36" r="5"/>
+                </g>
+              </g>
+            </svg>
+          </div>
+          <figcaption class="tile-meta">
+            <span class="name">Doilies</span><span class="n">Crocheted</span>
+          </figcaption>
+        </figure>
+
+        <!-- TILE: napkins -->
+        <figure class="tile">
+          <div class="tile-art">
+            <span class="chip curator-tag">One of a Kind</span>
+            <svg viewBox="0 0 200 200" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <rect width="200" height="200" fill="#e8ddd0"/>
+              <rect x="46" y="46" width="108" height="108" fill="#fdfaf6" stroke="#c4b5a8" transform="rotate(0 100 100)"/>
+              <path d="M100 46 L154 100 L100 154" fill="none" stroke="#804e4f" stroke-width="0.7" opacity="0.3"/>
+              <path d="M100 70 L130 100 L100 130 L70 100 Z" fill="none" stroke="#804e4f" stroke-width="0.8" opacity="0.4"/>
+              <text x="120" y="138" text-anchor="middle" font-family="Cormorant Garamond, serif" font-style="italic" font-size="26" fill="#804e4f" opacity="0.7">L</text>
+            </svg>
+          </div>
+          <figcaption class="tile-meta">
+            <span class="name">Napkins</span><span class="n">Monogrammed</span>
+          </figcaption>
+        </figure>
+
+        <!-- TILE: shams -->
+        <figure class="tile">
+          <div class="tile-art">
+            <span class="chip curator-tag">One of a Kind</span>
+            <svg viewBox="0 0 200 200" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <rect width="200" height="200" fill="#f0e9df"/>
+              <rect x="30" y="48" width="140" height="104" rx="6" fill="#fdfaf6" stroke="#c4b5a8"/>
+              <rect x="42" y="60" width="116" height="80" rx="3" fill="none" stroke="#804e4f" stroke-width="0.8" opacity="0.4" stroke-dasharray="3 3"/>
+              <path d="M30 100 q-10 0 -10 8 M170 100 q10 0 10 8" stroke="#8fad94" stroke-width="1" fill="none" opacity="0.6"/>
+              <g stroke="#804e4f" stroke-width="0.7" opacity="0.3" fill="none">
+                <path d="M100 78 q14 22 0 44 q-14 -22 0 -44Z"/>
+              </g>
+            </svg>
+          </div>
+          <figcaption class="tile-meta">
+            <span class="name">Shams</span><span class="n">Piped edge</span>
+          </figcaption>
+        </figure>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════ FOOTER ════════════════ -->
+  <footer>
+    <p class="notify-line">Be the first through the door.</p>
+    <!-- mailto = zero-backend notify. Swap for a real signup POST when ready. -->
+    <a class="btn-primary"
+       href="mailto:hello@noemithelinenlady.net?subject=Notify%20me%20%E2%80%94%20The%20Historical%20Collectibles&body=Please%20let%20me%20know%20when%20the%20collection%20opens.">
+      Notify me when it opens
+    </a>
+    <p class="colophon">© Noemi · The Linen Lady · Washington D.C.</p>
+  </footer>
+
+  <script>
+    // ════════════════ EDIT THESE TWO, THEN REDEPLOY ═════════════════
+    // 1) Opening date/time (visitor's local time). This drives BOTH the
+    //    countdown AND the date printed on the plate, so they can never
+    //    disagree. Month is 0-indexed: 0=Jan, 5=Jun, 6=Jul, 11=Dec.
+    const LAUNCH  = new Date(2026, 6, 4, 0, 0, 0);
+
+    // 2) Holiday / occasion label under the date. Set to "" to hide it.
+    const HOLIDAY = "Independence Day";
+    // ════════════════════════════════════════════════════════════════
+
+    // Print the plate date from LAUNCH, e.g. "Friday · June 19 · 2026".
+    (function renderPlate() {
+      const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+      const months = ["January","February","March","April","May","June",
+                      "July","August","September","October","November","December"];
+      const d = document.getElementById("dateLabel");
+      if (d) {
+        d.textContent = days[LAUNCH.getDay()] + " · " + months[LAUNCH.getMonth()] +
+                        " " + LAUNCH.getDate() + " · " + LAUNCH.getFullYear();
+      }
+      const h = document.getElementById("holidayLabel");
+      if (h) { if (HOLIDAY) h.textContent = HOLIDAY; else h.style.display = "none"; }
+    })();
+
+    const cd = document.getElementById('countdown');
+    const openNow = document.getElementById('openNow');
+    const set = (sel, val) => {
+      const el = cd.querySelector('[data-' + sel + ']');
+      if (el) el.textContent = String(val).padStart(2, '0');
+    };
+
+    function tick() {
+      const diff = LAUNCH - new Date();
+      if (diff <= 0) {
+        cd.style.display = 'none';
+        openNow.style.display = 'block';
+        clearInterval(timer);
+        return;
+      }
+      const s = Math.floor(diff / 1000);
+      set('d', Math.floor(s / 86400));
+      set('h', Math.floor((s % 86400) / 3600));
+      set('m', Math.floor((s % 3600) / 60));
+      set('s', s % 60);
+    }
+    tick();
+    const timer = setInterval(tick, 1000);
+
+    // ── Staggered unfold reveal for gallery tiles ───────────────────
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!reduce && 'IntersectionObserver' in window) {
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach((entry, i) => {
+          if (entry.isIntersecting) {
+            const tiles = [...document.querySelectorAll('.tile:not(.in)')];
+            entry.target.style.animationDelay = (tiles.indexOf(entry.target) * 0.08) + 's';
+            entry.target.classList.add('in');
+            io.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.15 });
+      document.querySelectorAll('.tile').forEach((t) => io.observe(t));
+    } else {
+      document.querySelectorAll('.tile').forEach((t) => t.classList.add('in'));
+    }
+  </script>
+</body>
+</html>
