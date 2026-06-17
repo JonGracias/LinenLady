@@ -14,8 +14,9 @@
 // is the source of truth on submit, not the Clerk session — so a user could,
 // say, send from their work address while signed in with their personal one.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useUser } from "@clerk/nextjs";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import type { ContactError } from "@/lib/contracts/contact";
 import { submitContact } from "@/lib/contact/submitContact";
 import {
@@ -43,6 +44,10 @@ export type ContactFormProps = {
 
 const NOEMI_EMAIL =
   process.env.NEXT_PUBLIC_CONTACT_EMAIL || "jon.gracias@gmail.com";
+
+// Cloudflare Turnstile site key (public). In dev, Cloudflare's always-pass test
+// key is "1x00000000000000000000AA".
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
 export default function ContactForm({
   productSku,
@@ -73,6 +78,13 @@ export default function ContactForm({
   // moment Clerk resolves a richer profile object.
   const [nameEdited,  setNameEdited]  = useState(false);
   const [emailEdited, setEmailEdited] = useState(false);
+
+  // ── Turnstile ──────────────────────────────────────────────────────────
+  // Token is null until the widget resolves. The submit button stays disabled
+  // until then. Tokens are single-use, so we reset the widget on any submit
+  // failure (see onSubmit) to let the user retry cleanly.
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileInstance>(null);
 
   useEffect(() => { setIsMobile(isMobileDevice()); }, []);
 
@@ -127,6 +139,9 @@ export default function ContactForm({
     e.preventDefault();
     if (status.kind === "submitting") return;
     if (!validate()) return;
+    // Belt-and-suspenders: the button is disabled without a token, but never
+    // submit without one.
+    if (!turnstileToken) return;
 
     setStatus({ kind: "submitting" });
     const result = await submitContact({
@@ -136,11 +151,15 @@ export default function ContactForm({
       body:       body.trim(),
       productSku: productSku || undefined,
       website,                                   // honeypot — server checks
+      turnstileToken,                            // verified server-side
     });
 
     if (result.ok) {
       setStatus({ kind: "success", submissionId: result.data.submissionId });
     } else {
+      // Token is single-use — reset the widget so a retry gets a fresh one.
+      turnstileRef.current?.reset();
+      setTurnstileToken(null);
       setStatus({ kind: "error", error: result.error });
     }
   }
@@ -271,10 +290,21 @@ export default function ContactForm({
         </p>
       )}
 
+      <div className="mt-6">
+        <Turnstile
+          ref={turnstileRef}
+          siteKey={TURNSTILE_SITE_KEY}
+          onSuccess={setTurnstileToken}
+          onExpire={() => setTurnstileToken(null)}
+          onError={() => setTurnstileToken(null)}
+          options={{ theme: "auto", size: "flexible" }}
+        />
+      </div>
+
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-6">
         <button
           type="submit"
-          disabled={submitting}
+          disabled={submitting || !turnstileToken}
           className="btn-primary"
           style={{ minWidth: "12rem", justifyContent: "center" }}
         >

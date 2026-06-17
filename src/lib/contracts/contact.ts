@@ -12,6 +12,8 @@ export type ContactRequest = {
   productSku?: string;
   /** Honeypot. Must be empty string. Real users never see the input. */
   website?:    string;
+  /** Cloudflare Turnstile token. Verified server-side before send. */
+  turnstileToken: string;
 };
 
 export type ContactResponse = {
