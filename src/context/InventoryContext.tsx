@@ -21,9 +21,25 @@ import type {
 
 export type AdminFilter = Filter;
 
-const InventoryContext = createContext<InventoryContextValue | null>(null);
+/**
+ * Extends the canonical InventoryContextValue (from @/types/inventory) with the
+ * optimistic mutators used to keep the list "sticky" without a refresh.
+ *
+ * These live here rather than in @/types/inventory so the shared contract type
+ * stays untouched. Consumers that only need the base fields are unaffected.
+ */
+export interface InventoryContextValueExt extends InventoryContextValue {
+  /** Merge server/optimistic fields into the matching list row in place. */
+  applyItemPatch: (id: number, patch: Partial<InventoryItem>) => void;
+  /** Drop an item from the list (e.g. after delete). */
+  removeItem: (id: number) => void;
+  /** Update the cached thumbnail for a row (primary image changed/added). */
+  setThumbnail: (id: number, url: string | null) => void;
+}
 
-export function useInventoryContext() {
+const InventoryContext = createContext<InventoryContextValueExt | null>(null);
+
+export function useInventoryContext(): InventoryContextValueExt {
   const ctx = useContext(InventoryContext);
   if (!ctx) throw new Error("InventoryContext not found");
   return ctx;
@@ -54,6 +70,9 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
   const inFlight       = useRef<Set<number>>(new Set());
   const imagesInFlight = useRef<Set<number>>(new Set());
   const cacheRef       = useRef<Map<CacheKey, CacheEntry>>(new Map());
+  // Mirror of `items` so optimistic mutators can read the previous row
+  // synchronously (e.g. to compute count deltas) without a stale closure.
+  const itemsRef       = useRef<InventoryItem[]>([]);
 
   const [images, setImages] = useState<Record<number, InventoryImage[]>>({});
   const [thumbs, setThumbs] = useState<Record<number, string | null>>({});
@@ -183,6 +202,85 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
 
   const reloadItems = useCallback(() => loadItems(true), [loadItems]);
 
+  // Keep the mirror ref current for the optimistic mutators below.
+  useEffect(() => { itemsRef.current = items; }, [items]);
+
+  // ── Optimistic mutators ───────────────────────────────────────────────────
+  // These make detail-screen edits "stick" in the shared list immediately, so
+  // navigating back shows the change without a refresh. We also invalidate the
+  // request cache so the next network fetch (or a full page refresh) reconciles
+  // the UI with the authoritative API state.
+
+  const findItem = useCallback(
+    (id: number): InventoryItem | undefined => {
+      const inList = itemsRef.current.find((x) => x.inventoryId === id);
+      if (inList) return inList;
+      for (const entry of cacheRef.current.values()) {
+        const hit = entry.items.find((x) => x.inventoryId === id);
+        if (hit) return hit;
+      }
+      return undefined;
+    },
+    []
+  );
+
+  const adjustCounts = useCallback(
+    (prev: InventoryItem | undefined, next: InventoryItem | null) => {
+      if (!prev) return;
+      setCounts((c) => {
+        let { all, drafts, published } = c;
+        const prevActive = !!prev.isActive;
+        const prevDraft  = !!prev.isDraft;
+        const nextActive = next ? !!next.isActive : false;
+        const nextDraft  = next ? !!next.isDraft  : false;
+
+        if (!next) {
+          // removal
+          all = Math.max(0, all - 1);
+          if (prevActive) published = Math.max(0, published - 1);
+          if (prevDraft)  drafts    = Math.max(0, drafts - 1);
+        } else {
+          if (prevActive !== nextActive) published += nextActive ? 1 : -1;
+          if (prevDraft  !== nextDraft)  drafts    += nextDraft  ? 1 : -1;
+        }
+        return {
+          all,
+          drafts:    Math.max(0, drafts),
+          published: Math.max(0, published),
+        };
+      });
+    },
+    []
+  );
+
+  const applyItemPatch = useCallback(
+    (id: number, patch: Partial<InventoryItem>) => {
+      const prev = findItem(id);
+      const next = prev ? { ...prev, ...patch } : null;
+      setItems((list) =>
+        list.map((x) => (x.inventoryId === id ? { ...x, ...patch } : x))
+      );
+      adjustCounts(prev, next);
+      invalidateCache();
+    },
+    [findItem, adjustCounts, invalidateCache]
+  );
+
+  const removeItem = useCallback(
+    (id: number) => {
+      const prev = findItem(id);
+      setItems((list) => list.filter((x) => x.inventoryId !== id));
+      setTotalCount((t) => Math.max(0, t - 1));
+      adjustCounts(prev, null);
+      invalidateCache();
+    },
+    [findItem, adjustCounts, invalidateCache]
+  );
+
+  const setThumbnail = useCallback((id: number, url: string | null) => {
+    setThumbs((prev) => ({ ...prev, [id]: url }));
+  }, []);
+
   useEffect(() => { setPage(1); }, [filter, category, pageSize]);
   useEffect(() => { void loadItems(); }, [loadItems]);
   useEffect(() => { void loadCounts(); }, [loadCounts, filter]);
@@ -265,7 +363,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const value: InventoryContextValue = {
+  const value: InventoryContextValueExt = {
     items,
     sorted,
     loading,
@@ -289,6 +387,9 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
     invalidateCache,
     invalidateFilterCache,
     reloadItems,
+    applyItemPatch,
+    removeItem,
+    setThumbnail,
   };
 
   return <InventoryContext.Provider value={value}>{children}</InventoryContext.Provider>;

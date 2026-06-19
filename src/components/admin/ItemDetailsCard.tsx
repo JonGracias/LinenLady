@@ -1,13 +1,15 @@
 // src/components/admin/ItemDetailsCard.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { InventoryItem } from "@/types/inventory";
 import AiMetaPanel from "@/components/admin/AiMetaPanel";
 import SimilarItemsPanel from "@/components/admin/SimilarItemsPanel";
 
-function formatMoney(cents?: number) {
-  return ((cents ?? 0) / 100).toLocaleString(undefined, { style: "currency", currency: "USD" });
+function centsFromInput(val: string): number | null {
+  const n = parseFloat(val);
+  if (Number.isNaN(n) || n < 0) return null;
+  return Math.round(n * 100);
 }
 
 type ItemUpdatedFields = {
@@ -31,14 +33,55 @@ export function ItemDetailsCard({ item, onPublishToggle, onDeleteOpen, onItemUpd
   const [featured, setFeatured]       = useState(item.isFeatured ?? false);
   const [featPending, setFeatPending] = useState(false);
 
+  // ── Square-style inline fields (name / price / description) ──
+  const [name, setName]   = useState(item.name);
+  const [price, setPrice] = useState((item.unitPriceCents / 100).toFixed(2));
+  const [desc, setDesc]   = useState(item.description ?? "");
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+
+  // Re-sync local fields when the underlying item changes (e.g. AI panel edits
+  // it, or we navigate to a different piece).
+  useEffect(() => {
+    setName(item.name);
+    setPrice((item.unitPriceCents / 100).toFixed(2));
+    setDesc(item.description ?? "");
+  }, [item.name, item.unitPriceCents, item.description]);
+
+  useEffect(() => { setQty(item.quantityOnHand); }, [item.quantityOnHand]);
+  useEffect(() => { setFeatured(item.isFeatured ?? false); }, [item.isFeatured]);
+
+  const parsedCents = centsFromInput(price);
+  const dirty =
+    name.trim() !== item.name ||
+    desc !== (item.description ?? "") ||
+    (parsedCents !== null && parsedCents !== item.unitPriceCents);
+
+  async function saveDetails() {
+    if (!dirty || saving) return;
+    setSaving(true);
+    try {
+      await onItemUpdated({
+        name:        name.trim() || item.name,
+        description: desc,
+        priceCents:  parsedCents ?? item.unitPriceCents,
+        quantity:    qty,
+        isFeatured:  featured,
+      });
+      setSavedAt(Date.now());
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function commitQty(next: number) {
     if (next === item.quantityOnHand || qtyPending) return;
     setQtyPending(true);
     try {
       await onItemUpdated({
-        name:        item.name,
-        description: item.description ?? "",
-        priceCents:  item.unitPriceCents,
+        name:        name.trim() || item.name,
+        description: desc,
+        priceCents:  parsedCents ?? item.unitPriceCents,
         quantity:    next,
         isFeatured:  featured,
       });
@@ -54,9 +97,9 @@ export function ItemDetailsCard({ item, onPublishToggle, onDeleteOpen, onItemUpd
     setFeatPending(true);
     try {
       await onItemUpdated({
-        name:        item.name,
-        description: item.description ?? "",
-        priceCents:  item.unitPriceCents,
+        name:        name.trim() || item.name,
+        description: desc,
+        priceCents:  parsedCents ?? item.unitPriceCents,
         quantity:    qty,
         isFeatured:  next,
       });
@@ -74,12 +117,23 @@ export function ItemDetailsCard({ item, onPublishToggle, onDeleteOpen, onItemUpd
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-6 sm:gap-8">
 
-          {/* Price */}
+          {/* Price (inline editable) */}
           <div>
             <span className="text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">Price</span>
-            <p className="mt-0.5 text-xl font-bold text-gray-900 dark:text-gray-100 sm:text-2xl">
-              {formatMoney(item.unitPriceCents)}
-            </p>
+            <div className="mt-0.5 flex items-center">
+              <span className="text-xl font-bold text-gray-900 dark:text-gray-100 sm:text-2xl">$</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                min="0"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                onBlur={() => { if (dirty) void saveDetails(); }}
+                aria-label="Price in dollars"
+                className="w-24 border-0 border-b border-transparent bg-transparent p-0 text-xl font-bold tabular-nums text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-0 dark:text-gray-100 sm:text-2xl [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              />
+            </div>
           </div>
 
           {/* Qty stepper */}
@@ -191,12 +245,54 @@ export function ItemDetailsCard({ item, onPublishToggle, onDeleteOpen, onItemUpd
 
       <div className="mb-3 border-t border-gray-100 dark:border-gray-700" />
 
-      {/* Name + description */}
-      <div>
-        <p className="mb-1 font-medium text-gray-900 dark:text-gray-100">{item.name}</p>
-        <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-500 dark:text-gray-400">
-          {item.description || "No description yet."}
-        </p>
+      {/* Name + description (inline editable, Square-style) */}
+      <div className="space-y-3">
+        <div>
+          <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">
+            Name
+          </label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onBlur={() => { if (dirty) void saveDetails(); }}
+            placeholder="Item name…"
+            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700/50 dark:text-gray-100 dark:placeholder-gray-500"
+          />
+        </div>
+
+        <div>
+          <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">
+            Description
+          </label>
+          <textarea
+            value={desc}
+            onChange={(e) => setDesc(e.target.value)}
+            onBlur={() => { if (dirty) void saveDetails(); }}
+            rows={4}
+            placeholder="No description yet."
+            className="w-full resize-y rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm leading-relaxed text-gray-700 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700/50 dark:text-gray-300 dark:placeholder-gray-500"
+          />
+        </div>
+
+        <div className="flex items-center justify-end gap-3">
+          {savedAt && !dirty && !saving && (
+            <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+              Saved
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={saveDetails}
+            disabled={!dirty || saving}
+            className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-gray-300 dark:disabled:bg-gray-700 dark:disabled:text-gray-500"
+          >
+            {saving ? "Saving…" : "Save changes"}
+          </button>
+        </div>
       </div>
 
       <AiMetaPanel

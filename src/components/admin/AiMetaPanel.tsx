@@ -196,7 +196,7 @@ export default function AiMetaPanel({
       <div className="mt-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4 space-y-4">
 
         {/* ── Header ── */}
-        <div className="flex items-center justify-between">
+{/*         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400">AI</h2>
           <button
             onClick={() => setManualOpen(true)}
@@ -207,7 +207,7 @@ export default function AiMetaPanel({
             </svg>
             Edit manually
           </button>
-        </div>
+        </div> */}
 
         {/* ── AI hint ── */}
         <div>

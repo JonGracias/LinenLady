@@ -4,6 +4,7 @@
 import { authedFetch } from "@/lib/request";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 import ImageCarousel from "@/components/admin/SlideShow";
 import { DeleteModal } from "@/components/admin/modals/DeleteModal";
@@ -11,12 +12,27 @@ import { ImageEditorModal } from "@/components/admin/modals/ImageEditorModal";
 import { ThumbnailStrip } from "@/components/admin/ThumbnailStrip";
 import { ItemInfoBar } from "@/components/admin/ItemInfoBar";
 import { ItemDetailsCard } from "@/components/admin/ItemDetailsCard";
+import { useInventoryContext } from "@/context/InventoryContext";
 import type { InventoryItem, InventoryImage } from "@/types/inventory";
 
 type DraftProps = { inventoryId: number };
 
 export default function Draft({ inventoryId }: DraftProps) {
   const router = useRouter();
+
+  // Shared list state — used for prev/next navigation and to keep the
+  // inventory list "sticky" (no refresh needed) when this screen mutates an item.
+  const {
+    items,
+    page,
+    totalPages,
+    pageSize,
+    totalCount,
+    setPage,
+    applyItemPatch,
+    removeItem,
+    setThumbnail,
+  } = useInventoryContext();
 
   const [item, setItem]               = useState<InventoryItem | null>(null);
   const [itemLoading, setItemLoading] = useState(true);
@@ -34,6 +50,64 @@ export default function Draft({ inventoryId }: DraftProps) {
 
   const swiperRef = useRef<any>(null);
   const isValidId = Number.isFinite(inventoryId) && inventoryId > 0;
+
+  /* ── Prev / next navigation across the loaded inventory list ── */
+  // When jumping a page boundary we set this flag, then navigate to the
+  // first/last row once the new page's items have loaded.
+  const pendingEdge = useRef<null | "first" | "last">(null);
+
+  const listIndex = useMemo(
+    () => items.findIndex((x) => x.inventoryId === inventoryId),
+    [items, inventoryId]
+  );
+  const inList  = listIndex !== -1;
+  const canPrev = inList && (listIndex > 0 || page > 1);
+  const canNext = inList && (listIndex < items.length - 1 || page < totalPages);
+
+  // The list numbers rows newest-first; mirror that label here ("#42 of 137").
+  const rowNumber =
+    inList ? totalCount - (page - 1) * pageSize - listIndex : null;
+
+  const goPrev = useCallback(() => {
+    if (!canPrev) return;
+    if (listIndex > 0) {
+      router.push(`/admin/drafts/${items[listIndex - 1].inventoryId}`);
+    } else if (page > 1) {
+      pendingEdge.current = "last";
+      setPage(page - 1);
+    }
+  }, [canPrev, listIndex, items, page, router, setPage]);
+
+  const goNext = useCallback(() => {
+    if (!canNext) return;
+    if (listIndex >= 0 && listIndex < items.length - 1) {
+      router.push(`/admin/drafts/${items[listIndex + 1].inventoryId}`);
+    } else if (page < totalPages) {
+      pendingEdge.current = "first";
+      setPage(page + 1);
+    }
+  }, [canNext, listIndex, items, page, totalPages, router, setPage]);
+
+  // After a page-boundary jump, land on the appropriate edge of the new page.
+  useEffect(() => {
+    if (!pendingEdge.current || items.length === 0) return;
+    const target = pendingEdge.current === "first" ? items[0] : items[items.length - 1];
+    pendingEdge.current = null;
+    if (target) router.push(`/admin/drafts/${target.inventoryId}`);
+  }, [items, router]);
+
+  // Keyboard arrows for quick flipping through pieces.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const t = e.target as HTMLElement | null;
+      const tag = t?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || t?.isContentEditable) return;
+      if (e.key === "ArrowLeft")  goPrev();
+      if (e.key === "ArrowRight") goNext();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [goPrev, goNext]);
 
   /* ── Load item ── */
   useEffect(() => {
@@ -93,9 +167,11 @@ export default function Draft({ inventoryId }: DraftProps) {
       if (!res.ok) return false;
       const updated = await res.json() as Partial<InventoryItem>;
       setItem((prev) => prev ? { ...prev, ...updated } : prev);
+      // Keep the inventory list in sync so the change shows without a refresh.
+      applyItemPatch(inventoryId, updated);
       return true;
     } catch { return false; }
-  }, [inventoryId]);
+  }, [inventoryId, applyItemPatch]);
 
   /* ── Item updated (from ItemDetailsCard / AiMetaPanel) ── */
   const handleItemUpdated = useCallback(async (fields: {
@@ -121,15 +197,16 @@ export default function Draft({ inventoryId }: DraftProps) {
     try {
       const res = await authedFetch(`/admin/api/items/${inventoryId}`, { method: "DELETE" });
       if (!res.ok) throw new Error(await res.text() || `Delete failed (${res.status})`);
+      // Drop it from the shared list so the inventory view updates immediately.
+      removeItem(inventoryId);
       router.push("/admin/items");
-      router.refresh();
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : "Failed to delete item.");
     } finally {
       setDeleting(false);
       setDeleteOpen(false);
     }
-  }, [inventoryId, item, router]);
+  }, [inventoryId, item, router, removeItem]);
 
   /* ── Primary image ── */
   const primaryImageId = images.find((x) => x.isPrimary)?.imageId ?? null;
@@ -141,9 +218,12 @@ export default function Draft({ inventoryId }: DraftProps) {
       const res = await authedFetch(`/admin/api/items/${inventoryId}/images/${imageId}/primary`, { method: "PATCH" });
       if (!res.ok) return;
       setImages((prev) => prev.map((img) => ({ ...img, isPrimary: img.imageId === imageId })));
+      // List thumbnail follows the primary image.
+      const newPrimary = images.find((img) => img.imageId === imageId);
+      if (newPrimary?.readUrl) setThumbnail(inventoryId, newPrimary.readUrl);
     } catch { /* non-fatal */ }
     finally { setSettingPrimary(null); }
-  }, [inventoryId, primaryImageId, settingPrimary]);
+  }, [inventoryId, primaryImageId, settingPrimary, images, setThumbnail]);
 
   /* ── Save edited image ── */
   const handleSaveEditedImage = useCallback(async (blob: Blob) => {
@@ -160,8 +240,10 @@ export default function Draft({ inventoryId }: DraftProps) {
       setImages((prev) =>
         prev.map((img) => img.imageId === activeImageId ? { ...img, readUrl } : img)
       );
+      // If we just replaced the primary image, refresh the list thumbnail too.
+      if (activeImageId === primaryImageId) setThumbnail(inventoryId, readUrl);
     }
-  }, [inventoryId, activeImageId]);
+  }, [inventoryId, activeImageId, primaryImageId, setThumbnail]);
 
   /* ── Add photos ── */
   const handleAddPhotos = useCallback(async (files: FileList) => {
@@ -182,13 +264,16 @@ export default function Draft({ inventoryId }: DraftProps) {
       if (Array.isArray(freshImages) && freshImages.length > 0) {
         setImages(freshImages);
         setActiveImageId(freshImages[freshImages.length - 1].imageId);
+        // Reflect the (possibly new) primary in the list thumbnail.
+        const primary = freshImages.find((x) => x.isPrimary) ?? freshImages[0];
+        if (primary?.readUrl) setThumbnail(inventoryId, primary.readUrl);
       }
     } catch (e: unknown) {
       setUploadError(e instanceof Error ? e.message : "Upload failed.");
     } finally {
       setAddingPhotos(false);
     }
-  }, [inventoryId]);
+  }, [inventoryId, setThumbnail]);
 
   /* ── Delete image ── */
   const handleDeleteImage = useCallback(async (imageId: number) => {
@@ -198,12 +283,17 @@ export default function Draft({ inventoryId }: DraftProps) {
       setImages((prev) => {
         const next = prev.filter((img) => img.imageId !== imageId);
         if (activeImageId === imageId) setActiveImageId(next[0]?.imageId ?? null);
+        // If we removed the primary, the new primary (or null) drives the thumb.
+        if (imageId === primaryImageId) {
+          const newPrimary = next.find((x) => x.isPrimary) ?? next[0] ?? null;
+          setThumbnail(inventoryId, newPrimary?.readUrl ?? null);
+        }
         return next;
       });
     } catch (e: unknown) {
       setUploadError(e instanceof Error ? e.message : "Delete failed.");
     }
-  }, [inventoryId, activeImageId]);
+  }, [inventoryId, activeImageId, primaryImageId, setThumbnail]);
 
   /* ── Thumbnail click ── */
   const slidesWithUrl = useMemo(
@@ -248,6 +338,49 @@ export default function Draft({ inventoryId }: DraftProps) {
 
   return (
     <>
+      {/* Top nav: back to list + prev/next across inventory */}
+      <div className="mt-3 mb-1 flex items-center justify-between gap-2">
+        <Link
+          href="/admin/items"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+          Inventory
+        </Link>
+
+        <div className="flex items-center gap-2">
+          {rowNumber !== null && (
+            <span className="tabular-nums text-xs text-gray-400 dark:text-gray-500">
+              #{rowNumber} of {totalCount}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={goPrev}
+            disabled={!canPrev}
+            aria-label="Previous item"
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={goNext}
+            disabled={!canNext}
+            aria-label="Next item"
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
       {/* Carousel */}
       <div className="swiper-fill my-3 aspect-video overflow-hidden rounded-xl bg-black">
         <ImageCarousel images={images} onSwiper={(swiper: any) => { swiperRef.current = swiper; }} />

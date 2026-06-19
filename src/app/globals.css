@@ -5,6 +5,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Work+Sans:wght@300;400;500;600&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&display=swap');
 @import "tailwindcss";
 
+/* Make dark: respond to next-themes' .dark class, not the OS media query */
+@custom-variant dark (&:where(.dark, .dark *));
+
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Header navigation styles
@@ -235,7 +238,6 @@ html {
 }
 
 body {
-  background: var(--surface);
   color: var(--on-surface);
   font-family: 'Work Sans', sans-serif;
   font-weight: 300;
@@ -409,7 +411,7 @@ body {
 /* ─────────────────────────────────────────────────────────────────────────────
    Scrollbar — custom-scrollbar utility
 ───────────────────────────────────────────────────────────────────────────── */
-.custom-scrollbar {
+/* .custom-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: rgba(138, 122, 112, 0.3) transparent;
 }
@@ -421,7 +423,7 @@ body {
   transition: background 400ms ease;
 }
 .custom-scrollbar:hover::-webkit-scrollbar-thumb { background: rgba(138, 122, 112, 0.45); }
-
+ */
 /* ─────────────────────────────────────────────────────────────────────────────
    Swiper fill (existing — preserved)
 ───────────────────────────────────────────────────────────────────────────── */

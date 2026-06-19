@@ -30,7 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       signUpFallbackRedirectUrl="/welcome"
     >
       <html lang="en" suppressHydrationWarning>
-        <body>
+        <body className="bg-white dark:bg-gray-900">
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
             <ContextProvider>
               <div className="sm:mx-8">{children}</div>

@@ -40,7 +40,7 @@ export default function AdminLandingPage() {
 
   return (
     <div
-      className="relative flex flex-col items-center justify-center overflow-hidden px-8 py-16"
+      className="relative flex min-h-[calc(100dvh-7rem)] w-full flex-col items-center justify-center overflow-hidden rounded-2xl px-6 py-12"
       style={{ background: "#0f0f0f" }}
     >
       {/* Subtle grain texture */}
@@ -67,7 +67,7 @@ export default function AdminLandingPage() {
       />
 
       {/* Wordmark */}
-      <div className="relative z-10 mb-16 text-center">
+      <div className="relative z-10 mb-12 text-center">
         <div
           className="ll-label mb-3 text-[0.6rem] uppercase tracking-[0.35em]"
           style={{ color: "rgba(255,255,255,0.2)" }}
@@ -99,7 +99,7 @@ export default function AdminLandingPage() {
 
       {/* Nav cards */}
       <div
-        className="relative z-10 grid w-full gap-4"
+        className="relative z-10 mx-auto grid w-full gap-4"
         style={{ maxWidth: 680, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}
       >
         {NAV_ITEMS.map(({ href, label, sub, icon, accent, accentBg }) => (
@@ -164,7 +164,7 @@ export default function AdminLandingPage() {
 
       {/* Footer */}
       <div
-        className="relative z-10 mt-16 ll-label text-[0.55rem] uppercase tracking-[0.2em]"
+        className="relative z-10 mt-12 ll-label text-[0.55rem] uppercase tracking-[0.2em]"
         style={{ color: "rgba(255,255,255,0.1)" }}
       >
         Noemi · The Linen Lady · Georgetown Flea Market
