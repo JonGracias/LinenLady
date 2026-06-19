@@ -26,8 +26,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
       signInUrl={`${process.env.NEXT_PUBLIC_CLERK_ACCOUNT_URL}/sign-in`}
       signUpUrl={`${process.env.NEXT_PUBLIC_CLERK_ACCOUNT_URL}/sign-up`}
-      signInFallbackRedirectUrl="/"
-      signUpFallbackRedirectUrl="/"
+      signInFallbackRedirectUrl="/welcome"
+      signUpFallbackRedirectUrl="/welcome"
     >
       <html lang="en" suppressHydrationWarning>
         <body>
