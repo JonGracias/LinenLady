@@ -33,6 +33,7 @@ const HELP_LINKS = [
   { href: "/contact",           label: "Contact Noemi" },
 ];
 
+
 function isExternalHref(href: string) {
   return href.startsWith("mailto:") || href.startsWith("http");
 }
