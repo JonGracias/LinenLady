@@ -24,8 +24,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <ClerkProvider
       publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
-      signInUrl={`${process.env.NEXT_PUBLIC_CLERK_ACCOUNT_URL}/sign-in`}
-      signUpUrl={`${process.env.NEXT_PUBLIC_CLERK_ACCOUNT_URL}/sign-up`}
+      signInUrl="/sign-in"
+      signUpUrl="/sign-up"
       signInFallbackRedirectUrl="/welcome"
       signUpFallbackRedirectUrl="/welcome"
     >
