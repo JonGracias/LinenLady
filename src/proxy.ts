@@ -45,8 +45,13 @@ export default clerkMiddleware(async (auth, req) => {
   const activeOrgId = (sessionClaims as { o?: V2OrgClaim } | null)?.o?.id;
   const isAdmin     = !!userId && !!adminOrgId && activeOrgId === adminOrgId;
 
+  const isPrefetch =
+  req.headers.get("next-router-prefetch") === "1" ||
+  req.headers.get("purpose") === "prefetch";
+
   /* ── Pre-launch gate ──────────────────────────────────────── */
-  if (!isLaunched() && !isAdmin) {
+  /* 
+  if (!isLaunched() && !isAdmin && !isPrefetch) {
     const path = req.nextUrl.pathname;
 
     // Normalize the bare directory path to the actual file.
@@ -60,7 +65,7 @@ export default clerkMiddleware(async (auth, req) => {
       // Reachable by anyone pre-launch — let through untouched.
       // (holding page + assets, auth routes, API)
     } else if (userId && customerAllowed(req)) {
-      // Signed-in customer on their pre-launch page — let through.
+      // Signed-in customer on their pre-launch page — let through.S
     } else if (userId) {
       // Signed-in customer reaching for the sealed store → /welcome.
       return NextResponse.redirect(new URL("/welcome", req.url));
@@ -68,7 +73,7 @@ export default clerkMiddleware(async (auth, req) => {
       // Anonymous visitor anywhere else → holding page.
       return NextResponse.redirect(new URL(COMING_SOON, req.url));
     }
-  }
+  } */
 
   /* ── Account protection (unchanged) ───────────────────────── */
   if (isAccountRoute(req)) {
