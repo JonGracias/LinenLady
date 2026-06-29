@@ -83,7 +83,7 @@ export default function AboutPage() {
           >
 
           {/* ── Text block — centered below photo ── */}
-          <div className="relative z-[1] px-16 py-12">
+          <div className="relative z-[1] px-6 py-12 md:px-16">
             <div className="mx-auto max-w-3xl text-center">
               <div
                 className="ll-label mb-4 flex items-center justify-center gap-3 text-[0.62rem] font-medium uppercase tracking-[0.25em]"
@@ -96,7 +96,7 @@ export default function AboutPage() {
 
               <h1
                 className="ll-display font-normal leading-[1.08]"
-                style={{ fontSize: "clamp(2.8rem, 4.5vw, 5rem)", color: "var(--ink)" }}
+                style={{ fontSize: "clamp(2.2rem, 4.5vw, 5rem)", color: "var(--ink)" }}
               >
                 Welcome to {" "}
                 <em className="italic" style={{ color: "var(--rose-deep)" }}>
@@ -105,7 +105,7 @@ export default function AboutPage() {
               </h1>
 
               <p
-                className="ll-body mx-auto mt-6 max-w-xl text-[1.1rem] font-light leading-[1.85]"
+                className="ll-body mx-auto mt-6 max-w-xl text-[1.05rem] font-light leading-[1.85] md:text-[1.1rem]"
                 style={{ color: "var(--ink-soft)" }}>
                 Your one-stop-shop for the finest linens from a bygone era. We specialize in sourcing, and selling antique and vintage linens, including bedding, tablecloths, napkins, lace, and more.
               Whether you're a collector, interior designer, or simply someone who appreciates the beauty of vintage linens, we invite you to explore our collection. Browse our online store.
@@ -120,11 +120,11 @@ export default function AboutPage() {
           THE EYE
       ══════════════════════════════════════════════════════ */}
       <section
-        className="relative z-[1] grid"
-        style={{ gridTemplateColumns: "1fr 1fr", minHeight: 500 }}
+        className="relative z-[1] grid grid-cols-1 md:grid-cols-2"
+        style={{ minHeight: 500 }}
       >
         <div
-          className="flex flex-col justify-center px-16 py-10"
+          className="flex flex-col justify-center px-6 py-12 md:px-16 md:py-10"
           style={{ background: "var(--ink)" }}
         >
           <div
@@ -156,9 +156,8 @@ export default function AboutPage() {
         </div>
 
         <div
-          className="grid gap-px"
+          className="grid grid-cols-1 gap-px sm:grid-cols-2"
           style={{
-            gridTemplateColumns: "1fr 1fr",
             background: "var(--linen)",
             alignContent: "start",
           }}
@@ -171,7 +170,7 @@ export default function AboutPage() {
           ].map(({ icon, title, body }) => (
             <div
               key={title}
-              className="flex flex-col gap-3 p-10"
+              className="flex flex-col gap-3 p-8 md:p-10"
               style={{ background: "var(--cream)" }}
             >
               <span className="text-2xl">{icon}</span>
@@ -196,16 +195,13 @@ export default function AboutPage() {
           THE MARKET
       ══════════════════════════════════════════════════════ */}
       <section
-        className="relative z-[1] px-16 py-24"
+        className="relative z-[1] px-6 py-16 md:px-16 md:py-24"
         style={{
           background:
             "linear-gradient(135deg, var(--sage-light) 0%, var(--cream-dark) 100%)",
         }}
       >
-        <div
-          className="mx-auto grid max-w-5xl gap-16 items-center"
-          style={{ gridTemplateColumns: "1fr 1fr" }}
-        >
+        <div className="mx-auto grid max-w-5xl grid-cols-1 items-center gap-10 md:grid-cols-2 md:gap-16">
           <div>
             <div
               className="ll-label mb-3 flex items-center gap-3 text-[0.62rem] font-medium uppercase tracking-[0.25em]"
@@ -244,7 +240,7 @@ export default function AboutPage() {
           </div>
 
           <div
-            className="relative border p-10"
+            className="relative border p-8 md:p-10"
             style={{ borderColor: "var(--linen)", background: "var(--cream)" }}
           >
             <div
@@ -277,7 +273,7 @@ export default function AboutPage() {
             ].map(({ label, value }, i, arr) => (
               <div
                 key={label}
-                className="flex items-baseline justify-between py-2.5"
+                className="flex items-baseline justify-between gap-4 py-2.5"
                 style={{
                   borderBottom: i < arr.length - 1 ? "1px dashed var(--linen)" : "none",
                 }}
@@ -304,7 +300,7 @@ export default function AboutPage() {
           CTA — shop or inquire
       ══════════════════════════════════════════════════════ */}
       <section
-        className="relative z-[1] py-24 text-center"
+        className="relative z-[1] px-6 py-16 text-center md:py-24"
         style={{ background: "var(--cream)" }}
       >
         <div
@@ -329,7 +325,7 @@ export default function AboutPage() {
           Browse the collection online, or come find us on a Sunday morning.
           Either way — there&apos;s something here for you.
         </p>
-        <div className="flex items-center justify-center gap-6">
+        <div className="flex flex-col items-center justify-center gap-4 sm:flex-row sm:gap-6">
           <Link
             href="/shop"
             className="ll-label inline-block border-2 px-10 py-4 text-[0.72rem] font-medium uppercase tracking-[0.15em] transition-all duration-200 hover:-translate-y-0.5"

@@ -217,6 +217,7 @@ export default function HomePage() {
         className="relative z-[1]"
         style={{ background: "var(--surface)" }}
       >
+
         <div className="md:grid md:min-h-[65vh]" style={{ gridTemplateColumns: "1fr 1fr" }}>
           <div
             className="ll-embroidery-bg relative overflow-hidden hidden md:block"
@@ -225,6 +226,16 @@ export default function HomePage() {
             <div className="absolute inset-8 flex flex-col gap-4">
               <SitePhoto siteKey="noemi-portrait"  alt="Noemi at her booth" className="flex-1 w-full" />
               <SitePhoto siteKey="noemi-portrait1" alt="Noemi at her booth" className="flex-1 w-full" />
+            </div>
+          </div>
+
+
+          <div
+            className="ll-embroidery-bg relative overflow-hidden block md:hidden"
+            style={{ background: "var(--surface-container-low)" }}
+          >
+            <div className="">
+              <SitePhoto siteKey="noemi-portrait"  alt="Noemi at her booth" className="flex-1 w-full" />
             </div>
           </div>
 
@@ -244,6 +255,14 @@ export default function HomePage() {
             <p className="ll-body text-[1.05rem] font-light leading-[1.85] mb-4" style={{ color: "var(--on-surface-variant)" }}>
               Since 1994, <strong style={{ fontWeight: 400, color: "var(--on-surface)" }}>Noemi</strong> has been a fixture at the Georgetown Flea Market — a destination for collectors, interior designers, and anyone who has ever stopped in front of a perfectly embroidered tablecloth and felt something.
             </p>
+
+            <div
+              className="ll-embroidery-bg relative overflow-hidden block md:hidden"
+              style={{ background: "var(--surface-container-low)" }}
+            >
+
+              <SitePhoto siteKey="noemi-portrait1" alt="Noemi at her booth" className="flex-1 w-full" />
+            </div>
 
             <blockquote
               className="ll-display my-8 py-5 pl-6 pr-4 text-[1.1rem] italic leading-relaxed"
