@@ -28,7 +28,10 @@ jobs:
           NEXT_PUBLIC_ADMIN_NAME: Admin
           NEXT_PUBLIC_CONTACT_EMAIL: oldworldlinens@icloud.com
           NEXT_PUBLIC_CLERK_ACCOUNT_URL: https://accounts.noemithelinenlady.net
-          LINENLADY_API_BASE_URL: https://www.noemithelinenlady.net
+          NEXT_PUBLIC_API_URL: https://www.noemithelinenlady.net       # ADD — matches what sitemap.ts actually reads
+          NEXT_PUBLIC_ENV: production                                    # ADD — matches what robots.ts actually reads
+          NEXT_PUBLIC_SITE_URL: https://noemithelinenlady.net             # ADD — sitemap.ts reads this too, also currently unset
+          LINENLADY_API_BASE_URL: https://www.noemithelinenlady.net     # keep if other code still uses this name
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_GENTLE_STONE_034578210 }}
           repo_token: ${{ secrets.GITHUB_TOKEN }} # Used for Github integrations (i.e. PR comments)
