@@ -16,6 +16,7 @@ const CATEGORIES: Category[] = [
   { icon: "🛏️", name: "Bed Linens",        sub: "Sheets · Shams · Coverlets",      cat: "bed linen"  },
   { icon: "🏺", name: "Table & Home",      sub: "Placemats · Runners · Doilies",   cat: "runner"     },
   { icon: "🧣", name: "Quilts & Blankets", sub: "Quilts · Throws · Blankets",      cat: "quilt"      },
+  { icon: "🫖", name: "Teacups & China",   sub: "Teacups · Saucers · Tea sets",    cat: "teacup"     },
   { icon: "→",  name: "Browse All",        sub: "Browse everything",               cat: null         },
 ];
 

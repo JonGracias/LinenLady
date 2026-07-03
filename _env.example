@@ -1,14 +1,39 @@
+# =================================================================
+# LinenLady frontend — environment variables
+# Copy to .env.local for local dev. Every var below is read somewhere
+# in the code; NEXT_PUBLIC_* are build-time and exposed to the browser.
+# =================================================================
+
 # -----------------------------------------------
 # Clerk Authentication
 # dashboard.clerk.com → your LinenLady app → API Keys
 # -----------------------------------------------
-# Clerk org ID that gets admin access
-# Clerk dashboard → Organizations → your org → copy ID (org_...)
-ADMIN_ORG_ID=
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
 CLERK_SECRET_KEY=
-# Same value, used client-side in SitePhoto.tsx
+# Clerk org ID that gets admin access (server-side, checked in src/proxy.ts).
+# Clerk dashboard → Organizations → your org → copy ID (org_...)
+ADMIN_ORG_ID=
+# Same value, exposed client-side for admin-only UI (SitePhoto.tsx, EnsureActiveOrg.tsx)
 NEXT_PUBLIC_ADMIN_ORG_ID=
+
+# -----------------------------------------------
+# Backend API (C# LinenLady.Api)
+# Server-side only. Defaults to http://localhost:5152 when unset.
+# -----------------------------------------------
+LINENLADY_API_BASE_URL=
+
+# -----------------------------------------------
+# Site URLs & environment
+# -----------------------------------------------
+# Canonical site origin — used by layout.tsx, sitemap.ts, robots.ts, and
+# per-item SEO/canonical URLs in shop/[sku]/page.tsx
+NEXT_PUBLIC_SITE_URL=
+# Origin the sitemap fetches the item list from (usually same host as the site)
+NEXT_PUBLIC_API_URL=
+# "production" enables indexing in robots.ts; anything else disallows crawlers
+NEXT_PUBLIC_ENV=
+# Absolute base used to build admin share links (AdminHeader.tsx)
+NEXT_PUBLIC_BASE_URL=
 
 # -----------------------------------------------
 # Store Identity (public — shown in UI)
@@ -17,11 +42,21 @@ NEXT_PUBLIC_STORE_NAME=
 NEXT_PUBLIC_SHORT_NAME=
 NEXT_PUBLIC_ADMIN_NAME=
 NEXT_PUBLIC_CONTACT_EMAIL=
-NEXT_PUBLIC_BASE_URL=
+
+# -----------------------------------------------
+# Images — Cloudflare image zone that fronts Azure Blob delivery
+# -----------------------------------------------
 NEXT_PUBLIC_CF_IMAGE_ZONE=
 
 # -----------------------------------------------
-# Backend API (C# Azure Functions)
-# Change if your backend runs on a different port
+# Cloudflare Turnstile (contact form spam protection)
+# Site key is public; the matching secret key lives on the C# API.
 # -----------------------------------------------
-LINENLADY_API_BASE_URL=
+NEXT_PUBLIC_TURNSTILE_SITE_KEY=
+
+# -----------------------------------------------
+# launch-blast.mjs ONLY — one-shot "we're open" email script.
+# Not read by the Next.js app; pass on the command line when running it.
+# -----------------------------------------------
+# CLERK_SECRET_KEY=   (reuses the value above)
+RESEND_API_KEY=

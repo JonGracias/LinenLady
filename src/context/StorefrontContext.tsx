@@ -22,7 +22,7 @@ import type {
   AvailabilityResponse,
   AvailabilityState,
 } from "@/types/inventory";
-import { isHardHidden } from "@/types/inventory";
+import { categoryQuery, isHardHidden } from "@/types/inventory";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -274,7 +274,7 @@ export function StorefrontProvider({ children }: { children: React.ReactNode }) 
       params.set("page",   String(page));
       params.set("limit",  String(pageSize));
       params.set("status", "active"); // always published — never drafts or deleted
-      if (category) params.set("category", category);
+      if (category) params.set("category", categoryQuery(category));
 
       const res  = await fetch(`/api/items?${params.toString()}`);
       if (!res.ok) throw new Error(`Failed to load items: ${res.status}`);

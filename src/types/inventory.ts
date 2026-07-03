@@ -45,22 +45,44 @@ export type Category =
   | "curtain"
   | "drape"
   | "quilt"
-  | "blanket";
+  | "blanket"
+  | "teacup";
 
 export const CATEGORY_OPTIONS: { value: Category; label: string }[] = [
-  { value: "tablecloth", label: "Tablecloths" },
-  { value: "napkin",     label: "Napkins"     },
-  { value: "bed linen",  label: "Bed Linens"  },
-  { value: "runner",     label: "Runners"     },
-  { value: "placemat",   label: "Placemats"   },
-  { value: "towel",      label: "Towels"      },
-  { value: "lace",       label: "Lace"        },
-  { value: "doily",      label: "Doilies"     },
-  { value: "curtain",    label: "Curtains"    },
-  { value: "drape",      label: "Drapes"      },
-  { value: "quilt",      label: "Quilts"      },
-  { value: "blanket",    label: "Blankets"    },
+  { value: "tablecloth", label: "Tablecloths"      },
+  { value: "napkin",     label: "Napkins"          },
+  { value: "bed linen",  label: "Bed Linens"       },
+  { value: "runner",     label: "Runners"          },
+  { value: "placemat",   label: "Placemats"        },
+  { value: "towel",      label: "Towels"           },
+  { value: "lace",       label: "Lace"             },
+  { value: "doily",      label: "Doilies"          },
+  { value: "curtain",    label: "Curtains"         },
+  { value: "drape",      label: "Drapes"           },
+  { value: "quilt",      label: "Quilts"           },
+  { value: "blanket",    label: "Blankets"         },
+  { value: "teacup",     label: "Teacups & China"  },
 ];
+
+// Category → keyword search terms used when filtering the catalog.
+//
+// The backend matches a category against an item's AI-generated KeywordsJson
+// (LOWER(KeywordsJson) LIKE '%term%'). A category may map to several synonyms
+// here; the storefront sends them comma-joined as the `category` query param
+// and the backend ORs a LIKE for each. Multiple terms make a filter tolerant
+// of however the AI happened to word an item — e.g. a china cup tagged
+// "saucer" or "tea set" but not "teacup" still lands in Teacups & China.
+//
+// A category NOT listed here matches on its own value (the historical
+// behaviour for the linen categories, whose value is already the keyword).
+export const CATEGORY_SEARCH_TERMS: Partial<Record<Category, string[]>> = {
+  teacup: ["teacup", "tea cup", "saucer", "tea set", "teapot"],
+};
+
+/** Comma-joined keyword terms to send as the `category` query param. */
+export function categoryQuery(category: Category): string {
+  return (CATEGORY_SEARCH_TERMS[category] ?? [category]).join(",");
+}
 
 export type Counts = {
   all: number;
