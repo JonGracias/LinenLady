@@ -78,7 +78,7 @@ export default function FilterBar({
         </div>
 
         <span
-          className="ll-label hidden md:inline text-[0.6rem] font-medium uppercase tracking-[0.15em]"
+          className="ll-label shrink-0 whitespace-nowrap text-[0.6rem] font-medium uppercase tracking-[0.15em]"
           style={{ color: "var(--on-surface-variant)" }}
         >
           {resultCount} {resultCount === 1 ? "piece" : "pieces"}
@@ -86,28 +86,38 @@ export default function FilterBar({
       </div>
 
       {/* Category pills */}
-      <div className="flex items-center gap-0 overflow-x-auto hide-scrollbar px-6 md:px-10 py-2">
-        {[{ value: null as Category | null, label: "All Pieces" }, ...CATEGORY_OPTIONS].map(({ value, label }) => {
-          const isActive = activeCategory === value;
-          return (
-            <button
-              key={label}
-              onClick={() => handleCategory(value)}
-              className="ll-label shrink-0 mr-1 text-[0.6rem] font-medium uppercase tracking-[0.12em] transition-all duration-300"
-              style={{
-                padding:      "0.3rem 0.85rem",
-                background:   isActive ? "var(--primary)" : "transparent",
-                color:        isActive ? "var(--on-primary)" : "var(--on-surface-variant)",
-                border:       isActive ? "1px solid var(--primary)" : "1px solid rgba(196,181,168,0.25)",
-                borderRadius: "0.25rem",
-                cursor:       "pointer",
-                whiteSpace:   "nowrap",
-              }}
-            >
-              {label}
-            </button>
-          );
-        })}
+      <div className="relative">
+        <div className="flex items-center gap-0 overflow-x-auto hide-scrollbar px-6 md:px-10 py-2">
+          {[{ value: null as Category | null, label: "All Pieces" }, ...CATEGORY_OPTIONS].map(({ value, label }) => {
+            const isActive = activeCategory === value;
+            return (
+              <button
+                key={label}
+                onClick={() => handleCategory(value)}
+                className="ll-label shrink-0 mr-1 text-[0.6rem] font-medium uppercase tracking-[0.12em] transition-all duration-300"
+                style={{
+                  padding:      "0.5rem 0.9rem",
+                  background:   isActive ? "var(--primary)" : "transparent",
+                  color:        isActive ? "var(--on-primary)" : "var(--on-surface-variant)",
+                  border:       isActive ? "1px solid var(--primary)" : "1px solid rgba(196,181,168,0.25)",
+                  borderRadius: "0.25rem",
+                  cursor:       "pointer",
+                  whiteSpace:   "nowrap",
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Right-edge fade — hints the pill row scrolls horizontally on
+            mobile, where the scrollbar is hidden and there's no other cue. */}
+        <div
+          className="pointer-events-none absolute inset-y-0 right-0 w-10 md:hidden"
+          style={{ background: "linear-gradient(to right, transparent, var(--surface))" }}
+          aria-hidden="true"
+        />
       </div>
     </div>
   );

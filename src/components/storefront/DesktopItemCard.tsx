@@ -287,7 +287,7 @@ export default function DesktopItemCard({ item, thumbnailUrl }: Props) {
           <button
             onClick={toggleBasket}
             disabled={busy || isLockedByOther}
-            className="ll-label text-[0.52rem] uppercase tracking-[0.12em] px-2.5 py-1 transition-all duration-300 disabled:opacity-50"
+            className="ll-label text-[0.6rem] uppercase tracking-[0.12em] px-3 py-2 transition-all duration-300 disabled:opacity-50"
             style={{
               background:
                 isLockedByOther                ? "transparent"

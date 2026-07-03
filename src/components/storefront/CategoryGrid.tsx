@@ -16,7 +16,7 @@ const CATEGORIES: Category[] = [
   { icon: "🛏️", name: "Bed Linens",        sub: "Sheets · Shams · Coverlets",      cat: "bed linen"  },
   { icon: "🏺", name: "Table & Home",      sub: "Placemats · Runners · Doilies",   cat: "runner"     },
   { icon: "🧣", name: "Quilts & Blankets", sub: "Quilts · Throws · Blankets",      cat: "quilt"      },
-  { icon: "🫖", name: "Teacups & China",   sub: "Teacups · Saucers · Tea sets",    cat: "teacup"     },
+  { icon: "🫖", name: "Fine China",   sub: "Teacups · Saucers · Tea sets",    cat: "teacup"     },
   { icon: "→",  name: "Browse All",        sub: "Browse everything",               cat: null         },
 ];
 
@@ -48,7 +48,7 @@ export default function CategoryGrid({ SectionTitle }: Props) {
             <Link
               key={name}
               href={cat ? `/shop?category=${cat}` : "/shop"}
-              className="group ll-category-cell"
+              className={`group ll-category-cell${isAllPieces ? " ll-category-cell--wide" : ""}`}
               style={{
                 display:        "flex",
                 alignItems:     "center",
@@ -85,17 +85,14 @@ export default function CategoryGrid({ SectionTitle }: Props) {
                   {name}
                 </span>
                 <span
-                  className="ll-label"
+                  className="ll-label ll-category-sub"
                   style={{
-                    fontSize:      "0.5rem",
+                    fontSize:      "0.55rem",
                     lineHeight:    1.3,
                     textTransform: "uppercase",
                     letterSpacing: "0.1em",
                     color:         isAllPieces ? "rgba(253,250,246,0.7)" : "var(--on-surface-variant)",
-                    opacity:       0,
-                    transition:    "opacity 300ms ease",
                   }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}
                 >
                   {sub}
                 </span>
@@ -118,8 +115,17 @@ export default function CategoryGrid({ SectionTitle }: Props) {
         @media (min-width: 768px) {
           .ll-category-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
         }
-        .ll-category-cell:hover .ll-label {
-          opacity: 1 !important;
+        /* "Browse All" spans the full last row so the grid stays balanced
+           at every column count (2 / 3 / 6) instead of leaving an orphan. */
+        .ll-category-cell--wide { grid-column: 1 / -1; }
+
+        /* Mobile-first: sub-labels are visible by default (touch has no
+           hover). Only where a hover-capable pointer exists do we hide them
+           and reveal on hover, preserving the desktop reveal interaction. */
+        .ll-category-sub { opacity: 1; transition: opacity 300ms ease; }
+        @media (hover: hover) {
+          .ll-category-sub { opacity: 0; }
+          .ll-category-cell:hover .ll-category-sub { opacity: 1; }
         }
       `}</style>
     </section>

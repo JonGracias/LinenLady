@@ -139,7 +139,7 @@ export default function ShopSection({ maxItems, hideFilters }: Props) {
                   <button
                     key={p}
                     onClick={() => setPage(p as number)}
-                    className="ll-label h-9 w-9 text-[0.65rem] font-medium transition-all duration-400"
+                    className="ll-label h-11 w-11 text-[0.65rem] font-medium transition-all duration-400"
                     style={{
                       background:   p === page ? "var(--primary)" : "transparent",
                       color:        p === page ? "var(--on-primary)" : "var(--on-surface-variant)",

@@ -117,7 +117,7 @@ export default function HomePage() {
       {/* ── 4. Market schedule ── */}
       <section
         id="schedule"
-        className="relative z-[1] px-6 md:px-16 py-24"
+        className="relative z-[1] px-6 md:px-16 py-16 md:py-24"
         style={{ background: "var(--surface-container-low)" }}
       >
         <div className="mx-auto max-w-5xl md:grid md:items-center md:gap-24" style={{ gridTemplateColumns: "1fr 1fr" }}>
@@ -182,7 +182,7 @@ export default function HomePage() {
       {/* ── 5. Inquire CTA ── */}
       <section
         id="contact"
-        className="relative z-[1] px-6 md:px-16 py-20"
+        className="relative z-[1] px-6 md:px-16 py-14 md:py-20"
         style={{ background: "var(--primary)" }}
       >
         <div className="mx-auto max-w-5xl md:flex md:items-center md:justify-between gap-12">
@@ -239,7 +239,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="flex flex-col justify-center px-6 md:px-16 py-20">
+          <div className="flex flex-col justify-center px-6 md:px-16 py-14 md:py-20">
             <p className="ll-label mb-3 flex items-center gap-3 text-[0.6rem] font-medium uppercase tracking-[0.25em]" style={{ color: "var(--primary)" }}>
               <span className="inline-block h-px w-8 shrink-0" style={{ background: "var(--primary)" }} />
               The Story
