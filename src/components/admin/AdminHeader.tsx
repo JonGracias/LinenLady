@@ -9,7 +9,8 @@ const base = process.env.NEXT_PUBLIC_BASE_URL ?? "";
 
 const NAV = [
   { href: "/admin/items",  label: "Inventory" },
-  { href: "/admin/hero",   label: "Banner"      },
+  { href: "/admin/orders", label: "Orders"    },
+  { href: "/admin/hero",   label: "Banner"    },
   { href: "/admin/media",  label: "Media"     },
 ];
 
