@@ -69,7 +69,7 @@ function pillFor(state: AvailabilityState): PillSpec | null {
 }
 
 export default function DesktopItemCard({ item, thumbnailUrl }: Props) {
-  const { add, remove, has } = useCustomerSession();
+  const { add, has } = useCustomerSession();
   const router               = useRouter();
   const [busy, setBusy]      = useState(false);
   const [hint, setHint]      = useState<string | null>(null);
@@ -102,9 +102,9 @@ export default function DesktopItemCard({ item, thumbnailUrl }: Props) {
       ? "/basket?tab=orders"
       : "/basket";
 
-  // Add or remove. Async because the signed-in path round-trips the API.
-  // We optimistically suppress double-clicks via `busy` rather than locally
-  // toggling the UI — `has(...)` is the source of truth, and the basket
+  // Add, or navigate to the basket when the piece is already held. Async
+  // because the signed-in add path round-trips the API. Double-clicks are
+  // suppressed via `busy`; `has(...)` is the source of truth, and the basket
   // context updates it as soon as the API call resolves.
   const toggleBasket = async (e: React.MouseEvent) => {
     e.preventDefault(); // don't navigate via the wrapping <Link>
@@ -120,35 +120,39 @@ export default function DesktopItemCard({ item, thumbnailUrl }: Props) {
       return;
     }
 
+    // Already in the basket → go start checkout. Removal lives on the
+    // basket page, not here — an "in basket" tap should never silently
+    // undo the add.
+    if (inBasket) {
+      router.push("/basket");
+      return;
+    }
+
     setBusy(true);
     setHint(null);
     try {
-      if (inBasket) {
-        await remove(item.inventoryId);
-      } else {
-        const result = await add({
-          inventoryId:    item.inventoryId,
-          sku:            item.sku,
-          name:           item.name,
-          unitPriceCents: item.unitPriceCents,
-          thumbnailUrl,
-        });
+      const result = await add({
+        inventoryId:    item.inventoryId,
+        sku:            item.sku,
+        name:           item.name,
+        unitPriceCents: item.unitPriceCents,
+        thumbnailUrl,
+      });
 
-        // Reasoned error surfacing — distinct messages for distinct UX
-        // outcomes. "already_in_basket" is a no-op (state will reflect it).
-        if (!result.ok) {
-          if (result.reason === "needs_email_verify") {
-            setHint("Verify your email before adding pieces.");
-          } else if (result.reason === "held_by_other") {
-            // Race: availability said available at grid-render time but
-            // someone grabbed it in the window before this click landed.
-            setHint("Sorry, this piece is not currently available.");
-          } else if (result.reason === "needs_signin") {
-            const here = window.location.pathname + window.location.search;
-            router.push(`/sign-in?redirect_url=${encodeURIComponent(here)}`);
-          } else if (result.reason !== "already_in_basket") {
-            setHint(result.message || "Couldn't add that piece.");
-          }
+      // Reasoned error surfacing — distinct messages for distinct UX
+      // outcomes. "already_in_basket" is a no-op (state will reflect it).
+      if (!result.ok) {
+        if (result.reason === "needs_email_verify") {
+          setHint("Verify your email before adding pieces.");
+        } else if (result.reason === "held_by_other") {
+          // Race: availability said available at grid-render time but
+          // someone grabbed it in the window before this click landed.
+          setHint("Sorry, this piece is not currently available.");
+        } else if (result.reason === "needs_signin") {
+          const here = window.location.pathname + window.location.search;
+          router.push(`/sign-in?redirect_url=${encodeURIComponent(here)}`);
+        } else if (result.reason !== "already_in_basket") {
+          setHint(result.message || "Couldn't add that piece.");
         }
       }
     } finally {
@@ -162,16 +166,16 @@ export default function DesktopItemCard({ item, thumbnailUrl }: Props) {
     if (busy)            return "…";
     if (isYours)         return state === "YourPendingPayment" ? "Pay →" : "View →";
     if (isLockedByOther) return "Sold";
-    if (inBasket)        return "✓ Added";
+    if (inBasket)        return "✓ Basket →";
     return "+ Add";
   })();
 
   const fullLabel: string = (() => {
-    if (busy)                           return inBasket ? "Removing…" : "Adding…";
+    if (busy)                           return "Adding…";
     if (state === "YourBasket")         return "View in Your Basket";
     if (state === "YourPendingPayment") return "Complete Payment →";
     if (isLockedByOther)                return "Sold";
-    if (inBasket)                       return "✓ In Basket";
+    if (inBasket)                       return "View in Basket →";
     return "+ Add to Basket";
   })();
 
