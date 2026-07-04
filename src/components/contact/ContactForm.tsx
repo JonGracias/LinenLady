@@ -83,7 +83,12 @@ export default function ContactForm({
   // Token is null until the widget resolves. The submit button stays disabled
   // until then. Tokens are single-use, so we reset the widget on any submit
   // failure (see onSubmit) to let the user retry cleanly.
+  //
+  // If the site key is missing from the build or the widget errors out, the
+  // form can never submit (the API fails closed without a valid token) — so
+  // surface that state explicitly instead of leaving a dead disabled button.
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileBroken, setTurnstileBroken] = useState(!TURNSTILE_SITE_KEY);
   const turnstileRef = useRef<TurnstileInstance>(null);
 
   useEffect(() => { setIsMobile(isMobileDevice()); }, []);
@@ -290,16 +295,29 @@ export default function ContactForm({
         </p>
       )}
 
-      <div className="mt-6">
-        <Turnstile
-          ref={turnstileRef}
-          siteKey={TURNSTILE_SITE_KEY}
-          onSuccess={setTurnstileToken}
-          onExpire={() => setTurnstileToken(null)}
-          onError={() => setTurnstileToken(null)}
-          options={{ theme: "auto", size: "flexible" }}
-        />
-      </div>
+      {TURNSTILE_SITE_KEY && (
+        <div className="mt-6">
+          <Turnstile
+            ref={turnstileRef}
+            siteKey={TURNSTILE_SITE_KEY}
+            onSuccess={(token) => { setTurnstileToken(token); setTurnstileBroken(false); }}
+            onExpire={() => setTurnstileToken(null)}
+            onError={() => { setTurnstileToken(null); setTurnstileBroken(true); }}
+            options={{ theme: "auto", size: "flexible" }}
+          />
+        </div>
+      )}
+
+      {turnstileBroken && (
+        <p
+          role="alert"
+          className="ll-body mt-6 text-sm font-light leading-relaxed"
+          style={{ color: "var(--primary)" }}
+        >
+          The spam-protection check couldn&apos;t load, so this form can&apos;t
+          send right now. Please use the email link below instead.
+        </p>
+      )}
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-6">
         <button
